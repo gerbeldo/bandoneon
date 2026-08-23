@@ -1,5 +1,5 @@
 <template>
-  <div class="mb-5 flex flex-wrap justify-center gap-x-24 print:hidden">
+  <div class="mb-3 flex flex-wrap justify-center gap-x-24 sm:mb-5 print:hidden">
     <ButtonGroup class="mb-3">
       <Button
         v-for="value in ['left', 'right']"

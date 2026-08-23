@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto flex w-full max-w-4xl flex-1 items-center px-6 pt-6">
+  <div class="mx-auto flex w-full max-w-4xl flex-1 items-center px-2 pt-4 sm:px-6 sm:pt-6">
     <SvgKeyboard ref="keyboardEl">
       <!-- Scale paths before the buttons so labels always paint on top. -->
       <SvgPath

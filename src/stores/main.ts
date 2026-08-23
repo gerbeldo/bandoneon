@@ -88,6 +88,25 @@ export const useStore = defineStore('main', {
 
       return positions;
     },
+
+    // Tight frame around the current layout so small layouts render as large
+    // as the widest one. 58 = button cell size in viewBox units.
+    keyboardViewBox(): { x: number; y: number; width: number; height: number } {
+      const positions = this.keyPositions;
+      if (positions.length === 0) return { x: 0, y: 0, width: 690, height: 410 };
+
+      const xs = positions.map(([x]) => x);
+      const ys = positions.map(([, y]) => y);
+      const minX = Math.min(...xs);
+      const minY = Math.min(...ys);
+
+      return {
+        x: minX,
+        y: minY,
+        width: Math.max(...xs) + 58 - minX,
+        height: Math.max(...ys) + 58 - minY,
+      };
+    },
   },
 
   actions: {

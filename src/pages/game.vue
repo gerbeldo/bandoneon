@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto flex w-full max-w-4xl flex-1 items-center px-6 pt-6">
+  <div class="mx-auto flex w-full max-w-4xl flex-1 items-center px-2 pt-4 sm:px-6 sm:pt-6">
     <SvgKeyboard>
       <SvgButton
         v-for="([x, y, tonal], idx) in positions"
@@ -29,7 +29,7 @@
       </Button>
     </div>
     <Progress
-      class="mt-8"
+      class="mt-4 sm:mt-8"
       :values="[
         { value: progress[2], color: '#22c55e' /* green-500 */ },
         { value: progress[1], color: '#eab308' /* yellow-500 */ },

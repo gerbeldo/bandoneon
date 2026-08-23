@@ -3,7 +3,7 @@
     <div class="mx-auto max-w-(--breakpoint-md) p-6">
       <div class="mb-4">
         <label class="block text-xs font-medium text-neutral-500 dark:text-neutral-400">
-          {{ t('keyboard') }}
+          {{ t('instrument') }}
           <Select
             v-model="instrument"
             class="mt-1"

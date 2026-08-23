@@ -1,11 +1,22 @@
 <template>
-  <svg ref="svgEl" class="keyboard mb-4" viewBox="0 0 690 410" width="720" height="428">
+  <svg
+    ref="svgEl"
+    class="keyboard mb-4"
+    :viewBox="`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`"
+    :width="viewBox.width"
+    :height="viewBox.height"
+  >
     <slot />
   </svg>
 </template>
 
 <script setup lang="ts">
+import { storeToRefs } from 'pinia';
 import { ref } from 'vue';
+
+import { useStore } from '../stores/main';
+
+const { keyboardViewBox: viewBox } = storeToRefs(useStore());
 
 const svgEl = ref();
 
@@ -50,8 +61,9 @@ defineExpose({ download });
 <style scoped>
 .keyboard {
   width: 100%;
-  height: calc(100% / 720 * 428);
-  max-height: calc(90vh - 5em);
-  min-height: 10rem;
+  /* Height tracks the width/height attributes' ratio; the cap only binds in
+     landscape, where the drawing centers horizontally inside the box. */
+  height: auto;
+  max-height: calc(90dvh - 5em);
 }
 </style>

@@ -1,6 +1,6 @@
 <template>
   <div
-    class="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-2 px-6 pt-6 pb-6 md:flex-row md:items-center md:gap-8"
+    class="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-2 px-2 pt-4 pb-6 sm:px-6 sm:pt-6 md:flex-row md:items-center md:gap-8"
   >
     <div class="mx-auto w-full max-w-xs shrink-0 md:w-60">
       <p class="text-center text-lg font-medium capitalize">{{ t(side) }} · {{ t(direction) }}</p>

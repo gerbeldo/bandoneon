@@ -4,6 +4,10 @@ A learning app for bisonoric bandoneon keyboards: it renders each keyboard layou
 
 ## Language
 
+**Instrument**:
+A specific bandoneon or concertina model (Rheinische 142, Einheitskonzertina 128, …), each with its own keyboards. Chosen in settings.
+_Avoid_: keyboard (as the model name), model
+
 **Side**:
 Which keyboard is shown — left hand or right hand.
 _Avoid_: manual, half
@@ -14,6 +18,10 @@ _Avoid_: bellows state
 
 **Layout**:
 One side in one direction — the set of button-to-note assignments the player sees at once.
+
+**Keyboard**:
+The button field shown for one layout — what the player reads and taps.
+_Avoid_: button grid
 
 **Staff label**:
 The Alsina-chart rendering of a button: a local five-line staff fragment through the button circle, with a notehead on the note's line or space and ledger lines as needed. Shows one spelling at a time; the enharmonics toggle switches between sharp and flat.
