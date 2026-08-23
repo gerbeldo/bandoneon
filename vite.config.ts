@@ -6,6 +6,8 @@ import VueRouter from 'vue-router/vite';
 
 /** @type {import('vite').UserConfig} */
 export default defineConfig({
+  // Served from https://gerbeldo.github.io/bandoneon/, not a domain root.
+  base: '/bandoneon/',
   plugins: [
     tailwindcss(),
     VueRouter(),

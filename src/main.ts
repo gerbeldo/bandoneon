@@ -13,7 +13,7 @@ import es from './locales/es.json';
 import './style.css';
 
 const router = createRouter({
-  history: createWebHistory(),
+  history: createWebHistory(import.meta.env.BASE_URL),
   routes,
 });
 
