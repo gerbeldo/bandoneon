@@ -9,6 +9,12 @@
         <span v-if="route.path === '/game'" class="ms-2 text-neutral-500 dark:text-neutral-400">
           Game
         </span>
+        <span
+          v-else-if="route.path === '/staff-game'"
+          class="ms-2 text-neutral-500 dark:text-neutral-400"
+        >
+          Staff game
+        </span>
       </RouterLink>
     </div>
     <div class="flex-none">
