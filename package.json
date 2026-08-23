@@ -50,6 +50,7 @@
     "vue-tsc": "^3.3.9"
   },
   "overrides": {
-    "typescript": "$typescript"
+    "typescript": "$typescript",
+    "sharp": "^0.35.3"
   }
 }
