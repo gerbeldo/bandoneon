@@ -43,14 +43,14 @@
     "@vue/tsconfig": "^0.9.1",
     "jsdom": "^30.0.1",
     "npm-run-all2": "^9.0.3",
-    "oxfmt": "^0.62.0",
+    "oxfmt": "^0.64.0",
     "oxlint": "^1.77.0",
     "typescript": "npm:typescript-native-bridge@^6.0.3-bridge.12.tsgo.7.0.2",
     "vitest": "^4.1.10",
     "vue-tsc": "^3.3.9"
   },
   "overrides": {
-    "typescript": "$typescript",
-    "sharp": "^0.35.3"
+    "sharp": "^0.35.3",
+    "typescript": "$typescript"
   }
 }

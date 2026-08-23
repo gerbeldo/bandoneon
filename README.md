@@ -46,11 +46,11 @@ usually means a cached service worker rather than a broken build.
 
 Other scripts:
 
-| Command | Purpose |
-| --- | --- |
-| `npm test` | Run the test suite |
-| `npm run lint` | Lint with oxlint |
-| `npm run format` | Format with oxfmt |
+| Command              | Purpose                 |
+| -------------------- | ----------------------- |
+| `npm test`           | Run the test suite      |
+| `npm run lint`       | Lint with oxlint        |
+| `npm run format`     | Format with oxfmt       |
 | `npm run type-check` | Type-check with vue-tsc |
 
 ## Deployment
