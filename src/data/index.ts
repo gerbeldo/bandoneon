@@ -18,10 +18,11 @@ export const instruments = <Record<string, Instrument>>{
 
 export const difficulties = <Array<'easy' | 'medium'>>['easy', 'medium'];
 
-export const pitchNotations = <Array<'scientific' | 'helmholtz' | 'solfege'>>[
+export const pitchNotations = <Array<'scientific' | 'helmholtz' | 'solfege' | 'staff'>>[
   'scientific',
   'helmholtz',
   'solfege',
+  'staff',
 ];
 
 export const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];

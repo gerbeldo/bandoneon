@@ -1,6 +1,13 @@
 <template>
   <div class="mx-auto flex w-full max-w-4xl flex-1 items-center px-6 pt-6">
     <SvgKeyboard ref="keyboardEl">
+      <!-- Scale paths before the buttons so labels always paint on top. -->
+      <SvgPath
+        v-for="(path, index) in scalePaths"
+        :key="index"
+        :stroke="getScaleColor(index)"
+        :d="path"
+      />
       <SvgButton
         v-for="([x, y, tonal], idx) in keyPositions"
         :key="idx"
@@ -10,12 +17,6 @@
         :tonal="tonal"
         :color="color(tonal)"
         @click="toggle(tonal)"
-      />
-      <SvgPath
-        v-for="(path, index) in scalePaths"
-        :key="index"
-        :stroke="getScaleColor(index)"
-        :d="path"
       />
     </SvgKeyboard>
   </div>

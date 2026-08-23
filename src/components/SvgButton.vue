@@ -1,7 +1,16 @@
 <template>
   <g :class="{ selected }" @click.prevent="emit('click')">
     <circle :cx="x + 29" :cy="y + 29" r="28" :fill="fill" :stroke="stroke" stroke-width="1.5" />
+    <StaffLabel
+      v-if="label === null && settings.pitchNotation === 'staff'"
+      class="staff-label"
+      :cx="x + 29"
+      :cy="y + 29"
+      :note="spelled"
+      :side="store.side"
+    />
     <text
+      v-else
       :x="x + 29"
       :y="y + 36"
       :fill="selected ? '#fff' : 'currentColor'"
@@ -30,6 +39,7 @@ import { useStore } from '../stores/main';
 import { useSettingsStore } from '../stores/settings';
 import { scientificToHelmholtzNotation } from '../utils/helmholtz';
 import { scientificToSolfegeNotation } from '../utils/solfege';
+import StaffLabel from './StaffLabel.vue';
 
 const props = withDefaults(
   defineProps<{
@@ -52,8 +62,12 @@ const emit = defineEmits<{ click: [] }>();
 const store = useStore();
 const settings = useSettingsStore();
 
+const spelled = computed(() =>
+  store.showEnharmonics ? Note.enharmonic(props.tonal) : props.tonal,
+);
+
 const format = computed(() => {
-  const note = Note.get(store.showEnharmonics ? Note.enharmonic(props.tonal) : props.tonal);
+  const note = Note.get(spelled.value);
   if (note.empty) return ['', ''];
 
   if (settings.pitchNotation === 'helmholtz') {
@@ -101,5 +115,14 @@ text {
 
 .dark .selected text {
   fill: #262626;
+}
+
+/* Staff labels draw in currentColor; invert on selection exactly like text. */
+.selected .staff-label {
+  color: #fff;
+}
+
+.dark .selected .staff-label {
+  color: #262626;
 }
 </style>
