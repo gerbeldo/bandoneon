@@ -28,6 +28,27 @@ export function itemKey(
   return `${instrument}/${side}/${direction}/${row}/${column}/${quizDirection}`;
 }
 
+export interface ItemKeyParts {
+  instrument: string;
+  side: Side;
+  direction: Direction;
+  row: number;
+  column: number;
+  quizDirection: QuizDirection;
+}
+
+export function parseItemKey(key: string): ItemKeyParts {
+  const [instrument, side, direction, row, column, quizDirection] = key.split('/');
+  return {
+    instrument,
+    side: side as Side,
+    direction: direction as Direction,
+    row: Number(row),
+    column: Number(column),
+    quizDirection: quizDirection as QuizDirection,
+  };
+}
+
 // An instrument nests grids per direction, except when one grid serves both
 // directions (peguri146 stores a flat array per side).
 export function layoutGrid(
@@ -74,13 +95,19 @@ export function twinGroups(buttons: GridButton[]): number[][] {
   return [...byMidi.values()].filter((group) => group.length > 1);
 }
 
-// Random prompt order for a sweep; sort keys are drawn once per index so the
-// comparator stays consistent while sorting.
+// Shuffled copy: one sort key is drawn per item so the comparator stays
+// consistent while sorting; `random` is injectable so draws are repeatable.
+export function shuffled<T>(items: T[], random: () => number = Math.random): T[] {
+  const keys = items.map(() => random());
+  return items
+    .map((_, index) => index)
+    .sort((a, b) => keys[a] - keys[b])
+    .map((index) => items[index]);
+}
+
+// Random prompt order for a sweep.
 export function shuffledOrder(count: number): number[] {
-  const indices = [...Array(count).keys()];
-  const random = indices.map(() => Math.random());
-  indices.sort((a, b) => (random[a] ?? 0) - (random[b] ?? 0));
-  return indices;
+  return shuffled([...Array(count).keys()]);
 }
 
 export interface Prompt {
