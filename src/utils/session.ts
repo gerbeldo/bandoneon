@@ -3,6 +3,8 @@
 // the one midi-based rule, stamps the timestamp, and writes one answer event
 // per answer, immediately — abandoning mid-sweep loses nothing.
 
+import { Note } from 'tonal';
+
 import type { AnswerEvent, Grade } from '../stores/practice';
 import { scoreTap } from './game';
 
@@ -38,7 +40,7 @@ export function layoutGrid(
   return keys?.[direction] ?? [];
 }
 
-interface GridButton {
+export interface GridButton {
   row: number;
   column: number;
   pitch: string;
@@ -58,6 +60,20 @@ export function flattenGrid(grid: string[][]): GridButton[] {
   return buttons;
 }
 
+// Buttons of one layout sounding the same pitch (midi-equal, spelling aside),
+// as groups of button indices in render order. Real layouts carry pairs at most.
+export function twinGroups(buttons: GridButton[]): number[][] {
+  const byMidi = new Map<number, number[]>();
+  buttons.forEach((button, index) => {
+    const midi = Note.midi(button.pitch);
+    if (midi === null) return;
+    const group = byMidi.get(midi);
+    if (group) group.push(index);
+    else byMidi.set(midi, [index]);
+  });
+  return [...byMidi.values()].filter((group) => group.length > 1);
+}
+
 // Random prompt order for a sweep; sort keys are drawn once per index so the
 // comparator stays consistent while sorting.
 export function shuffledOrder(count: number): number[] {
@@ -73,6 +89,10 @@ export interface Prompt {
   buttonIndex: number;
   // The prompted button's pitch — what the staff game draws.
   pitch: string;
+  // Duplicate-pitch marker (ADR 0004), only in pitch-prompted modes: 'expected'
+  // when the pitch also sounds on another button of this layout, 'follow-up' on
+  // the prompt the engine inserts for the remaining button.
+  twin?: 'expected' | 'follow-up';
 }
 
 // The two answer forms on the seam (ADR 0004): the note game names a pitch;
@@ -83,6 +103,8 @@ export type AnswerInput =
 
 export interface AnswerOutcome {
   grade: Grade;
+  // The button the answer was credited to: the prompted one, or on a correct
+  // tap of a twin pitch, the button actually tapped.
   buttonIndex: number;
 }
 
@@ -100,51 +122,98 @@ export interface SweepOptions {
 }
 
 export interface SessionEngine {
+  // Grows by one per follow-up inserted.
   total: number;
   prompt(): Prompt | null;
   answer(input: AnswerInput): AnswerOutcome;
 }
 
+interface DrawnPrompt {
+  buttonIndex: number;
+  // Set on a follow-up: the twin already credited, which this prompt must not accept again.
+  followUpOf?: number;
+}
+
 export function createSweep(options: SweepOptions): SessionEngine {
   const buttons = flattenGrid(options.grid);
   const order = options.order?.(buttons.length) ?? buttons.map((_, i) => i);
+  const draw: DrawnPrompt[] = order.map((buttonIndex) => ({ buttonIndex }));
   let index = 0;
 
+  // Only a pitch-prompted mode can be ambiguous; the note game prompts by button.
+  const twins = new Map<number, number[]>();
+  if (options.quizDirection === 'reverse') {
+    for (const group of twinGroups(buttons)) for (const i of group) twins.set(i, group);
+  }
+
+  const key = (button: GridButton) =>
+    itemKey(
+      options.instrument,
+      options.side,
+      options.direction,
+      button.row,
+      button.column,
+      options.quizDirection,
+    );
+
   return {
-    total: buttons.length,
+    get total() {
+      return draw.length;
+    },
 
     prompt() {
-      if (index >= buttons.length) return null;
-      const buttonIndex = order[index];
-      return { index, total: buttons.length, buttonIndex, pitch: buttons[buttonIndex].pitch };
+      const drawn = draw[index];
+      if (!drawn) return null;
+      const prompt: Prompt = {
+        index,
+        total: draw.length,
+        buttonIndex: drawn.buttonIndex,
+        pitch: buttons[drawn.buttonIndex].pitch,
+      };
+      if (drawn.followUpOf !== undefined) prompt.twin = 'follow-up';
+      else if (twins.has(drawn.buttonIndex)) prompt.twin = 'expected';
+      return prompt;
     },
 
     answer(input) {
-      if (index >= buttons.length) throw new Error('sweep is done');
-      const buttonIndex = order[index];
-      const button = buttons[buttonIndex];
-      // A tapped position resolves to its pitch through the same grid it was
-      // prompted from; a tap outside the grid grades wrong, not a throw.
-      const answered = 'pitch' in input ? input.pitch : (buttons[input.tappedIndex]?.pitch ?? '');
-      const grade: Grade = scoreTap(button.pitch, answered) ?? 0;
-      options.record(
-        itemKey(
-          options.instrument,
-          options.side,
-          options.direction,
-          button.row,
-          button.column,
-          options.quizDirection,
-        ),
-        {
-          grade,
-          timestamp: options.now(),
-          responseMs: Math.min(Math.max(input.elapsedMs, 0), RESPONSE_MS_CAP),
-          mode: options.mode,
-        },
-      );
+      const drawn = draw[index];
+      if (!drawn) throw new Error('sweep is done');
+      const target = buttons[drawn.buttonIndex];
+      const group = twins.get(drawn.buttonIndex);
+      let credited = drawn.buttonIndex;
+      let grade: Grade;
+
+      if ('pitch' in input) {
+        grade = scoreTap(target.pitch, input.pitch) ?? 0;
+      } else if (input.tappedIndex === drawn.followUpOf) {
+        // The follow-up asks for the remaining button; the one already credited is spent.
+        grade = 0;
+      } else {
+        // A tapped position resolves to its pitch through the same grid it was
+        // prompted from; a tap outside the grid grades wrong, not a throw.
+        grade = scoreTap(target.pitch, buttons[input.tappedIndex]?.pitch ?? '') ?? 0;
+        // A correct tap on a twin pitch landed on the target or its twin:
+        // credit the button actually tapped.
+        if (grade === 2 && group) credited = input.tappedIndex;
+      }
+
+      options.record(key(buttons[credited]), {
+        grade,
+        timestamp: options.now(),
+        responseMs: Math.min(Math.max(input.elapsedMs, 0), RESPONSE_MS_CAP),
+        mode: options.mode,
+      });
+
+      // A correct first answer on a twin pitch asks for the other button next.
+      if (grade === 2 && group && drawn.followUpOf === undefined) {
+        const other = group.find((i) => i !== credited);
+        if (other !== undefined) {
+          draw.splice(index + 1, 0, { buttonIndex: other, followUpOf: credited });
+        }
+      }
+
       index += 1;
-      return { grade, buttonIndex };
+      return { grade, buttonIndex: credited };
     },
   };
 }

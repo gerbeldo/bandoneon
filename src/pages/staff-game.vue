@@ -25,8 +25,15 @@
             { value: progress[0], color: SCORE_COLORS[0] },
           ]"
         />
-        <p class="mt-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
-          {{ t('hint_staff_game') }}
+        <p
+          class="mt-2 text-center text-sm"
+          :class="
+            prompt?.twin
+              ? 'font-medium text-neutral-700 dark:text-neutral-200'
+              : 'text-neutral-500 dark:text-neutral-400'
+          "
+        >
+          {{ hint }}
         </p>
       </div>
     </div>
@@ -97,6 +104,8 @@ const PAUSE_MS = 900;
 const engine = shallowRef<SessionEngine | null>(null);
 const prompt = ref<Prompt | null>(null);
 const grades = ref<Record<number, Grade>>({});
+// Per answer, [wrong, partial, correct]: a follow-up grades a button a second time.
+const counts = ref<[number, number, number]>([0, 0, 0]);
 // The last tap's result, kept while the feedback pause runs; taps are ignored meanwhile.
 const tapResult = ref<{ note: string; score: Grade } | null>(null);
 const flash = ref<{ idx: number; score: Grade } | null>(null);
@@ -115,12 +124,20 @@ const practice = usePracticeStore();
 
 const spell = (tonal: string) => (showEnharmonics.value ? Note.enharmonic(tonal) : tonal);
 
-const total = computed(() => engine.value?.total ?? 0);
+// Re-read from the engine after each answer: a follow-up grows it mid-run.
+const total = ref(0);
 // The prompt ref stays on the answered prompt while the feedback pause runs,
 // so the count advances only when the next prompt appears.
 const answeredCount = computed(() => (prompt.value ? prompt.value.index : total.value));
 
 const quizzedSpelled = computed(() => (prompt.value ? spell(prompt.value.pitch) : ''));
+
+// The twin-expected marker takes the hint's place, adding no height on phones.
+const hint = computed(() => {
+  if (prompt.value?.twin === 'follow-up') return t('twin_follow_up');
+  if (prompt.value?.twin === 'expected') return t('twin_expected');
+  return t('hint_staff_game');
+});
 
 // A correct tap recolors the quizzed note green; wrong and partial taps keep it
 // in the text color and draw the tapped note next to it in the result color.
@@ -159,6 +176,7 @@ function armClock() {
 function resetGame() {
   clearTimers();
   grades.value = {};
+  counts.value = [0, 0, 0];
   tapResult.value = null;
   flash.value = null;
 
@@ -176,6 +194,7 @@ function resetGame() {
         order: shuffledOrder,
       })
     : null;
+  total.value = engine.value?.total ?? 0;
   prompt.value = engine.value?.prompt() ?? null;
   armClock();
 }
@@ -194,6 +213,8 @@ function tap(idx: number) {
     elapsedMs: Date.now() - promptArmedAt,
   });
   grades.value[outcome.buttonIndex] = outcome.grade;
+  counts.value[outcome.grade] += 1;
+  total.value = engine.value.total;
   tapResult.value = { note: spell(keyPositions.value[idx][2]), score: outcome.grade };
 
   if (idx !== outcome.buttonIndex) {
@@ -214,19 +235,6 @@ function tap(idx: number) {
     }
   }, PAUSE_MS);
 }
-
-// Counts per tier: [wrong, partial, correct], matching the progress bar segments.
-const counts = computed<[number, number, number]>((): [number, number, number] => {
-  const result: [number, number, number] = [0, 0, 0];
-
-  for (const g of Object.values(grades.value)) {
-    if (g === 2) result[2]++;
-    else if (g === 1) result[1]++;
-    else if (g === 0) result[0]++;
-  }
-
-  return result;
-});
 
 const progress = computed<[number, number, number]>((): [number, number, number] => {
   if (total.value === 0) return [0, 0, 0];

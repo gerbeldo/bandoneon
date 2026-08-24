@@ -34,6 +34,8 @@
   "try_again": "Try again",
   "solfege": "Do♯5",
   "staff": "Staff",
+  "twin_expected": "Two buttons sound this note — tap either one.",
+  "twin_follow_up": "Now tap the other button that sounds this note.",
   "wrong": "wrong",
   "einheitskonzertina128": "128 tones, Einheitskonzertina"
 }
