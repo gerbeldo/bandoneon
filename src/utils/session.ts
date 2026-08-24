@@ -26,6 +26,27 @@ export function itemKey(
   return `${instrument}/${side}/${direction}/${row}/${column}/${quizDirection}`;
 }
 
+export interface ItemKeyParts {
+  instrument: string;
+  side: Side;
+  direction: Direction;
+  row: number;
+  column: number;
+  quizDirection: QuizDirection;
+}
+
+export function parseItemKey(key: string): ItemKeyParts {
+  const [instrument, side, direction, row, column, quizDirection] = key.split('/');
+  return {
+    instrument,
+    side: side as Side,
+    direction: direction as Direction,
+    row: Number(row),
+    column: Number(column),
+    quizDirection: quizDirection as QuizDirection,
+  };
+}
+
 // An instrument nests grids per direction, except when one grid serves both
 // directions (peguri146 stores a flat array per side).
 export function layoutGrid(

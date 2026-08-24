@@ -5,7 +5,7 @@ import { instruments } from '../../data/index';
 import { useStore } from '../../stores/main';
 import type { AnswerEvent } from '../../stores/practice';
 import { useSettingsStore } from '../../stores/settings';
-import { createSweep, flattenGrid, layoutGrid } from '../session';
+import { createSweep, flattenGrid, itemKey, layoutGrid, parseItemKey } from '../session';
 
 // Toy grid with an empty cell, so button order and grid coordinates diverge
 // the way they do on real layouts.
@@ -164,6 +164,27 @@ describe('sweep with tapped-position answers', () => {
     const { engine } = tapSweep();
 
     expect(engine.answer({ tappedIndex: 99, elapsedMs: 1 }).grade).toBe(0);
+  });
+});
+
+describe('parseItemKey', () => {
+  it('reads the positional parts back out of a key', () => {
+    expect(parseItemKey('rheinische142/left/close/3/12/reverse')).toEqual({
+      instrument: 'rheinische142',
+      side: 'left',
+      direction: 'close',
+      row: 3,
+      column: 12,
+      quizDirection: 'reverse',
+    });
+  });
+
+  it('inverts itemKey', () => {
+    const parts = parseItemKey(itemKey('toy', 'right', 'open', 0, 7, 'forward'));
+
+    expect(itemKey(...(Object.values(parts) as Parameters<typeof itemKey>))).toBe(
+      'toy/right/open/0/7/forward',
+    );
   });
 });
 
