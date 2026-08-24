@@ -66,6 +66,14 @@ _Avoid_: guess, result
 **Partial credit**:
 A guess that matches the pitch class but not the octave — scored yellow, between correct (green) and wrong (red).
 
+**Twin**:
+Another button of the same layout sounding exactly the same pitch (the 142 has E5 twice on right-close and E3 twice on left-close). A staff-game prompt whose pitch has a twin carries a twin-expected marker, and a correct tap on either button credits the one tapped.
+_Avoid_: duplicate button, doublet
+
+**Follow-up**:
+The prompt the session engine inserts right after a correct tap on a pitch with a twin, asking for the remaining button. An ordinary full-weight prompt against that button; it grows the run's prompt count by one. Tapping the already-credited twin again grades wrong. Only pitch-prompted modes ever see one.
+_Avoid_: bonus prompt, second ask
+
 **Item**:
 The schedulable unit of practice memory: one button, on one side, in one bellows direction, quizzed in one direction. Scoped to one instrument; instruments never share items.
 _Avoid_: card, fact

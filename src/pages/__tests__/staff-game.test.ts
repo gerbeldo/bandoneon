@@ -193,3 +193,68 @@ describe('staff game recording', () => {
     expect(Object.values(practice.items).flatMap((item) => item.answers)).toHaveLength(1);
   });
 });
+
+// 142 right-close sounds E5 on two buttons (rows 4 and 5). With the
+// constant-random shuffle the sweep runs in layout order, so answering every
+// earlier prompt correctly reaches the first E5.
+describe('staff game duplicate-pitch follow-up', () => {
+  const FIRST_E5 = 'rheinische142/right/close/4/5/reverse';
+  const SECOND_E5 = 'rheinische142/right/close/5/4/reverse';
+
+  async function answerCorrectly(container: HTMLElement, idx: number) {
+    tap(container, idx);
+    vi.advanceTimersByTime(1_000);
+    await nextTick();
+  }
+
+  function e5Twins(store: ReturnType<typeof useStore>) {
+    const pitches = store.keyPositions.map(([, , t]) => t);
+    return { pitches, first: pitches.indexOf('E5'), second: pitches.lastIndexOf('E5') };
+  }
+
+  it('marks the twin prompt, then asks for the other E5 and grows the counter to 39', async () => {
+    vi.useFakeTimers();
+    const { container, store, practice } = mount('right', 'close');
+    await nextTick();
+    const text = () => container.textContent ?? '';
+    const { first, second } = e5Twins(store);
+    expect(text()).toContain(en.hint_staff_game);
+
+    for (let i = 0; i < first; i++) await answerCorrectly(container, i);
+    expect(text()).toContain(`${first + 1} / 38`);
+    expect(text()).toContain(en.twin_expected);
+
+    await answerCorrectly(container, first);
+    expect(circles(container)[first].getAttribute('fill')).toBe(GREEN);
+    expect(text()).toContain(`${first + 2} / 39`);
+    expect(text()).toContain(en.twin_follow_up);
+
+    tap(container, second);
+    await nextTick();
+    expect(circles(container)[second].getAttribute('fill')).toBe(GREEN);
+    expect(practice.items[FIRST_E5].answers.map((a) => a.grade)).toEqual([2]);
+    expect(practice.items[SECOND_E5].answers.map((a) => a.grade)).toEqual([2]);
+
+    vi.advanceTimersByTime(1_000);
+    await nextTick();
+    expect(text()).toContain(`${first + 3} / 39`);
+    expect(text()).toContain(en.hint_staff_game);
+    expect(text()).not.toContain(en.twin_follow_up);
+  });
+
+  it('counts every answer in the summary: a correct sweep with both follow-ups is 40', async () => {
+    vi.useFakeTimers();
+    const { container, store } = mount('right', 'close');
+    await nextTick();
+    const { pitches, first, second } = e5Twins(store);
+
+    for (let i = 0; i < pitches.length; i++) {
+      await answerCorrectly(container, i);
+      // Each E5 prompt is followed by one for the other E5.
+      if (pitches[i] === 'E5') await answerCorrectly(container, i === first ? second : first);
+    }
+
+    expect(container.textContent).toContain('40 / 40');
+    expect(document.body.textContent).toContain('40 correct');
+  });
+});
