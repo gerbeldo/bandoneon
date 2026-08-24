@@ -9,6 +9,11 @@ export const practiceStorage: StorageSpec = {
   migrations: {},
 };
 
+// Item keys are grid positions (ADR 0002), so a layout-grid edit re-keys
+// stored stats. This pins the grids: the grid-fingerprint test fails on any
+// edit until a key-remap migration lands above and this hash is updated.
+export const GRID_FINGERPRINT = 'da502362a6833774e6fe4b0879039ec93002c80754402cac958deba82917e840';
+
 // Last-N answers kept per item; firstSeen lives outside the cap so
 // "introduced today" stays derivable after pruning.
 export const ANSWER_HISTORY_CAP = 50;
