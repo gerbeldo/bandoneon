@@ -10,12 +10,10 @@
     v-else
     class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-2 px-2 pt-2 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:flex-row md:items-center md:gap-8"
   >
-    <!-- Phone: staff beside the counter/progress/hint to keep the page one screen tall.
+    <!-- Phone: staff beside the progress/hint to keep the page one screen tall.
          md+: everything stacked in a wider column so the staff can fill it. -->
     <div class="mx-auto flex w-full max-w-md shrink-0 flex-wrap items-center gap-x-4 md:w-80">
-      <!-- Read-only during play: it is the prompt's layout, not a choice. The
-           scope is picked on the start card. -->
-      <NavVariant class="w-full" readonly />
+      <SessionStrip class="w-full" :index="promptNumber" :total="total" :preview="preview" />
       <GrandStaff
         class="w-48 shrink-0 md:w-full"
         :notes="quizzedSpelled ? [quizzedSpelled] : []"
@@ -24,9 +22,6 @@
         :feedback="staffFeedback"
       />
       <div class="min-w-0 flex-1 md:w-full">
-        <p class="text-center text-sm text-neutral-500 dark:text-neutral-400">
-          {{ Math.min(answeredCount + 1, total) }} / {{ total }}
-        </p>
         <Progress
           class="mt-2"
           :values="[
@@ -47,8 +42,11 @@
         </p>
       </div>
     </div>
-    <div class="flex min-h-0 min-w-0 flex-1 items-center">
+    <div class="relative flex min-h-0 min-w-0 flex-1 items-center">
       <SvgKeyboard>
+        <template v-if="prompt" #overlay>
+          <DirectionBadge :direction="prompt.layout.direction" />
+        </template>
         <SvgButton
           v-for="([x, y, tonal], idx) in keyPositions"
           :key="idx"
@@ -78,9 +76,10 @@ import { storeToRefs } from 'pinia';
 import { Note } from 'tonal';
 import { computed, onUnmounted, ref, watch } from 'vue';
 
+import DirectionBadge from '../components/DirectionBadge.vue';
 import GrandStaff from '../components/GrandStaff.vue';
-import NavVariant from '../components/NavVariant.vue';
 import Progress from '../components/Progress.vue';
+import SessionStrip from '../components/SessionStrip.vue';
 import SessionSummary from '../components/SessionSummary.vue';
 import StartCard from '../components/StartCard.vue';
 import SvgButton from '../components/SvgButton.vue';
@@ -103,9 +102,9 @@ const {
   scope,
   preview,
   prompt,
+  promptNumber,
   total,
   counts,
-  answeredCount,
   gradeOf,
   ran,
   start,

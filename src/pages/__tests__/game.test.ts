@@ -12,7 +12,7 @@ import { usePracticeStore } from '../../stores/practice';
 import { useSettingsStore } from '../../stores/settings';
 import { introductionOrder } from '../../utils/introduction';
 import Game from '../game.vue';
-import { click, dialog, seed, startSession, startSweep } from './start-card';
+import { buttonNamed, click, dialog, seed, startSession, startSweep } from './start-card';
 
 const GREEN = '#22c55e88';
 const YELLOW = '#eab30888';
@@ -51,6 +51,11 @@ const octaveButtons = (container: HTMLElement) =>
 const noteButton = (container: HTMLElement, pc: string) =>
   buttons(container).find((b) => b.textContent?.trim() === pc.replace('#', '♯'));
 const circles = (container: HTMLElement) => [...container.querySelectorAll('.keyboard > g circle')];
+const badge = (container: HTMLElement) => container.querySelector('[data-direction]');
+
+// The strip's three segments, joined the way the DOM renders them.
+const strip = (index: number, total: number, newToday: string, seen: number, pool: number) =>
+  `Prompt ${index} of ${total}·${newToday}·${seen} of ${pool} seen`;
 // Math.random is constant, so the shuffle keeps the layout order and the
 // session's first prompt is keyPositions[0].
 function firstPrompt(store: ReturnType<typeof useStore>) {
@@ -242,5 +247,67 @@ describe('note game start card', () => {
 
     expect(dialog()?.textContent).toContain(en.try_again);
     expect(dialog()?.textContent).not.toContain(en.new_session);
+  });
+});
+
+describe('note game session strip and direction badge', () => {
+  const pool = () =>
+    introductionOrder({
+      instrument: 'rheinische142',
+      layouts: instruments.rheinische142,
+      quizDirection: 'forward',
+    });
+
+  it('replaces the picker row and moves its numbers with play', async () => {
+    const { container, practice } = mount();
+    seed(practice, pool().slice(0, 60), 'note-game');
+    await nextTick();
+    await startSession(container);
+
+    // The side and direction pickers are gone; only note and octave buttons remain.
+    expect(buttons(container).map((b) => b.textContent?.trim())).not.toContain(en.open);
+    expect(container.textContent).toContain(strip(1, 20, '0 of 3 new today', 60, 142));
+
+    // The draw leads with the day's three never-seen items, so the first answer
+    // introduces one: both the new-today and seen counts move.
+    await answerAnything(container);
+    expect(container.textContent).toContain(strip(2, 20, '1 of 3 new today', 61, 142));
+  });
+
+  // A sweep is scoped to one layout, so its coverage counts that layout's 38.
+  it('drops the cap from the count when a sweep outruns it', async () => {
+    const { container } = mount();
+    await startSweep(container);
+
+    expect(container.textContent).toContain(strip(1, 38, '0 of 3 new today', 0, 38));
+
+    for (let i = 0; i < 5; i++) await answerAnything(container);
+    expect(container.textContent).toContain(strip(6, 38, '5 new today', 5, 38));
+  });
+
+  it('badges the prompt’s direction in blue for open and orange for close', async () => {
+    const { container } = mount();
+    await startSweep(container);
+
+    expect(badge(container)?.getAttribute('data-direction')).toBe('open');
+    expect(badge(container)?.textContent).toContain(en.open);
+    expect(badge(container)?.className).toContain('bg-sky-600');
+    // Pinned to a box that tracks the drawing, not to the page's spare room —
+    // that is what keeps it off the buttons whatever slack the layout leaves.
+    expect(badge(container)?.parentElement?.className).toContain('keyboard-ghost');
+
+    // Back to the card, then the same layout in the other direction.
+    cleanup?.();
+    const closed = mount();
+    click(buttonNamed(closed.container, en.one_layout));
+    await nextTick();
+    click(buttonNamed(closed.container, en.close));
+    await nextTick();
+    click(buttonNamed(closed.container, en.sweep_layout));
+    await nextTick();
+
+    expect(badge(closed.container)?.getAttribute('data-direction')).toBe('close');
+    expect(badge(closed.container)?.textContent).toContain(en.close);
+    expect(badge(closed.container)?.className).toContain('bg-orange-600');
   });
 });

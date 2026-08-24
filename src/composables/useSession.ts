@@ -65,22 +65,28 @@ export function useSession(options: { quizDirection: QuizDirection; mode: string
     scope.value === 'all' ? 'all' : { side: store.side, direction: store.direction },
   );
 
-  // Stamped when the card appears, so the info line reads as of that moment
-  // rather than silently drifting while the card sits open.
-  const shownAt = ref(Date.now());
+  // Stamped when the card appears and again when a run begins, so "today"
+  // holds still for as long as one screen is up: the card's info line does not
+  // drift while the card sits open, and the strip's day does not turn mid-run.
+  const asOf = ref(Date.now());
 
+  // The card's info line and, during play, the session strip. Practice memory
+  // is reactive, so an answer that introduces an item moves the strip at once.
   const preview = computed(() =>
     scheduler.preview({
       pool: pool.value,
       memory: practice.items,
       scope: drawScope.value,
-      now: shownAt.value,
+      now: asOf.value,
     }),
   );
 
   // The prompt stays on the answered one while a page runs its feedback pause,
   // so the count advances only when the next prompt appears.
   const answeredCount = computed(() => (prompt.value ? prompt.value.index : total.value));
+
+  // What the strip shows: 1-based, and clamped once the draw is spent.
+  const promptNumber = computed(() => Math.min(answeredCount.value + 1, total.value));
 
   const gradeOf = (buttonIndex: number): Grade | undefined =>
     grades.value[`${store.side}/${store.direction}/${buttonIndex}`];
@@ -93,6 +99,7 @@ export function useSession(options: { quizDirection: QuizDirection; mode: string
     }
     engine.value = started;
     ran.value = kind;
+    asOf.value = Date.now();
     counts.value = [0, 0, 0];
     grades.value = {};
     total.value = started.total;
@@ -177,7 +184,7 @@ export function useSession(options: { quizDirection: QuizDirection; mode: string
     store.direction = chosenLayout.direction;
     engine.value = null;
     prompt.value = null;
-    shownAt.value = Date.now();
+    asOf.value = Date.now();
     phase.value = 'start-card';
   }
 
@@ -188,7 +195,7 @@ export function useSession(options: { quizDirection: QuizDirection; mode: string
     prompt,
     total,
     counts,
-    answeredCount,
+    promptNumber,
     gradeOf,
     ran,
     start,

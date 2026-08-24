@@ -254,6 +254,7 @@ describe('preview', () => {
     expect(scheduler().preview({ pool, memory: {}, scope: 'all', now: NOON })).toEqual({
       prompts: 3,
       newLeft: 3,
+      newToday: 0,
       seen: 0,
       total: 60,
     });
@@ -267,6 +268,7 @@ describe('preview', () => {
     expect(scheduler().preview({ pool, memory, scope: 'all', now: NOON })).toEqual({
       prompts: 20,
       newLeft: 3,
+      newToday: 0,
       seen: 25,
       total: 60,
     });
@@ -285,6 +287,28 @@ describe('preview', () => {
     ).toBe(1);
   });
 
+  it('counts items introduced today, over the cap when a sweep went past it', () => {
+    const introduced = (keys: string[]) =>
+      Object.fromEntries(keys.map((key) => [key, record([2], NOON - 3_600_000)]));
+
+    expect(
+      scheduler().preview({ pool, memory: introduced(pool.slice(0, 2)), scope: 'all', now: NOON }),
+    ).toMatchObject({ newToday: 2, newLeft: 1 });
+    // A sweep ignores the daily budget, so the count outruns the cap.
+    expect(
+      scheduler().preview({ pool, memory: introduced(pool.slice(0, 30)), scope: 'all', now: NOON }),
+    ).toMatchObject({ newToday: 30, newLeft: 0 });
+    // Yesterday's introductions are not today's.
+    expect(
+      scheduler().preview({
+        pool,
+        memory: Object.fromEntries(pool.slice(0, 5).map((key) => [key, record([2], NOON - DAY)])),
+        scope: 'all',
+        now: NOON,
+      }),
+    ).toMatchObject({ newToday: 0, newLeft: 3 });
+  });
+
   it('narrows the seen and pool counts to the chosen layout', () => {
     const memory = Object.fromEntries(
       [...pool.slice(0, 4), ...pool.slice(30, 37)].map((key) => [key, record([2], NOON - DAY)]),
@@ -292,6 +316,6 @@ describe('preview', () => {
 
     expect(
       scheduler().preview({ pool, memory, scope: { side: 'left', direction: 'close' }, now: NOON }),
-    ).toEqual({ prompts: 10, newLeft: 3, seen: 7, total: 30 });
+    ).toEqual({ prompts: 10, newLeft: 3, newToday: 0, seen: 7, total: 30 });
   });
 });

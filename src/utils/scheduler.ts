@@ -52,6 +52,9 @@ export interface SessionPreview {
   // Never-seen items still allowed today; the cap is per game, so this ignores
   // the scope.
   newLeft: number;
+  // Items first seen today — what the session strip counts against
+  // DAILY_NEW_ITEMS. Ignores the scope for the same reason.
+  newToday: number;
   // Items already answered at least once, and the pool size, both in scope.
   seen: number;
   total: number;
@@ -102,10 +105,11 @@ function introducedToday({ pool, memory, now }: SchedulerInput): number {
 // remaining new-item budget. The cap is per game, so it is counted over the
 // whole pool even when the draw is scoped to one layout.
 function candidates(input: SchedulerInput) {
-  const budget = Math.max(0, DAILY_NEW_ITEMS - introducedToday(input));
+  const newToday = introducedToday(input);
   const scoped = input.pool.filter((key) => inScope(key, input.scope));
   return {
-    budget,
+    newToday,
+    budget: Math.max(0, DAILY_NEW_ITEMS - newToday),
     fresh: scoped.filter((key) => !seen(input.memory[key])),
     review: scoped.filter((key) => seen(input.memory[key])),
   };
@@ -147,10 +151,11 @@ export function createWeightedScheduler(random: () => number = Math.random): Sch
     },
 
     preview(input) {
-      const { budget, fresh, review } = candidates(input);
+      const { newToday, budget, fresh, review } = candidates(input);
       return {
         prompts: Math.min(SESSION_SIZE, Math.min(budget, fresh.length) + review.length),
         newLeft: budget,
+        newToday,
         seen: review.length,
         total: fresh.length + review.length,
       };
