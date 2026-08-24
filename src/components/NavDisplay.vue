@@ -9,7 +9,7 @@
           v-for="item in scaleTypes"
           :key="item"
           :aria-pressed="item === scaleType"
-          @click.prevent="store.setScaleType(item)"
+          @click.prevent="store.setScaleType(item === scaleType ? null : item)"
         >
           {{ t(item) }}
         </Button>
@@ -24,7 +24,7 @@
           v-for="item in chordTypes"
           :key="item"
           :aria-pressed="item === chordType"
-          @click.prevent="store.setChordType(item)"
+          @click.prevent="store.setChordType(item === chordType ? null : item)"
         >
           {{ item }}
         </Button>
