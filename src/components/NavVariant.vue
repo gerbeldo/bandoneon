@@ -5,6 +5,7 @@
         v-for="value in ['left', 'right']"
         :key="value"
         :aria-pressed="side === value"
+        :disabled="readonly"
         class="w-28"
         @click="side = value === 'left' ? 'left' : 'right'"
       >
@@ -16,6 +17,7 @@
         v-for="value in ['close', 'open']"
         :key="value"
         :aria-pressed="direction === value"
+        :disabled="readonly"
         class="w-28"
         @click="direction = value === 'close' ? 'close' : 'open'"
       >
