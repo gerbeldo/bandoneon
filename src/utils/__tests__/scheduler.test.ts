@@ -20,13 +20,11 @@ function record(grades: Grade[], lastSeen: number): ItemRecord {
   return { firstSeen: answers[0].timestamp, answers };
 }
 
-// An item whose answers are given as [grade, days before today] pairs, oldest
-// first — several answers may share a day. Each is stamped at noon plus a
-// minute per answer, so ordering never crosses a day boundary by accident.
-function history(entries: [Grade, number][]): ItemRecord {
-  const answers = entries.map(([grade, daysAgo], i) =>
-    answer(grade, NOON - daysAgo * DAY + i * 60_000),
-  );
+// An item answered with `grades`, oldest first, each on the matching day of
+// `daysAgo` — so several answers may share a day. Each is stamped at noon plus
+// a minute per answer, so ordering never crosses a day boundary by accident.
+function history(grades: Grade[], daysAgo: number[]): ItemRecord {
+  const answers = grades.map((grade, i) => answer(grade, NOON - daysAgo[i] * DAY + i * 60_000));
   return { firstSeen: answers[0].timestamp, answers };
 }
 
@@ -70,56 +68,21 @@ describe('errorTally', () => {
 
 describe('isRetired', () => {
   it('retires an item with a clean tally and greens on three distinct days', () => {
-    expect(
-      isRetired(
-        history([
-          [2, 2],
-          [2, 1],
-          [2, 0],
-        ]),
-      ),
-    ).toBe(true);
+    expect(isRetired(history([2, 2, 2], [2, 1, 0]))).toBe(true);
   });
 
   it('counts consecutive days: no minimum spread is required', () => {
-    const consecutive = history([
-      [2, 2],
-      [2, 1],
-      [2, 0],
-    ]);
-    const spread = history([
-      [2, 40],
-      [2, 20],
-      [2, 0],
-    ]);
-
-    expect(isRetired(consecutive)).toBe(isRetired(spread));
+    expect(isRetired(history([2, 2, 2], [2, 1, 0]))).toBe(true);
+    expect(isRetired(history([2, 2, 2], [40, 20, 0]))).toBe(true);
   });
 
   it('needs three distinct days, not three greens', () => {
-    expect(
-      isRetired(
-        history([
-          [2, 1],
-          [2, 1],
-          [2, 1],
-          [2, 0],
-          [2, 0],
-        ]),
-      ),
-    ).toBe(false);
+    expect(isRetired(history([2, 2, 2, 2, 2], [1, 1, 1, 0, 0]))).toBe(false);
   });
 
   it('is false for an item never answered, or answered on too few days', () => {
     expect(isRetired({ firstSeen: NOON, answers: [] })).toBe(false);
-    expect(
-      isRetired(
-        history([
-          [2, 1],
-          [2, 0],
-        ]),
-      ),
-    ).toBe(false);
+    expect(isRetired(history([2, 2], [1, 0]))).toBe(false);
   });
 
   it('separates days by the local calendar, not by 24-hour spans', () => {
@@ -143,29 +106,14 @@ describe('isRetired', () => {
   it('counts only the greens after the most recent red', () => {
     // Four green days, then a red, then five greens all on one day: the tally
     // is clean again but only one day has passed since the red.
-    const lapsed = history([
-      [2, 9],
-      [2, 8],
-      [2, 7],
-      [2, 6],
-      [0, 5],
-      [2, 4],
-      [2, 4],
-      [2, 4],
-      [2, 4],
-      [2, 4],
-    ]);
+    const lapsed = history([2, 2, 2, 2, 0, 2, 2, 2, 2, 2], [9, 8, 7, 6, 5, 4, 4, 4, 4, 4]);
 
     expect(errorTally(lapsed)).toBe(0);
     expect(isRetired(lapsed)).toBe(false);
   });
 
   it('revives a retired item on a red, whatever mode the red came from', () => {
-    const retired = history([
-      [2, 5],
-      [2, 4],
-      [2, 3],
-    ]);
+    const retired = history([2, 2, 2], [5, 4, 3]);
     const sweepRed = { ...answer(0, NOON), mode: 'sweep' };
 
     expect(isRetired(retired)).toBe(true);
@@ -173,39 +121,22 @@ describe('isRetired', () => {
   });
 
   it('does not un-retire on plain age: an item untouched for months stays retired', () => {
-    expect(
-      isRetired(
-        history([
-          [2, 300],
-          [2, 299],
-          [2, 298],
-        ]),
-      ),
-    ).toBe(true);
+    expect(isRetired(history([2, 2, 2], [300, 299, 298]))).toBe(true);
   });
 
   it('lets a yellow suspend retirement without resetting the day count', () => {
-    const greenDays: [Grade, number][] = [
-      [2, 5],
-      [2, 4],
-      [2, 3],
-    ];
-    const suspended = history([...greenDays, [1, 2]]);
-    // The yellow has fallen out of the last-5 window; every green since is
+    const suspended = history([2, 2, 2, 1], [5, 4, 3, 2]);
+    // The yellow has fallen out of the last-5 window; every green since it is
     // from today, so only the pre-yellow days can carry the count to three.
-    const recovered = history([...greenDays, [1, 2], [2, 0], [2, 0], [2, 0], [2, 0], [2, 0]]);
+    const recovered = history([2, 2, 2, 1, 2, 2, 2, 2, 2], [5, 4, 3, 2, 0, 0, 0, 0, 0]);
 
     expect(isRetired(suspended)).toBe(false);
     expect(errorTally(recovered)).toBe(0);
     expect(isRetired(recovered)).toBe(true);
   });
 
-  it('ignores response times: retirement is accuracy-only in v1', () => {
-    const slow = history([
-      [2, 2],
-      [2, 1],
-      [2, 0],
-    ]);
+  it('ignores response times: retirement is judged on accuracy alone', () => {
+    const slow = history([2, 2, 2], [2, 1, 0]);
     slow.answers.forEach((event) => (event.responseMs = 60_000));
 
     expect(isRetired(slow)).toBe(true);
@@ -354,7 +285,9 @@ describe('draw: weighting', () => {
     const clean = layoutKeys('right', 'open', 20);
     const red = layoutKeys('right', 'close', 20);
     const memory = {
-      ...Object.fromEntries(clean.map((key) => [key, record([2, 2, 2, 2, 2], NOON - DAY)])),
+      // Two green days, so the clean set is not retired — otherwise the
+      // trickle, not the tally, would be doing the work here.
+      ...Object.fromEntries(clean.map((key) => [key, record([2, 2], NOON - DAY)])),
       ...Object.fromEntries(red.map((key) => [key, record([0, 0, 0, 0, 0], NOON - DAY)])),
     };
 
@@ -392,6 +325,36 @@ describe('draw: weighting', () => {
 
     expect(total(counts, active)).toBeGreaterThan(3 * total(counts, retired));
     expect(total(counts, retired)).toBeGreaterThan(0);
+  });
+
+  it('lifts the trickle when a yellow suspends retirement', () => {
+    const retired = layoutKeys('right', 'open', 20);
+    const suspended = layoutKeys('right', 'close', 20);
+    const memory = {
+      ...Object.fromEntries(retired.map((key) => [key, record([2, 2, 2], NOON - DAY)])),
+      ...Object.fromEntries(suspended.map((key) => [key, record([2, 2, 2, 1], NOON - DAY)])),
+    };
+
+    const counts = drawCounts({ pool: [...retired, ...suspended], memory, scope: 'all' });
+
+    expect(total(counts, suspended)).toBeGreaterThan(3 * total(counts, retired));
+  });
+
+  it('revives retired items on a red recorded during a sweep', () => {
+    const retired = layoutKeys('right', 'open', 20);
+    const revived = layoutKeys('right', 'close', 20);
+    const clean = record([2, 2, 2], NOON - DAY);
+    const sweepRed = { ...answer(0, NOON - DAY), mode: 'sweep' };
+    const memory = {
+      ...Object.fromEntries(retired.map((key) => [key, clean])),
+      ...Object.fromEntries(
+        revived.map((key) => [key, { ...clean, answers: [...clean.answers, sweepRed] }]),
+      ),
+    };
+
+    const counts = drawCounts({ pool: [...retired, ...revived], memory, scope: 'all' });
+
+    expect(total(counts, revived)).toBeGreaterThan(3 * total(counts, retired));
   });
 
   it('still draws items answered this very instant once nothing else is left', () => {

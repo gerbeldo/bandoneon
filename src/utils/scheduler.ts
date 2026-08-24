@@ -7,8 +7,8 @@ import type { Layout } from './session';
 import { parseItemKey, shuffled } from './session';
 
 // Fixed constants, not settings: prompts per session, never-seen items per
-// local calendar day per game, answers in the error tally, green days a
-// retirement needs, and what retirement leaves of an item's weight.
+// local calendar day per game, answers in the error tally, and the two
+// retirement numbers.
 export const SESSION_SIZE = 20;
 export const DAILY_NEW_ITEMS = 3;
 const TALLY_WINDOW = 5;
@@ -32,17 +32,12 @@ export function errorTally(record: ItemRecord): number {
 }
 
 // Retired: a clean error tally plus green answers on 3+ distinct local
-// calendar days since the item's most recent red. Derived on every read and
-// never stored, so a change to this rule reaches every item's history at once.
-// A yellow suspends retirement through the tally without touching the day
-// count; a red — from a session or a sweep, the grade is all that matters —
-// resets the count and revives the item.
+// calendar days since the item's most recent red. Read from the kept history
+// (last 50 answers) and never stored, so a change to this rule applies
+// retroactively — a red pruned by that cap stops counting.
 export function isRetired(record: ItemRecord): boolean {
   if (errorTally(record) !== 0) return false;
-  let lastRed = -1;
-  record.answers.forEach((answer, index) => {
-    if (answer.grade === 0) lastRed = index;
-  });
+  const lastRed = record.answers.map((answer) => answer.grade).lastIndexOf(0);
   const greenDays = new Set(
     record.answers
       .slice(lastRed + 1)
@@ -56,7 +51,7 @@ export function isRetired(record: ItemRecord): boolean {
 // (1 + error tally), and a tenth of that once the item is retired. Fractional
 // days keep a second same-day session sensible — just-answered items weigh
 // little instead of being excluded. The trickle keeps retired items in the
-// pool so quiet decay still gets caught; age alone never lifts it.
+// pool rather than out of it, so quiet decay still surfaces eventually.
 export function itemWeight(record: ItemRecord, now: number): number {
   const lastSeen = record.answers[record.answers.length - 1]?.timestamp ?? now;
   const days = Math.max(0, now - lastSeen) / DAY_MS;
