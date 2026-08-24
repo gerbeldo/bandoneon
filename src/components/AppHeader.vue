@@ -1,32 +1,44 @@
 <template>
   <nav class="mx-auto flex min-h-16 w-full items-center p-2">
-    <div class="flex-1">
+    <RouterLink
+      class="inline-flex min-h-12 items-center justify-center rounded-lg px-2 text-lg font-semibold select-none sm:px-4 sm:text-xl"
+      to="/"
+    >
+      Bandoneon.app
+    </RouterLink>
+    <div class="flex flex-1 items-center text-sm">
       <RouterLink
-        class="inline-flex min-h-12 flex-wrap items-center justify-center rounded-lg px-4 text-xl font-semibold select-none"
+        class="inline-flex min-h-12 items-center justify-center rounded-lg px-1 select-none sm:px-3"
+        :class="linkClass('/')"
         to="/"
       >
-        Bandoneon.app
-        <span v-if="route.path === '/game'" class="ms-2 text-neutral-500 dark:text-neutral-400">
-          Game
-        </span>
-        <span
-          v-else-if="route.path === '/staff-game'"
-          class="ms-2 text-neutral-500 dark:text-neutral-400"
-        >
-          Staff game
-        </span>
+        Explore
+      </RouterLink>
+      <RouterLink
+        class="inline-flex min-h-12 items-center justify-center rounded-lg px-1 select-none sm:px-3"
+        :class="linkClass('/game')"
+        to="/game"
+      >
+        Game
+      </RouterLink>
+      <RouterLink
+        class="inline-flex min-h-12 items-center justify-center rounded-lg px-1 select-none sm:px-3"
+        :class="linkClass('/staff-game')"
+        to="/staff-game"
+      >
+        <span>Staff<span class="hidden sm:inline">&nbsp;game</span></span>
       </RouterLink>
     </div>
     <div class="flex-none">
       <button
-        class="inline-flex h-12 w-12 flex-wrap items-center justify-center rounded-lg font-semibold select-none"
+        class="inline-flex h-12 w-10 flex-wrap items-center justify-center rounded-lg font-semibold select-none sm:w-12"
         @click.prevent="isDark = !isDark"
       >
         <IconSun v-if="!isDark" class="h-5 w-5" />
         <IconMoon v-else class="h-5 w-5" />
       </button>
       <button
-        class="inline-flex h-12 w-12 flex-wrap items-center justify-center rounded-lg font-semibold select-none"
+        class="inline-flex h-12 w-10 flex-wrap items-center justify-center rounded-lg font-semibold select-none sm:w-12"
         type="button"
         title="Settings"
         @click.prevent="showMenu = !showMenu"
@@ -58,4 +70,8 @@ watch(
   () => route.path,
   () => (showMenu.value = false),
 );
+
+function linkClass(path: string): string {
+  return route.path === path ? 'font-semibold' : 'text-neutral-500 dark:text-neutral-400';
+}
 </script>

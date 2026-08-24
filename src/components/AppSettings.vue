@@ -68,24 +68,10 @@
         </div>
       </div>
 
-      <div class="flex justify-between text-sm">
-        <div class="flex flex-wrap gap-x-4">
-          <RouterLink v-if="route.path !== '/game'" class="me-1 underline" to="/game">
-            Play a game!
-          </RouterLink>
-          <RouterLink v-if="route.path !== '/staff-game'" class="me-1 underline" to="/staff-game">
-            Play the staff game!
-          </RouterLink>
-        </div>
-
-        <div class="flex items-center gap-3">
-          <a target="_blank" href="https://github.com/nicokaiser/bandoneon/">
-            <IconGitHub class="h-4 w-4" />
-          </a>
-          <a class="underline" href="mailto:nico@kaiser.me?subject=Bandoneon.app%20Feedback">
-            Feedback
-          </a>
-        </div>
+      <div class="flex justify-end text-sm">
+        <a target="_blank" href="https://github.com/gerbeldo/bandoneon">
+          <IconGitHub class="h-4 w-4" />
+        </a>
       </div>
     </div>
   </div>
