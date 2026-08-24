@@ -1,32 +1,36 @@
 <template>
   <div
-    class="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-2 px-2 pt-4 pb-6 sm:px-6 sm:pt-6 md:flex-row md:items-center md:gap-8"
+    class="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-2 px-2 pt-2 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:flex-row md:items-center md:gap-8"
   >
-    <div class="mx-auto w-full max-w-xs shrink-0 md:w-60">
-      <p class="text-center text-lg font-medium capitalize">{{ t(side) }} · {{ t(direction) }}</p>
-      <div class="flex justify-center">
-        <GrandStaff
-          class="w-36 md:w-52"
-          :notes="quizzedSpelled ? [quizzedSpelled] : []"
-          :side="side"
-          :color="staffColor"
-          :feedback="staffFeedback"
-        />
-      </div>
-      <p class="text-center text-sm text-neutral-500 dark:text-neutral-400">
-        {{ Math.min(currentPosition + 1, positions.length) }} / {{ positions.length }}
+    <!-- Phone: staff beside the counter/progress/hint to keep the page one screen tall.
+         md+: everything stacked in a wider column so the staff can fill it. -->
+    <div class="mx-auto flex w-full max-w-md shrink-0 flex-wrap items-center gap-x-4 md:w-80">
+      <p class="w-full text-center text-lg font-medium capitalize">
+        {{ t(side) }} · {{ t(direction) }}
       </p>
-      <Progress
-        class="mt-2"
-        :values="[
-          { value: progress[2], color: SCORE_COLORS[2] },
-          { value: progress[1], color: SCORE_COLORS[1] },
-          { value: progress[0], color: SCORE_COLORS[0] },
-        ]"
+      <GrandStaff
+        class="w-48 shrink-0 md:w-full"
+        :notes="quizzedSpelled ? [quizzedSpelled] : []"
+        :side="side"
+        :color="staffColor"
+        :feedback="staffFeedback"
       />
-      <p class="mt-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
-        {{ t('hint_staff_game') }}
-      </p>
+      <div class="min-w-0 flex-1 md:w-full">
+        <p class="text-center text-sm text-neutral-500 dark:text-neutral-400">
+          {{ Math.min(currentPosition + 1, positions.length) }} / {{ positions.length }}
+        </p>
+        <Progress
+          class="mt-2"
+          :values="[
+            { value: progress[2], color: SCORE_COLORS[2] },
+            { value: progress[1], color: SCORE_COLORS[1] },
+            { value: progress[0], color: SCORE_COLORS[0] },
+          ]"
+        />
+        <p class="mt-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
+          {{ t('hint_staff_game') }}
+        </p>
+      </div>
     </div>
     <div class="min-w-0 flex-1">
       <SvgKeyboard>

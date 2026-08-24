@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto flex w-full max-w-4xl flex-1 items-center px-2 pt-4 sm:px-6 sm:pt-6">
+  <div class="mx-auto flex w-full max-w-4xl flex-1 items-center px-2 pt-2 sm:px-6 sm:pt-6">
     <SvgKeyboard ref="keyboardEl">
       <!-- Scale paths before the buttons so labels always paint on top. -->
       <SvgPath
@@ -20,7 +20,7 @@
       />
     </SvgKeyboard>
   </div>
-  <div class="mx-auto max-w-(--breakpoint-md) px-6 pb-6">
+  <div class="mx-auto max-w-(--breakpoint-md) px-6 pb-4 sm:pb-6">
     <NavVariant />
     <NavTonic />
     <NavDisplay :modified="isModified" @reset="onReset" @download="onDownload" @save="onSave" />

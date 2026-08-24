@@ -1,5 +1,5 @@
 <template>
-  <nav class="mx-auto flex min-h-16 w-full items-center p-2">
+  <nav class="mx-auto flex min-h-14 w-full items-center px-2 py-1">
     <RouterLink
       class="inline-flex min-h-12 items-center justify-center rounded-lg px-2 text-lg font-semibold select-none sm:px-4 sm:text-xl"
       to="/"

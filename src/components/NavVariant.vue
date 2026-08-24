@@ -1,24 +1,26 @@
 <template>
-  <div class="mb-3 flex flex-wrap justify-center gap-x-24 sm:mb-5 print:hidden">
-    <ButtonGroup class="mb-3">
+  <div
+    class="mb-2 flex flex-wrap justify-center gap-x-4 gap-y-3 sm:mb-5 sm:gap-x-24 print:hidden"
+  >
+    <ButtonGroup>
       <Button
         v-for="value in ['left', 'right']"
         :key="value"
         :aria-pressed="side === value"
         :disabled="readonly"
-        class="w-28"
+        class="w-20 sm:w-28"
         @click="side = value === 'left' ? 'left' : 'right'"
       >
         {{ t(value) }}
       </Button>
     </ButtonGroup>
-    <ButtonGroup class="mb-3">
+    <ButtonGroup>
       <Button
         v-for="value in ['close', 'open']"
         :key="value"
         :aria-pressed="direction === value"
         :disabled="readonly"
-        class="w-28"
+        class="w-20 sm:w-28"
         @click="direction = value === 'close' ? 'close' : 'open'"
       >
         {{ t(value) }}

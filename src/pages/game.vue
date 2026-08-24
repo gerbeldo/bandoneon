@@ -1,5 +1,5 @@
 <template>
-  <div class="mx-auto flex w-full max-w-4xl flex-1 items-center px-2 pt-4 sm:px-6 sm:pt-6">
+  <div class="mx-auto flex w-full max-w-4xl flex-1 items-center px-2 pt-2 sm:px-6 sm:pt-6">
     <SvgKeyboard>
       <SvgButton
         v-for="([x, y, tonal], idx) in positions"
@@ -13,7 +13,7 @@
       />
     </SvgKeyboard>
   </div>
-  <div class="mx-auto max-w-(--breakpoint-md) px-6 pb-6">
+  <div class="mx-auto max-w-(--breakpoint-md) px-6 pb-4 sm:pb-6">
     <NavVariant :readonly="currentPosition > 0" />
     <p class="mb-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
       {{ t('hint_game') }}
@@ -35,7 +35,7 @@
       </Button>
     </div>
     <Progress
-      class="mt-4 sm:mt-8"
+      class="mt-2 sm:mt-6"
       :values="[
         { value: progress[2], color: '#22c55e' /* green-500 */ },
         { value: progress[1], color: '#eab308' /* yellow-500 */ },

@@ -1,7 +1,7 @@
 <template>
   <svg
     ref="svgEl"
-    class="keyboard mb-4"
+    class="keyboard mb-2 sm:mb-4"
     :viewBox="`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`"
     :width="viewBox.width"
     :height="viewBox.height"
