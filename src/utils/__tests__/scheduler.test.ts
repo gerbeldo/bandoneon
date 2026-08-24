@@ -78,7 +78,7 @@ describe('draw: new items', () => {
   it('introduces at most 3 never-seen items, the first in introduction order', () => {
     const pool = layoutKeys('right', 'open', 10);
 
-    const draw = scheduler().draw({ pool, stats: {}, scope: 'all', now: NOON });
+    const draw = scheduler().draw({ pool, memory: {}, scope: 'all', now: NOON });
 
     expect(draw).toHaveLength(3);
     expect([...draw].sort()).toEqual(pool.slice(0, 3).sort());
@@ -86,28 +86,28 @@ describe('draw: new items', () => {
 
   it('spends the cap on items already introduced today; an unused cap never rolls over', () => {
     const pool = layoutKeys('right', 'open', 10);
-    const stats = {
+    const memory = {
       [pool[0]]: record([2], NOON - DAY),
       [pool[1]]: record([2], NOON - 3_600_000),
       [pool[2]]: record([0], NOON - 60_000),
     };
 
-    const draw = scheduler().draw({ pool, stats, scope: 'all', now: NOON });
+    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON });
 
-    expect(draw.filter((key) => !(key in stats))).toEqual([pool[3]]);
+    expect(draw.filter((key) => !(key in memory))).toEqual([pool[3]]);
   });
 
   it('counts introductions by local calendar day, not by the last 24 hours', () => {
     const pool = layoutKeys('right', 'open', 10);
     const now = new Date(2026, 7, 24, 0, 30).getTime();
-    const stats = {
+    const memory = {
       [pool[0]]: record([2], new Date(2026, 7, 23, 23, 30).getTime()),
       [pool[1]]: record([2], new Date(2026, 7, 24, 0, 10).getTime()),
     };
 
-    const draw = scheduler().draw({ pool, stats, scope: 'all', now });
+    const draw = scheduler().draw({ pool, memory, scope: 'all', now });
 
-    expect(draw.filter((key) => !(key in stats)).sort()).toEqual([pool[2], pool[3]]);
+    expect(draw.filter((key) => !(key in memory)).sort()).toEqual([pool[2], pool[3]]);
   });
 });
 
@@ -119,20 +119,20 @@ function seenBeforeToday(keys: string[]): Record<string, ItemRecord> {
 describe('draw: session size', () => {
   it('draws 20 prompts, each item at most once: the new items plus seen items for the rest', () => {
     const pool = layoutKeys('right', 'open', 60);
-    const stats = seenBeforeToday(pool.slice(3));
+    const memory = seenBeforeToday(pool.slice(3));
 
-    const draw = scheduler().draw({ pool, stats, scope: 'all', now: NOON });
+    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON });
 
     expect(draw).toHaveLength(20);
     expect(new Set(draw).size).toBe(20);
-    expect(draw.filter((key) => !(key in stats)).sort()).toEqual(pool.slice(0, 3).sort());
+    expect(draw.filter((key) => !(key in memory)).sort()).toEqual(pool.slice(0, 3).sort());
   });
 
   it('draws a shorter session from a small pool instead of repeating items', () => {
     const pool = layoutKeys('right', 'open', 8);
-    const stats = seenBeforeToday(pool);
+    const memory = seenBeforeToday(pool);
 
-    const draw = scheduler().draw({ pool, stats, scope: 'all', now: NOON });
+    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON });
 
     expect([...draw].sort()).toEqual([...pool].sort());
   });
@@ -143,21 +143,21 @@ describe('draw: scope', () => {
   const leftClose = { side: 'left', direction: 'close' } as const;
 
   it('scoped to one layout, draws only its items and introduces its first never-seen ones', () => {
-    const stats = seenBeforeToday([...pool.slice(0, 3), ...pool.slice(10, 13)]);
+    const memory = seenBeforeToday([...pool.slice(0, 3), ...pool.slice(10, 13)]);
 
-    const draw = scheduler().draw({ pool, stats, scope: leftClose, now: NOON });
+    const draw = scheduler().draw({ pool, memory, scope: leftClose, now: NOON });
 
     expect(draw).toHaveLength(6);
     expect(draw.every((key) => key.startsWith('toy/left/close/'))).toBe(true);
-    expect(draw.filter((key) => !(key in stats)).sort()).toEqual(pool.slice(13, 16).sort());
+    expect(draw.filter((key) => !(key in memory)).sort()).toEqual(pool.slice(13, 16).sort());
   });
 
   it('shares the daily cap across layouts: introductions elsewhere today leave none here', () => {
-    const stats = Object.fromEntries(
+    const memory = Object.fromEntries(
       pool.slice(0, 3).map((key) => [key, record([2], NOON - 60_000)]),
     );
 
-    const draw = scheduler().draw({ pool, stats, scope: leftClose, now: NOON });
+    const draw = scheduler().draw({ pool, memory, scope: leftClose, now: NOON });
 
     expect(draw).toEqual([]);
   });
@@ -182,12 +182,12 @@ describe('draw: weighting', () => {
   it('favors items with recent errors over clean ones seen equally long ago', () => {
     const clean = layoutKeys('right', 'open', 20);
     const red = layoutKeys('right', 'close', 20);
-    const stats = {
+    const memory = {
       ...Object.fromEntries(clean.map((key) => [key, record([2, 2, 2, 2, 2], NOON - DAY)])),
       ...Object.fromEntries(red.map((key) => [key, record([0, 0, 0, 0, 0], NOON - DAY)])),
     };
 
-    const counts = drawCounts({ pool: [...clean, ...red], stats, scope: 'all' });
+    const counts = drawCounts({ pool: [...clean, ...red], memory, scope: 'all' });
 
     expect(total(counts, red)).toBeGreaterThan(2 * total(counts, clean));
     expect(total(counts, clean)).toBeGreaterThan(0);
@@ -196,12 +196,12 @@ describe('draw: weighting', () => {
   it('makes a second same-day session mostly review what the first one did not touch', () => {
     const yesterday = layoutKeys('right', 'open', 20);
     const justNow = layoutKeys('right', 'close', 20);
-    const stats = {
+    const memory = {
       ...Object.fromEntries(yesterday.map((key) => [key, record([2], NOON - DAY)])),
       ...Object.fromEntries(justNow.map((key) => [key, record([2], NOON - 60_000)])),
     };
 
-    const counts = drawCounts({ pool: [...yesterday, ...justNow], stats, scope: 'all' });
+    const counts = drawCounts({ pool: [...yesterday, ...justNow], memory, scope: 'all' });
 
     expect(total(counts, justNow)).toBeLessThan(10);
     expect(total(counts, yesterday)).toBeGreaterThan(990);
@@ -209,11 +209,11 @@ describe('draw: weighting', () => {
 
   it('still draws items answered this very instant once nothing else is left', () => {
     const pool = layoutKeys('right', 'open', 25);
-    const stats = Object.fromEntries(
+    const memory = Object.fromEntries(
       pool.map((key) => [key, { firstSeen: NOON - DAY, answers: [answer(2, NOON)] }]),
     );
 
-    const draw = scheduler().draw({ pool, stats, scope: 'all', now: NOON });
+    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON });
 
     expect(draw).toHaveLength(20);
     expect(new Set(draw).size).toBe(20);
@@ -222,19 +222,19 @@ describe('draw: weighting', () => {
 
 describe('draw: order and determinism', () => {
   const pool = layoutKeys('right', 'open', 30);
-  const stats = seenBeforeToday(pool.slice(3));
+  const memory = seenBeforeToday(pool.slice(3));
 
   it('shuffles the draw: new items are not pinned to the front', () => {
     const firsts = [...Array(20).keys()].map(
-      (seed) => scheduler(seed + 1).draw({ pool, stats, scope: 'all', now: NOON })[0],
+      (seed) => scheduler(seed + 1).draw({ pool, memory, scope: 'all', now: NOON })[0],
     );
 
-    expect(firsts.some((key) => key in stats)).toBe(true);
+    expect(firsts.some((key) => key in memory)).toBe(true);
   });
 
   it('is repeatable for one random source and differs between sources', () => {
     const small = pool.slice(0, 12);
-    const input = { pool: small, stats: seenBeforeToday(small), scope: 'all' as const, now: NOON };
+    const input = { pool: small, memory: seenBeforeToday(small), scope: 'all' as const, now: NOON };
 
     const first = scheduler(7).draw(input);
     const again = scheduler(7).draw(input);

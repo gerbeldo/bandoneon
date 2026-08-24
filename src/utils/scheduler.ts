@@ -1,15 +1,16 @@
-// Scheduler: picks which items a session draws. v1 internals are weighted
-// sampling plus a daily new-item budget spent in introduction order; FSRS can
-// replace them behind `Scheduler` without touching games or the engine.
+// Scheduler: picks which items a session draws. Games and the engine see only
+// `Scheduler`, so the sampling behind it can be replaced by a spaced-repetition
+// model without touching them.
 
 import type { Grade, ItemRecord } from '../stores/practice';
 import type { Direction, Side } from './session';
-import { parseItemKey } from './session';
+import { parseItemKey, shuffled } from './session';
 
-// Fixed constants, not settings.
+// Fixed constants, not settings: prompts per session, never-seen items per
+// local calendar day per game, answers in the error tally.
 export const SESSION_SIZE = 20;
 export const DAILY_NEW_ITEMS = 3;
-export const TALLY_WINDOW = 5;
+const TALLY_WINDOW = 5;
 const TALLY_WEIGHT: Record<Grade, number> = { 2: 0, 1: 0.5, 0: 1 };
 const DAY_MS = 86_400_000;
 
@@ -36,7 +37,8 @@ export interface SchedulerInput {
   // Every item of one game (instrument × quiz direction), in introduction
   // order. The daily new-item cap is counted over this whole pool.
   pool: string[];
-  stats: Record<string, ItemRecord>;
+  // Practice memory: the per-item answer records.
+  memory: Record<string, ItemRecord>;
   scope: SessionScope;
   now: number;
 }
@@ -44,6 +46,11 @@ export interface SchedulerInput {
 export interface Scheduler {
   // A fixed session draw: item keys, shuffled, each at most once.
   draw(input: SchedulerInput): string[];
+}
+
+interface Weighted {
+  key: string;
+  weight: number;
 }
 
 function seen(record: ItemRecord | undefined): record is ItemRecord {
@@ -68,26 +75,17 @@ function sameLocalDay(a: number, b: number): boolean {
 
 // Items introduced today are those first seen on the local calendar day of
 // `now` — derived from history, so a sweep's introductions count too.
-function introducedToday(pool: string[], stats: Record<string, ItemRecord>, now: number): number {
+function introducedToday({ pool, memory, now }: SchedulerInput): number {
   return pool.filter((key) => {
-    const record = stats[key];
+    const record = memory[key];
     return seen(record) && sameLocalDay(record.firstSeen, now);
   }).length;
 }
 
 export function createWeightedScheduler(random: () => number = Math.random): Scheduler {
-  function shuffle(items: string[]): string[] {
-    const result = [...items];
-    for (let i = result.length - 1; i > 0; i--) {
-      const j = Math.floor(random() * (i + 1));
-      [result[i], result[j]] = [result[j], result[i]];
-    }
-    return result;
-  }
-
   // Weighted sampling without replacement. Once only weightless items remain
   // (everything just answered), the rest are drawn evenly rather than skipped.
-  function sample(candidates: { key: string; weight: number }[], count: number): string[] {
+  function sample(candidates: Weighted[], count: number): string[] {
     const remaining = [...candidates];
     const picked: string[] = [];
     while (picked.length < count && remaining.length > 0) {
@@ -106,16 +104,17 @@ export function createWeightedScheduler(random: () => number = Math.random): Sch
   }
 
   return {
-    draw({ pool, stats, scope, now }) {
+    draw(input) {
+      const { pool, memory, scope, now } = input;
       // The cap is per game, so it is counted over the whole pool even when
       // the draw is scoped to one layout.
-      const budget = Math.max(0, DAILY_NEW_ITEMS - introducedToday(pool, stats, now));
+      const budget = Math.max(0, DAILY_NEW_ITEMS - introducedToday(input));
       const scoped = pool.filter((key) => inScope(key, scope));
-      const fresh = scoped.filter((key) => !seen(stats[key])).slice(0, budget);
+      const fresh = scoped.filter((key) => !seen(memory[key])).slice(0, budget);
       const review = scoped
-        .filter((key) => seen(stats[key]))
-        .map((key) => ({ key, weight: itemWeight(stats[key], now) }));
-      return shuffle([...fresh, ...sample(review, SESSION_SIZE - fresh.length)]);
+        .filter((key) => seen(memory[key]))
+        .map((key) => ({ key, weight: itemWeight(memory[key], now) }));
+      return shuffled([...fresh, ...sample(review, SESSION_SIZE - fresh.length)], random);
     },
   };
 }

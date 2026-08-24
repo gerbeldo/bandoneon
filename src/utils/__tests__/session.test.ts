@@ -187,9 +187,11 @@ describe('parseItemKey', () => {
   });
 
   it('inverts itemKey', () => {
-    const parts = parseItemKey(itemKey('toy', 'right', 'open', 0, 7, 'forward'));
+    const { instrument, side, direction, row, column, quizDirection } = parseItemKey(
+      itemKey('toy', 'right', 'open', 0, 7, 'forward'),
+    );
 
-    expect(itemKey(...(Object.values(parts) as Parameters<typeof itemKey>))).toBe(
+    expect(itemKey(instrument, side, direction, row, column, quizDirection)).toBe(
       'toy/right/open/0/7/forward',
     );
   });
