@@ -57,7 +57,7 @@
       <Button
         @click.prevent="
           isModalOpen = false;
-          newGame();
+          resetGame();
         "
       >
         {{ t('try_again') }}
@@ -154,17 +154,9 @@ function resetGame() {
   positions.value = array;
 }
 
-function newGame() {
-  // Randomize side, direction
-  store.$patch({
-    side: Math.random() < 0.5 ? 'right' : 'left',
-    direction: Math.random() < 0.5 ? 'open' : 'close',
-  });
-
-  resetGame();
-}
-
-onMounted(() => newGame());
+// Side and direction stay as the player left them elsewhere; NavVariant changes
+// them, and the keyPositions watcher restarts the round on the new layout.
+onMounted(() => resetGame());
 watch(keyPositions, () => resetGame());
 
 function check() {

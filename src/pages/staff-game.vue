@@ -5,9 +5,7 @@
     <!-- Phone: staff beside the counter/progress/hint to keep the page one screen tall.
          md+: everything stacked in a wider column so the staff can fill it. -->
     <div class="mx-auto flex w-full max-w-md shrink-0 flex-wrap items-center gap-x-4 md:w-80">
-      <p class="w-full text-center text-lg font-medium capitalize">
-        {{ t(side) }} · {{ t(direction) }}
-      </p>
+      <NavVariant class="w-full" :readonly="currentPosition > 0" />
       <GrandStaff
         class="w-48 shrink-0 md:w-full"
         :notes="quizzedSpelled ? [quizzedSpelled] : []"
@@ -56,7 +54,7 @@
       <Button
         @click.prevent="
           isModalOpen = false;
-          newGame();
+          resetGame();
         "
       >
         {{ t('try_again') }}
@@ -75,6 +73,7 @@ import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 import Button from '../components/Button.vue';
 import GrandStaff from '../components/GrandStaff.vue';
 import Modal from '../components/Modal.vue';
+import NavVariant from '../components/NavVariant.vue';
 import Progress from '../components/Progress.vue';
 import SvgButton from '../components/SvgButton.vue';
 import SvgKeyboard from '../components/SvgKeyboard.vue';
@@ -100,7 +99,7 @@ let flashTimer: ReturnType<typeof setTimeout> | null = null;
 const { t } = useI18n();
 
 const store = useStore();
-const { side, direction, keyPositions, showEnharmonics } = storeToRefs(store);
+const { side, keyPositions, showEnharmonics } = storeToRefs(store);
 
 const spell = (tonal: string) => (showEnharmonics.value ? Note.enharmonic(tonal) : tonal);
 
@@ -150,17 +149,9 @@ function resetGame() {
   positions.value = array;
 }
 
-function newGame() {
-  // Randomize side, direction
-  store.$patch({
-    side: Math.random() < 0.5 ? 'right' : 'left',
-    direction: Math.random() < 0.5 ? 'open' : 'close',
-  });
-
-  resetGame();
-}
-
-onMounted(() => newGame());
+// Side and direction stay as the player left them elsewhere; NavVariant changes
+// them, and the keyPositions watcher restarts the round on the new layout.
+onMounted(() => resetGame());
 onUnmounted(() => clearTimers());
 watch(keyPositions, () => resetGame());
 
