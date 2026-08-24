@@ -7,12 +7,22 @@ import type { Layout } from './session';
 import { parseItemKey, shuffled } from './session';
 
 // Fixed constants, not settings: prompts per session, never-seen items per
-// local calendar day per game, answers in the error tally.
+// local calendar day per game, answers in the error tally, green days a
+// retirement needs, and what retirement leaves of an item's weight.
 export const SESSION_SIZE = 20;
 export const DAILY_NEW_ITEMS = 3;
 const TALLY_WINDOW = 5;
 const TALLY_WEIGHT: Record<Grade, number> = { 2: 0, 1: 0.5, 0: 1 };
+const RETIREMENT_DAYS = 3;
+const TRICKLE_FACTOR = 0.1;
 const DAY_MS = 86_400_000;
+
+// A timestamp's local calendar day, as a key two timestamps share only if they
+// fall on the same one.
+function localDay(timestamp: number): string {
+  const date = new Date(timestamp);
+  return `${date.getFullYear()}-${date.getMonth()}-${date.getDate()}`;
+}
 
 // Error tally: the item's recent-error score over its last 5 answers.
 export function errorTally(record: ItemRecord): number {
@@ -21,13 +31,37 @@ export function errorTally(record: ItemRecord): number {
     .reduce((sum, answer) => sum + TALLY_WEIGHT[answer.grade], 0);
 }
 
+// Retired: a clean error tally plus green answers on 3+ distinct local
+// calendar days since the item's most recent red. Derived on every read and
+// never stored, so a change to this rule reaches every item's history at once.
+// A yellow suspends retirement through the tally without touching the day
+// count; a red — from a session or a sweep, the grade is all that matters —
+// resets the count and revives the item.
+export function isRetired(record: ItemRecord): boolean {
+  if (errorTally(record) !== 0) return false;
+  let lastRed = -1;
+  record.answers.forEach((answer, index) => {
+    if (answer.grade === 0) lastRed = index;
+  });
+  const greenDays = new Set(
+    record.answers
+      .slice(lastRed + 1)
+      .filter((answer) => answer.grade === 2)
+      .map((answer) => localDay(answer.timestamp)),
+  );
+  return greenDays.size >= RETIREMENT_DAYS;
+}
+
 // Sampling weight of a seen item: fractional days since its last answer times
-// (1 + error tally). Fractional days keep a second same-day session sensible —
-// just-answered items weigh little instead of being excluded.
+// (1 + error tally), and a tenth of that once the item is retired. Fractional
+// days keep a second same-day session sensible — just-answered items weigh
+// little instead of being excluded. The trickle keeps retired items in the
+// pool so quiet decay still gets caught; age alone never lifts it.
 export function itemWeight(record: ItemRecord, now: number): number {
   const lastSeen = record.answers[record.answers.length - 1]?.timestamp ?? now;
   const days = Math.max(0, now - lastSeen) / DAY_MS;
-  return days * (1 + errorTally(record));
+  const weight = days * (1 + errorTally(record));
+  return isRetired(record) ? weight * TRICKLE_FACTOR : weight;
 }
 
 // Session scope: all four layouts of the game, or one of them.
@@ -79,22 +113,13 @@ function inScope(key: string, scope: SessionScope): boolean {
   return side === scope.side && direction === scope.direction;
 }
 
-function sameLocalDay(a: number, b: number): boolean {
-  const dateA = new Date(a);
-  const dateB = new Date(b);
-  return (
-    dateA.getFullYear() === dateB.getFullYear() &&
-    dateA.getMonth() === dateB.getMonth() &&
-    dateA.getDate() === dateB.getDate()
-  );
-}
-
 // Items introduced today are those first seen on the local calendar day of
 // `now` — derived from history, so a sweep's introductions count too.
 function introducedToday({ pool, memory, now }: SchedulerInput): number {
+  const today = localDay(now);
   return pool.filter((key) => {
     const record = memory[key];
-    return seen(record) && sameLocalDay(record.firstSeen, now);
+    return seen(record) && localDay(record.firstSeen) === today;
   }).length;
 }
 
