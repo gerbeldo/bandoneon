@@ -1,5 +1,6 @@
 <template>
-  <div class="bg-neutral-100 dark:bg-neutral-800">
+  <!-- Last resort on a short screen: scroll the panel rather than clip it. -->
+  <div class="min-h-0 overflow-y-auto bg-neutral-100 dark:bg-neutral-800">
     <div class="mx-auto max-w-(--breakpoint-md) p-6">
       <div class="mb-4">
         <label class="block text-xs font-medium text-neutral-500 dark:text-neutral-400">

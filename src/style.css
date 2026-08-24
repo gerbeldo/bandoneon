@@ -1,3 +1,8 @@
 @import 'tailwindcss';
 
 @custom-variant dark (&:is(.dark *));
+
+/* Screens tall enough to hold the whole app: below this the page keeps scrolling,
+   because clipping would put controls out of reach (landscape phones).
+   SvgKeyboard.vue repeats the threshold. */
+@custom-variant tall (@media (min-height: 600px));

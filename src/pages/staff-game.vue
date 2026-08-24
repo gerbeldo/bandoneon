@@ -1,6 +1,6 @@
 <template>
   <div
-    class="mx-auto flex w-full max-w-5xl flex-1 flex-col gap-2 px-2 pt-2 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:flex-row md:items-center md:gap-8"
+    class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-2 px-2 pt-2 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:flex-row md:items-center md:gap-8"
   >
     <!-- Phone: staff beside the counter/progress/hint to keep the page one screen tall.
          md+: everything stacked in a wider column so the staff can fill it. -->
@@ -32,7 +32,7 @@
         </p>
       </div>
     </div>
-    <div class="min-w-0 flex-1">
+    <div class="flex min-h-0 min-w-0 flex-1 items-center">
       <SvgKeyboard>
         <SvgButton
           v-for="([x, y, tonal], idx) in positions"

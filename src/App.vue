@@ -1,5 +1,9 @@
 <template>
-  <div class="flex min-h-screen flex-col">
+  <!-- dvh, not vh: iOS reports vh as the toolbar-less height, so a 100vh page
+       always scrolls by the toolbar height. Insets keep it clear of the notch. -->
+  <div
+    class="tall:h-dvh tall:overflow-hidden flex min-h-dvh flex-col pt-[env(safe-area-inset-top)] pr-[env(safe-area-inset-right)] pb-[env(safe-area-inset-bottom)] pl-[env(safe-area-inset-left)]"
+  >
     <AppHeader />
     <RouterView />
     <AppFooter />

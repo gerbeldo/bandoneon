@@ -1,7 +1,7 @@
 <template>
   <svg
     ref="svgEl"
-    class="keyboard mb-2 sm:mb-4"
+    class="keyboard"
     :viewBox="`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`"
     :width="viewBox.width"
     :height="viewBox.height"
@@ -25,8 +25,11 @@ const download = (filename: string) => {
 
   const margin = 30;
   const canvas = document.createElement('canvas');
-  canvas.width = (svgEl.value.getBoundingClientRect().width + margin) * 2;
-  canvas.height = (svgEl.value.getBoundingClientRect().height + margin) * 2;
+  const { width } = svgEl.value.getBoundingClientRect();
+  // The rendered box can be letterboxed, so take the ratio from the viewBox.
+  const viewBox = svgEl.value.viewBox.baseVal;
+  canvas.width = (width + margin) * 2;
+  canvas.height = ((width * viewBox.height) / viewBox.width + margin) * 2;
   const data = new XMLSerializer().serializeToString(svgEl.value);
   const win = window.URL || window.webkitURL || window;
   const img = new Image();
@@ -61,9 +64,17 @@ defineExpose({ download });
 <style scoped>
 .keyboard {
   width: 100%;
-  /* Height tracks the width/height attributes' ratio; the cap only binds in
-     landscape, where the drawing centers horizontally inside the box. */
+  /* Height tracks the width/height attributes' ratio; a cap only binds when the
+     drawing is taller than its box, and then it centers horizontally inside it. */
   height: auto;
   max-height: calc(90dvh - 5em);
+}
+
+/* Tall screens lock the app to one screen (see the `tall` variant in style.css):
+   the flex parent has a definite height, so fit the drawing into it. */
+@media (min-height: 600px) {
+  .keyboard {
+    max-height: 100%;
+  }
 }
 </style>

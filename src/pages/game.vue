@@ -1,5 +1,7 @@
 <template>
-  <div class="mx-auto flex w-full max-w-4xl flex-1 items-center px-2 pt-2 sm:px-6 sm:pt-6">
+  <div
+    class="mx-auto flex min-h-0 w-full max-w-4xl flex-1 items-center px-2 pt-2 pb-2 sm:px-6 sm:pt-6 sm:pb-4"
+  >
     <SvgKeyboard>
       <SvgButton
         v-for="([x, y, tonal], idx) in positions"
@@ -13,7 +15,7 @@
       />
     </SvgKeyboard>
   </div>
-  <div class="mx-auto max-w-(--breakpoint-md) px-6 pb-4 sm:pb-6">
+  <div class="mx-auto max-w-(--breakpoint-md) shrink-0 px-6 pb-4 sm:pb-6">
     <NavVariant :readonly="currentPosition > 0" />
     <p class="mb-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
       {{ t('hint_game') }}
