@@ -15,6 +15,12 @@
   </div>
   <div class="mx-auto max-w-(--breakpoint-md) px-6 pb-6">
     <NavVariant :readonly="currentPosition > 0" />
+    <p class="mb-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
+      {{ t('hint_game') }}
+    </p>
+    <p class="mb-2 hidden text-center text-sm text-neutral-500 sm:block dark:text-neutral-400">
+      {{ t('hint_game_keyboard') }}
+    </p>
     <NavTonic />
     <!-- Medium mode: display octave buttons -->
     <div v-if="difficulty !== 'easy'" class="mb-2 flex flex-wrap justify-center">
@@ -40,8 +46,11 @@
   <Modal v-model="isModalOpen">
     <div class="px-4 py-8 text-center">
       <p class="mb-8">
-        <strong>{{ correctPercentage }}%</strong>
-        {{ t('correct') }}
+        <strong>{{ counts[2] }}</strong> {{ t('correct') }} ·
+        <template v-if="difficulty !== 'easy'">
+          <strong>{{ counts[1] }}</strong> {{ t('partial_credit') }} ·
+        </template>
+        <strong>{{ counts[0] }}</strong> {{ t('wrong') }}
       </p>
       <Button
         @click.prevent="
@@ -74,7 +83,7 @@ import { useSettingsStore } from '../stores/settings';
 
 useHead({ title: 'Play a game! – Bandoneon.app' });
 
-useKeyboard();
+useKeyboard({ keys: 'tonic' });
 
 const currentPosition = ref(0);
 const guessed = ref<number[]>([]);
@@ -187,9 +196,8 @@ watch([tonic, oct], () => {
   }
 });
 
-const progress = computed<[number, number, number]>((): [number, number, number] => {
-  if (positions.value.length === 0) return [0, 0, 0];
-
+// Counts per tier: [wrong, partial, correct]. Easy difficulty has no partial tier.
+const counts = computed<[number, number, number]>((): [number, number, number] => {
   const result: [number, number, number] = [0, 0, 0];
 
   for (const g of guessed.value) {
@@ -198,10 +206,13 @@ const progress = computed<[number, number, number]>((): [number, number, number]
     else if (g === 0) result[0]++;
   }
 
-  return result.map((value) => value / positions.value.length) as [number, number, number];
+  return result;
 });
 
-const correctPercentage = computed(() => Math.round((progress.value[2] || 0) * 100));
+const progress = computed<[number, number, number]>((): [number, number, number] => {
+  if (positions.value.length === 0) return [0, 0, 0];
+  return counts.value.map((value) => value / positions.value.length) as [number, number, number];
+});
 
 // Keyboard shortcuts for octave
 function keydownListener({ key }: { key: string }) {

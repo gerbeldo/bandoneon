@@ -10,6 +10,9 @@
   "display": "Display",
   "einheitsbandonion144": "144 tones, Einheitsbandonion",
   "helmholtz": "c♯’’",
+  "hint_game": "Name the highlighted button — pick the note, then the octave.",
+  "hint_game_keyboard": "Keyboard: letters for notes, hold Shift for sharps, digits for the octave.",
+  "hint_staff_game": "Tap the button that sounds this note. Right note in the wrong octave counts as partial credit.",
   "instrument": "Instrument",
   "language": "Language",
   "language-de": "Deutsch",
@@ -20,6 +23,7 @@
   "manouri148": "148 tones, Manouri (chromatic)",
   "minor": "min",
   "open": "open",
+  "partial_credit": "partial credit",
   "peguri146": "146 tones, Peguri (chromatic)",
   "pitch_notation": "Pitch notation",
   "reset_voicing": "Reset voicing",
@@ -33,5 +37,6 @@
   "try_again": "Try again",
   "solfege": "Do♯5",
   "staff": "Staff",
+  "wrong": "wrong",
   "einheitskonzertina128": "128 tones, Einheitskonzertina"
 }

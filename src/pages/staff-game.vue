@@ -24,6 +24,9 @@
           { value: progress[0], color: SCORE_COLORS[0] },
         ]"
       />
+      <p class="mt-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
+        {{ t('hint_staff_game') }}
+      </p>
     </div>
     <div class="min-w-0 flex-1">
       <SvgKeyboard>
@@ -43,8 +46,8 @@
   <Modal v-model="isModalOpen">
     <div class="px-4 py-8 text-center">
       <p class="mb-8">
-        <strong>{{ correctPercentage }}%</strong>
-        {{ t('correct') }}
+        <strong>{{ counts[2] }}</strong> {{ t('correct') }} · <strong>{{ counts[1] }}</strong>
+        {{ t('partial_credit') }} · <strong>{{ counts[0] }}</strong> {{ t('wrong') }}
       </p>
       <Button
         @click.prevent="
@@ -185,9 +188,8 @@ function tap(idx: number) {
   }, PAUSE_MS);
 }
 
-const progress = computed<[number, number, number]>((): [number, number, number] => {
-  if (positions.value.length === 0) return [0, 0, 0];
-
+// Counts per tier: [wrong, partial, correct], matching the progress bar segments.
+const counts = computed<[number, number, number]>((): [number, number, number] => {
   const result: [number, number, number] = [0, 0, 0];
 
   for (const g of guessed.value) {
@@ -196,8 +198,11 @@ const progress = computed<[number, number, number]>((): [number, number, number]
     else if (g === 0) result[0]++;
   }
 
-  return result.map((value) => value / positions.value.length) as [number, number, number];
+  return result;
 });
 
-const correctPercentage = computed(() => Math.round((progress.value[2] || 0) * 100));
+const progress = computed<[number, number, number]>((): [number, number, number] => {
+  if (positions.value.length === 0) return [0, 0, 0];
+  return counts.value.map((value) => value / positions.value.length) as [number, number, number];
+});
 </script>

@@ -5,6 +5,7 @@
       <div class="fixed inset-0 overflow-y-auto">
         <div
           class="flex min-h-full items-end justify-center p-4 text-center sm:items-center sm:p-0"
+          @click.self="close"
         >
           <div
             class="relative w-full overflow-hidden rounded-lg bg-white text-left shadow-xl sm:my-8 sm:max-w-lg dark:bg-neutral-900"
@@ -18,9 +19,20 @@
 </template>
 
 <script setup lang="ts">
-import { watchEffect } from 'vue';
+import { onMounted, onUnmounted, watchEffect } from 'vue';
 
 const props = defineProps<{ modelValue: boolean }>();
+
+const emit = defineEmits<{ 'update:modelValue': [boolean] }>();
+
+const close = () => emit('update:modelValue', false);
+
+function onKeydown({ key }: KeyboardEvent) {
+  if (props.modelValue && key === 'Escape') close();
+}
+
+onMounted(() => document.addEventListener('keydown', onKeydown));
+onUnmounted(() => document.removeEventListener('keydown', onKeydown));
 
 function preventScroll() {
   const scrollbarWidth = Math.max(0, window.innerWidth - document.documentElement.clientWidth);
