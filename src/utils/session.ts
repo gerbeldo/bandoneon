@@ -1,16 +1,27 @@
 // Session engine (ADR 0004): the engine draws each prompt and holds the item
 // key; games render prompts and capture answers only. The engine grades with
 // the one midi-based rule, stamps the timestamp, and writes one answer event
-// per answer, immediately — abandoning mid-sweep loses nothing.
+// per answer, immediately — abandoning mid-run loses nothing.
 
 import { Note } from 'tonal';
 
+import type { Instrument } from '../data/index';
 import type { AnswerEvent, Grade } from '../stores/practice';
 import { scoreTap } from './game';
 
 export type Side = 'right' | 'left';
 export type Direction = 'open' | 'close';
 export type QuizDirection = 'forward' | 'reverse';
+
+// One side in one direction — the set of buttons the player sees at once.
+export interface Layout {
+  side: Side;
+  direction: Direction;
+}
+
+export function layoutKey(layout: Layout): string {
+  return `${layout.side}/${layout.direction}`;
+}
 
 // Fixed constant, not a setting: response times longer than this record as
 // exactly 60 s (the player walked away, not a 4-minute think).
@@ -113,6 +124,9 @@ export function shuffledOrder(count: number): number[] {
 export interface Prompt {
   index: number;
   total: number;
+  // A sweep never leaves its layout; a scheduler-drawn session crosses all
+  // four layouts of the game.
+  layout: Layout;
   buttonIndex: number;
   // The prompted button's pitch — what the staff game draws.
   pitch: string;
@@ -124,28 +138,16 @@ export interface Prompt {
 
 // The two answer forms on the seam (ADR 0004): the note game names a pitch;
 // the staff game hands back the tapped button's index in render order.
-export type AnswerInput =
-  | { pitch: string; elapsedMs: number }
-  | { tappedIndex: number; elapsedMs: number };
+export type RawAnswer = { pitch: string } | { tappedIndex: number };
+
+// What a game hands back: the raw answer plus how long the player took.
+export type AnswerInput = RawAnswer & { elapsedMs: number };
 
 export interface AnswerOutcome {
   grade: Grade;
   // The button the answer was credited to: the prompted one, or on a correct
   // tap of a twin pitch, the button actually tapped.
   buttonIndex: number;
-}
-
-export interface SweepOptions {
-  grid: string[][];
-  instrument: string;
-  side: Side;
-  direction: Direction;
-  quizDirection: QuizDirection;
-  mode: string;
-  record: (key: string, event: AnswerEvent) => void;
-  now: () => number;
-  // Permutation of button indices to prompt in; identity when omitted.
-  order?: (count: number) => number[];
 }
 
 export interface SessionEngine {
@@ -155,32 +157,67 @@ export interface SessionEngine {
   answer(input: AnswerInput): AnswerOutcome;
 }
 
+interface RunOptions {
+  instrument: string;
+  quizDirection: QuizDirection;
+  mode: string;
+  record: (key: string, event: AnswerEvent) => void;
+  now: () => number;
+}
+
+export interface SweepOptions extends RunOptions {
+  grid: string[][];
+  layout: Layout;
+  // Permutation of button indices to prompt in; identity when omitted.
+  order?: (count: number) => number[];
+}
+
+export interface SessionOptions extends RunOptions {
+  layouts: Instrument;
+  // The scheduler's draw: item keys, already shuffled, in prompt order.
+  draw: string[];
+}
+
 interface DrawnPrompt {
+  layout: Layout;
   buttonIndex: number;
   // Set on a follow-up: the twin already credited, which this prompt must not accept again.
   followUpOf?: number;
 }
 
-export function createSweep(options: SweepOptions): SessionEngine {
-  const buttons = flattenGrid(options.grid);
-  const order = options.order?.(buttons.length) ?? buttons.map((_, i) => i);
-  const draw: DrawnPrompt[] = order.map((buttonIndex) => ({ buttonIndex }));
+interface EngineCore extends RunOptions {
+  buttonsFor: (layout: Layout) => GridButton[];
+  draw: DrawnPrompt[];
+}
+
+function createEngine(core: EngineCore): SessionEngine {
+  const { draw } = core;
   let index = 0;
 
   // Only a pitch-prompted mode can be ambiguous; the note game prompts by button.
-  const twins = new Map<number, number[]>();
-  if (options.quizDirection === 'reverse') {
-    for (const group of twinGroups(buttons)) for (const i of group) twins.set(i, group);
+  const twinsByLayout = new Map<string, Map<number, number[]>>();
+  function twinsFor(layout: Layout): Map<number, number[]> {
+    let twins = twinsByLayout.get(layoutKey(layout));
+    if (!twins) {
+      twins = new Map();
+      if (core.quizDirection === 'reverse') {
+        for (const group of twinGroups(core.buttonsFor(layout))) {
+          for (const i of group) twins.set(i, group);
+        }
+      }
+      twinsByLayout.set(layoutKey(layout), twins);
+    }
+    return twins;
   }
 
-  const key = (button: GridButton) =>
+  const key = (layout: Layout, button: GridButton) =>
     itemKey(
-      options.instrument,
-      options.side,
-      options.direction,
+      core.instrument,
+      layout.side,
+      layout.direction,
       button.row,
       button.column,
-      options.quizDirection,
+      core.quizDirection,
     );
 
   return {
@@ -191,22 +228,25 @@ export function createSweep(options: SweepOptions): SessionEngine {
     prompt() {
       const drawn = draw[index];
       if (!drawn) return null;
+      const buttons = core.buttonsFor(drawn.layout);
       const prompt: Prompt = {
         index,
         total: draw.length,
+        layout: drawn.layout,
         buttonIndex: drawn.buttonIndex,
         pitch: buttons[drawn.buttonIndex].pitch,
       };
       if (drawn.followUpOf !== undefined) prompt.twin = 'follow-up';
-      else if (twins.has(drawn.buttonIndex)) prompt.twin = 'expected';
+      else if (twinsFor(drawn.layout).has(drawn.buttonIndex)) prompt.twin = 'expected';
       return prompt;
     },
 
     answer(input) {
       const drawn = draw[index];
-      if (!drawn) throw new Error('sweep is done');
+      if (!drawn) throw new Error('the run is done');
+      const buttons = core.buttonsFor(drawn.layout);
       const target = buttons[drawn.buttonIndex];
-      const group = twins.get(drawn.buttonIndex);
+      const group = twinsFor(drawn.layout).get(drawn.buttonIndex);
       let credited = drawn.buttonIndex;
       let grade: Grade;
 
@@ -224,18 +264,22 @@ export function createSweep(options: SweepOptions): SessionEngine {
         if (grade === 2 && group) credited = input.tappedIndex;
       }
 
-      options.record(key(buttons[credited]), {
+      core.record(key(drawn.layout, buttons[credited]), {
         grade,
-        timestamp: options.now(),
+        timestamp: core.now(),
         responseMs: Math.min(Math.max(input.elapsedMs, 0), RESPONSE_MS_CAP),
-        mode: options.mode,
+        mode: core.mode,
       });
 
       // A correct first answer on a twin pitch asks for the other button next.
       if (grade === 2 && group && drawn.followUpOf === undefined) {
         const other = group.find((i) => i !== credited);
         if (other !== undefined) {
-          draw.splice(index + 1, 0, { buttonIndex: other, followUpOf: credited });
+          draw.splice(index + 1, 0, {
+            layout: drawn.layout,
+            buttonIndex: other,
+            followUpOf: credited,
+          });
         }
       }
 
@@ -243,4 +287,43 @@ export function createSweep(options: SweepOptions): SessionEngine {
       return { grade, buttonIndex: credited };
     },
   };
+}
+
+// The on-demand run through every button of one layout.
+export function createSweep(options: SweepOptions): SessionEngine {
+  const buttons = flattenGrid(options.grid);
+  const order = options.order?.(buttons.length) ?? buttons.map((_, i) => i);
+
+  return createEngine({
+    ...options,
+    buttonsFor: () => buttons,
+    draw: order.map((buttonIndex) => ({ layout: options.layout, buttonIndex })),
+  });
+}
+
+// A scheduler-drawn session: the draw names items across the game's layouts,
+// so the keyboard changes between prompts.
+export function createSession(options: SessionOptions): SessionEngine {
+  const buttonsByLayout = new Map<string, GridButton[]>();
+  const buttonsFor = (layout: Layout) => {
+    let buttons = buttonsByLayout.get(layoutKey(layout));
+    if (!buttons) {
+      buttons = flattenGrid(layoutGrid(options.layouts, layout.side, layout.direction));
+      buttonsByLayout.set(layoutKey(layout), buttons);
+    }
+    return buttons;
+  };
+
+  // The draw comes from a pool built off these same grids (ADR 0002 keeps keys
+  // and grids in step), so every key names a button that is there.
+  const draw = options.draw.map((key): DrawnPrompt => {
+    const { side, direction, row, column } = parseItemKey(key);
+    const layout = { side, direction };
+    const buttonIndex = buttonsFor(layout).findIndex(
+      (button) => button.row === row && button.column === column,
+    );
+    return { layout, buttonIndex };
+  });
+
+  return createEngine({ ...options, buttonsFor, draw });
 }

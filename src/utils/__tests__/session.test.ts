@@ -6,6 +6,7 @@ import { useStore } from '../../stores/main';
 import type { AnswerEvent } from '../../stores/practice';
 import { useSettingsStore } from '../../stores/settings';
 import {
+  createSession,
   createSweep,
   flattenGrid,
   itemKey,
@@ -13,6 +14,8 @@ import {
   parseItemKey,
   twinGroups,
 } from '../session';
+
+const RIGHT_OPEN = { side: 'right', direction: 'open' } as const;
 
 // Toy grid with an empty cell, so button order and grid coordinates diverge
 // the way they do on real layouts.
@@ -26,8 +29,7 @@ function testSweep(overrides: Partial<Parameters<typeof createSweep>[0]> = {}) {
   const engine = createSweep({
     grid: GRID,
     instrument: 'rheinische142',
-    side: 'right',
-    direction: 'open',
+    layout: { side: 'right', direction: 'open' },
     quizDirection: 'forward',
     mode: 'note-game',
     record: (key, event) => recorded.push({ key, event }),
@@ -43,19 +45,37 @@ describe('sweep', () => {
 
     expect(engine.total).toBe(3);
 
-    expect(engine.prompt()).toEqual({ index: 0, total: 3, buttonIndex: 0, pitch: 'C4' });
+    expect(engine.prompt()).toEqual({
+      index: 0,
+      total: 3,
+      layout: RIGHT_OPEN,
+      buttonIndex: 0,
+      pitch: 'C4',
+    });
     engine.answer({ pitch: 'C4', elapsedMs: 1_200 });
     expect(recorded).toHaveLength(1);
     expect(recorded[0].key).toBe('rheinische142/right/open/0/0/forward');
     expect(recorded[0].event.grade).toBe(2);
 
-    expect(engine.prompt()).toEqual({ index: 1, total: 3, buttonIndex: 1, pitch: 'D4' });
+    expect(engine.prompt()).toEqual({
+      index: 1,
+      total: 3,
+      layout: RIGHT_OPEN,
+      buttonIndex: 1,
+      pitch: 'D4',
+    });
     engine.answer({ pitch: 'D5', elapsedMs: 800 });
     expect(recorded).toHaveLength(2);
     expect(recorded[1].key).toBe('rheinische142/right/open/1/0/forward');
     expect(recorded[1].event.grade).toBe(1);
 
-    expect(engine.prompt()).toEqual({ index: 2, total: 3, buttonIndex: 2, pitch: 'E4' });
+    expect(engine.prompt()).toEqual({
+      index: 2,
+      total: 3,
+      layout: RIGHT_OPEN,
+      buttonIndex: 2,
+      pitch: 'E4',
+    });
     engine.answer({ pitch: 'C4', elapsedMs: 500 });
     expect(recorded).toHaveLength(3);
     expect(recorded[2].key).toBe('rheinische142/right/open/1/1/forward');
@@ -98,12 +118,24 @@ describe('sweep', () => {
   it('follows an injected prompt order, keying each answer to the prompted button', () => {
     const { engine, recorded } = testSweep({ order: (count) => [2, 0, 1].slice(0, count) });
 
-    expect(engine.prompt()).toEqual({ index: 0, total: 3, buttonIndex: 2, pitch: 'E4' });
+    expect(engine.prompt()).toEqual({
+      index: 0,
+      total: 3,
+      layout: RIGHT_OPEN,
+      buttonIndex: 2,
+      pitch: 'E4',
+    });
     const outcome = engine.answer({ pitch: 'E4', elapsedMs: 1 });
 
     expect(outcome).toEqual({ grade: 2, buttonIndex: 2 });
     expect(recorded[0].key).toBe('rheinische142/right/open/1/1/forward');
-    expect(engine.prompt()).toEqual({ index: 1, total: 3, buttonIndex: 0, pitch: 'C4' });
+    expect(engine.prompt()).toEqual({
+      index: 1,
+      total: 3,
+      layout: RIGHT_OPEN,
+      buttonIndex: 0,
+      pitch: 'C4',
+    });
   });
 
   it('refuses an answer after the sweep is done', () => {
@@ -136,7 +168,13 @@ describe('sweep with tapped-position answers', () => {
     const { engine, recorded } = tapSweep();
 
     // Prompted C4: tapping its own button is correct.
-    expect(engine.prompt()).toEqual({ index: 0, total: 3, buttonIndex: 0, pitch: 'C4' });
+    expect(engine.prompt()).toEqual({
+      index: 0,
+      total: 3,
+      layout: RIGHT_OPEN,
+      buttonIndex: 0,
+      pitch: 'C4',
+    });
     expect(engine.answer({ tappedIndex: 0, elapsedMs: 700 })).toEqual({
       grade: 2,
       buttonIndex: 0,
@@ -225,6 +263,7 @@ describe('duplicate-pitch follow-up', () => {
     expect(engine.prompt()).toEqual({
       index: 0,
       total: 4,
+      layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'E5',
       twin: 'expected',
@@ -237,6 +276,7 @@ describe('duplicate-pitch follow-up', () => {
     expect(engine.prompt()).toEqual({
       index: 1,
       total: 5,
+      layout: RIGHT_OPEN,
       buttonIndex: 2,
       pitch: 'E5',
       twin: 'follow-up',
@@ -251,7 +291,13 @@ describe('duplicate-pitch follow-up', () => {
     });
 
     // Then the run continues where it was; a single pitch carries no marker.
-    expect(engine.prompt()).toEqual({ index: 2, total: 5, buttonIndex: 1, pitch: 'D5' });
+    expect(engine.prompt()).toEqual({
+      index: 2,
+      total: 5,
+      layout: RIGHT_OPEN,
+      buttonIndex: 1,
+      pitch: 'D5',
+    });
   });
 
   it('credits the twin when the tap lands there first, then asks for the prompted button', () => {
@@ -287,7 +333,13 @@ describe('duplicate-pitch follow-up', () => {
     // Either way the run moves on with no further follow-up.
     for (const { engine } of [partial, spent]) {
       expect(engine.total).toBe(5);
-      expect(engine.prompt()).toEqual({ index: 2, total: 5, buttonIndex: 1, pitch: 'D5' });
+      expect(engine.prompt()).toEqual({
+        index: 2,
+        total: 5,
+        layout: RIGHT_OPEN,
+        buttonIndex: 1,
+        pitch: 'D5',
+      });
     }
   });
 
@@ -298,7 +350,13 @@ describe('duplicate-pitch follow-up', () => {
 
     expect(recorded[0]).toMatchObject({ key: keyAt(0, 0), event: { grade: 1 } });
     expect(engine.total).toBe(4);
-    expect(engine.prompt()).toEqual({ index: 1, total: 4, buttonIndex: 1, pitch: 'D5' });
+    expect(engine.prompt()).toEqual({
+      index: 1,
+      total: 4,
+      layout: RIGHT_OPEN,
+      buttonIndex: 1,
+      pitch: 'D5',
+    });
   });
 
   it('follows up once per correct twin prompt, so both regular prompts of a pair ask again', () => {
@@ -312,6 +370,7 @@ describe('duplicate-pitch follow-up', () => {
     expect(engine.prompt()).toMatchObject({
       index: 4,
       total: 6,
+      layout: RIGHT_OPEN,
       buttonIndex: 2,
       twin: 'follow-up',
     });
@@ -332,11 +391,23 @@ describe('duplicate-pitch follow-up', () => {
   it('never follows up in a button-prompted mode: the note game answers a twin pitch once', () => {
     const { engine, recorded } = testSweep({ grid: TWIN_GRID });
 
-    expect(engine.prompt()).toEqual({ index: 0, total: 4, buttonIndex: 0, pitch: 'E5' });
+    expect(engine.prompt()).toEqual({
+      index: 0,
+      total: 4,
+      layout: RIGHT_OPEN,
+      buttonIndex: 0,
+      pitch: 'E5',
+    });
     engine.answer({ pitch: 'E5', elapsedMs: 1 });
 
     expect(engine.total).toBe(4);
-    expect(engine.prompt()).toEqual({ index: 1, total: 4, buttonIndex: 1, pitch: 'D5' });
+    expect(engine.prompt()).toEqual({
+      index: 1,
+      total: 4,
+      layout: RIGHT_OPEN,
+      buttonIndex: 1,
+      pitch: 'D5',
+    });
     expect(recorded).toHaveLength(1);
     expect(recorded[0].key).toBe('rheinische142/right/open/0/0/forward');
   });
@@ -356,7 +427,7 @@ describe('duplicate-pitch follow-up', () => {
     const second = buttons.findIndex((b, i) => b.pitch === 'E5' && i !== first);
     const { engine, recorded } = testSweep({
       grid,
-      direction: 'close',
+      layout: { side: 'right', direction: 'close' },
       quizDirection: 'reverse',
       mode: 'staff-game',
       order: (count) => [first, ...[...Array(count).keys()].filter((i) => i !== first)],
@@ -427,5 +498,115 @@ describe('layoutGrid', () => {
         }
       }
     }
+  });
+});
+
+// A scheduler-drawn session runs the same engine over item keys that may name
+// any of the game's four layouts, so the keyboard changes between prompts.
+describe('scheduler-drawn session', () => {
+  const LAYOUTS = {
+    right: { open: [['C4', '']], close: [['D4', 'E4']] },
+    left: { open: [['G3']], close: [['A3']] },
+  };
+
+  function testSession(draw: string[], overrides: Record<string, unknown> = {}) {
+    const recorded: { key: string; event: AnswerEvent }[] = [];
+    const engine = createSession({
+      layouts: LAYOUTS,
+      instrument: 'toy',
+      quizDirection: 'forward',
+      mode: 'note-game',
+      draw,
+      record: (key, event) => recorded.push({ key, event }),
+      now: () => 1_000,
+      ...overrides,
+    });
+    return { engine, recorded };
+  }
+
+  it('prompts the drawn items in order, naming each one’s layout', () => {
+    const { engine } = testSession([
+      'toy/left/close/0/0/forward',
+      'toy/right/close/0/1/forward',
+      'toy/right/open/0/0/forward',
+    ]);
+
+    expect(engine.total).toBe(3);
+    expect(engine.prompt()).toEqual({
+      index: 0,
+      total: 3,
+      layout: { side: 'left', direction: 'close' },
+      buttonIndex: 0,
+      pitch: 'A3',
+    });
+
+    engine.answer({ pitch: 'A3', elapsedMs: 500 });
+    expect(engine.prompt()).toMatchObject({
+      layout: { side: 'right', direction: 'close' },
+      buttonIndex: 1,
+      pitch: 'E4',
+    });
+
+    engine.answer({ pitch: 'E4', elapsedMs: 500 });
+    expect(engine.prompt()).toMatchObject({ layout: RIGHT_OPEN, pitch: 'C4' });
+
+    engine.answer({ pitch: 'C4', elapsedMs: 500 });
+    expect(engine.prompt()).toBeNull();
+  });
+
+  it('records each answer under the drawn key, graded by the same rule', () => {
+    const { engine, recorded } = testSession([
+      'toy/right/close/0/1/forward',
+      'toy/left/open/0/0/forward',
+    ]);
+
+    engine.answer({ pitch: 'E5', elapsedMs: 400 }); // E4 prompted: pitch class only
+    engine.answer({ pitch: 'G3', elapsedMs: 900 });
+
+    expect(recorded.map((r) => [r.key, r.event.grade])).toEqual([
+      ['toy/right/close/0/1/forward', 1],
+      ['toy/left/open/0/0/forward', 2],
+    ]);
+    expect(recorded[0].event).toEqual({
+      grade: 1,
+      timestamp: 1_000,
+      responseMs: 400,
+      mode: 'note-game',
+    });
+  });
+
+  it('inserts a duplicate-pitch follow-up inside the prompt’s own layout', () => {
+    const twinLayouts = {
+      right: { open: [['E5', 'D5', 'E5']], close: [['C4']] },
+      left: { open: [['G3']], close: [['A3']] },
+    };
+    const { engine, recorded } = testSession(
+      ['toy/right/open/0/0/forward', 'toy/left/close/0/0/forward'],
+      { layouts: twinLayouts, quizDirection: 'reverse', mode: 'staff-game' },
+    );
+
+    expect(engine.prompt()).toMatchObject({ total: 2, buttonIndex: 0, twin: 'expected' });
+
+    // Tapping the twin credits the tapped button and asks for the other one.
+    expect(engine.answer({ tappedIndex: 2, elapsedMs: 300 })).toEqual({
+      grade: 2,
+      buttonIndex: 2,
+    });
+    expect(recorded[0].key).toBe('toy/right/open/0/2/reverse');
+    expect(engine.total).toBe(3);
+    expect(engine.prompt()).toMatchObject({
+      index: 1,
+      total: 3,
+      layout: RIGHT_OPEN,
+      buttonIndex: 0,
+      twin: 'follow-up',
+    });
+
+    engine.answer({ tappedIndex: 0, elapsedMs: 300 });
+    expect(recorded[1].key).toBe('toy/right/open/0/0/reverse');
+    expect(engine.prompt()).toMatchObject({
+      layout: { side: 'left', direction: 'close' },
+      pitch: 'A3',
+    });
   });
 });

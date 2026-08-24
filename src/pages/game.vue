@@ -1,116 +1,122 @@
 <template>
-  <div
-    class="mx-auto flex min-h-0 w-full max-w-4xl flex-1 items-center px-2 pt-2 pb-2 sm:px-6 sm:pt-6 sm:pb-4"
-  >
-    <SvgKeyboard>
-      <SvgButton
-        v-for="([x, y, tonal], idx) in keyPositions"
-        :key="idx"
-        :x="x"
-        :y="y"
-        :tonal="tonal"
-        :label="label(idx)"
-        :selected="idx === currentButton"
-        :color="fillColor(idx)"
-      />
-    </SvgKeyboard>
-  </div>
-  <div class="mx-auto max-w-(--breakpoint-md) shrink-0 px-6 pb-4 sm:pb-6">
-    <NavVariant :readonly="answeredCount > 0" />
-    <p class="mb-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
-      {{ t('hint_game') }}
-    </p>
-    <p class="mb-2 hidden text-center text-sm text-neutral-500 sm:block dark:text-neutral-400">
-      {{ t('hint_game_keyboard') }}
-    </p>
-    <NavTonic />
-    <div class="mb-2 flex flex-wrap justify-center">
-      <Button
-        v-for="octave in octaves"
-        :key="octave"
-        class="m-1 w-12"
-        :disabled="!tonic"
-        @click.prevent="oct = octave"
-      >
-        {{ formatOctave(octave) }}
-      </Button>
+  <StartCard
+    v-if="phase === 'start-card'"
+    v-model="scope"
+    :preview="preview"
+    @start="start"
+    @sweep="sweep"
+  />
+  <template v-else>
+    <div
+      class="mx-auto flex min-h-0 w-full max-w-4xl flex-1 items-center px-2 pt-2 pb-2 sm:px-6 sm:pt-6 sm:pb-4"
+    >
+      <SvgKeyboard>
+        <SvgButton
+          v-for="([x, y, tonal], idx) in keyPositions"
+          :key="idx"
+          :x="x"
+          :y="y"
+          :tonal="tonal"
+          :label="label(idx)"
+          :selected="idx === currentButton"
+          :color="fillColor(idx)"
+        />
+      </SvgKeyboard>
     </div>
-    <Progress
-      class="mt-2 sm:mt-6"
-      :values="[
-        { value: progress[2], color: '#22c55e' /* green-500 */ },
-        { value: progress[1], color: '#eab308' /* yellow-500 */ },
-        { value: progress[0], color: '#ef4444' /* red-500 */ },
-      ]"
-    />
-  </div>
-  <Modal v-model="isModalOpen">
-    <div class="px-4 py-8 text-center">
-      <p class="mb-8">
-        <strong>{{ counts[2] }}</strong> {{ t('correct') }} · <strong>{{ counts[1] }}</strong>
-        {{ t('partial_credit') }} · <strong>{{ counts[0] }}</strong> {{ t('wrong') }}
+    <div class="mx-auto max-w-(--breakpoint-md) shrink-0 px-6 pb-4 sm:pb-6">
+      <!-- Read-only during play: it is the prompt's layout, not a choice. The
+           scope is picked on the start card. -->
+      <NavVariant readonly />
+      <p class="mb-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
+        {{ t('hint_game') }}
       </p>
-      <Button
-        @click.prevent="
-          isModalOpen = false;
-          resetGame();
-        "
-      >
-        {{ t('try_again') }}
-      </Button>
+      <p class="mb-2 hidden text-center text-sm text-neutral-500 sm:block dark:text-neutral-400">
+        {{ t('hint_game_keyboard') }}
+      </p>
+      <NavTonic />
+      <div class="mb-2 flex flex-wrap justify-center">
+        <Button
+          v-for="octave in octaves"
+          :key="octave"
+          class="m-1 w-12"
+          :disabled="!tonic"
+          @click.prevent="oct = octave"
+        >
+          {{ formatOctave(octave) }}
+        </Button>
+      </div>
+      <Progress
+        class="mt-2 sm:mt-6"
+        :values="[
+          { value: progress[2], color: '#22c55e' /* green-500 */ },
+          { value: progress[1], color: '#eab308' /* yellow-500 */ },
+          { value: progress[0], color: '#ef4444' /* red-500 */ },
+        ]"
+      />
     </div>
-  </Modal>
+  </template>
+  <SessionSummary
+    :open="phase === 'summary'"
+    :counts="counts"
+    :ran="ran"
+    @again="again"
+    @dismiss="toStartCard"
+  />
 </template>
 
 <script setup lang="ts">
 import { useHead } from '@unhead/vue';
 import { useI18n } from 'petite-vue-i18n';
 import { storeToRefs } from 'pinia';
-import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import Button from '../components/Button.vue';
-import Modal from '../components/Modal.vue';
 import NavTonic from '../components/NavTonic.vue';
 import NavVariant from '../components/NavVariant.vue';
 import Progress from '../components/Progress.vue';
+import SessionSummary from '../components/SessionSummary.vue';
+import StartCard from '../components/StartCard.vue';
 import SvgButton from '../components/SvgButton.vue';
 import SvgKeyboard from '../components/SvgKeyboard.vue';
 import { useKeyboard } from '../composables/useKeyboard';
-import { instruments } from '../data/index';
+import { useSession } from '../composables/useSession';
 import { useStore } from '../stores/main';
-import type { Grade } from '../stores/practice';
-import { usePracticeStore } from '../stores/practice';
 import { useSettingsStore } from '../stores/settings';
-import type { Prompt, SessionEngine } from '../utils/session';
-import { createSweep, layoutGrid, shuffledOrder } from '../utils/session';
 
 useHead({ title: 'Play a game! – Bandoneon.app' });
 
 useKeyboard({ keys: 'tonic' });
 
-// The sweep runs through the session engine (ADR 0004): it draws prompts,
-// grades, and records; this page only renders prompts and captures answers.
-const engine = shallowRef<SessionEngine | null>(null);
-const prompt = ref<Prompt | null>(null);
-const grades = ref<Record<number, Grade>>({});
+// The session engine draws prompts, grades, and records (ADR 0004); this page
+// only renders the prompt and captures the named pitch.
+const {
+  phase,
+  scope,
+  preview,
+  prompt,
+  total,
+  counts,
+  gradeOf,
+  ran,
+  start,
+  sweep,
+  again,
+  next,
+  answer,
+  toStartCard,
+} = useSession({ quizDirection: 'forward', mode: 'note-game' });
+
 const oct = ref<number | null>(null);
-const isModalOpen = ref(false);
-let promptArmedAt = 0;
 
 const { t } = useI18n();
 
 const store = useStore();
-const { tonic, side, direction, keyPositions } = storeToRefs(store);
+const { tonic, keyPositions } = storeToRefs(store);
 
 const settings = useSettingsStore();
 const { pitchNotation } = storeToRefs(settings);
 
-const practice = usePracticeStore();
-
 const currentButton = computed(() => prompt.value?.buttonIndex ?? -1);
-const answeredCount = computed(() =>
-  prompt.value ? prompt.value.index : (engine.value?.total ?? 0),
-);
 
 const formatOctave = (octave: number) => {
   if (pitchNotation.value !== 'helmholtz') {
@@ -125,15 +131,16 @@ const formatOctave = (octave: number) => {
 };
 
 const fillColor = (idx: number) => {
-  if (grades.value[idx] === 2) return '#22c55e88'; // green-500
-  if (grades.value[idx] === 1) return '#eab30888'; // yellow-500
-  if (grades.value[idx] === 0) return '#ef444488'; // red-500
+  const grade = gradeOf(idx);
+  if (grade === 2) return '#22c55e88'; // green-500
+  if (grade === 1) return '#eab30888'; // yellow-500
+  if (grade === 0) return '#ef444488'; // red-500
   return 'transparent';
 };
 
 const label = (idx: number) => {
   if (idx === currentButton.value) return tonic.value || '?';
-  if (typeof grades.value[idx] === 'number') return;
+  if (typeof gradeOf(idx) === 'number') return;
   return '?';
 };
 
@@ -150,59 +157,22 @@ const octaves = computed(() => {
     .sort();
 });
 
-// The response clock starts once the prompt is rendered and accepting input.
-function armClock() {
-  void nextTick(() => {
-    promptArmedAt = Date.now();
-  });
-}
-
-function resetGame() {
+// Drops a half-made answer: the note without its octave, or both once graded.
+function clearPick() {
   oct.value = null;
-  grades.value = {};
   store.setTonic(null);
-
-  const instrumentData = instruments[settings.instrument];
-  engine.value = instrumentData
-    ? createSweep({
-        grid: layoutGrid(instrumentData, side.value, direction.value),
-        instrument: settings.instrument,
-        side: side.value,
-        direction: direction.value,
-        quizDirection: 'forward',
-        mode: 'note-game',
-        record: practice.recordAnswer,
-        now: Date.now,
-        order: shuffledOrder,
-      })
-    : null;
-  prompt.value = engine.value?.prompt() ?? null;
-  armClock();
 }
 
-// Side and direction stay as the player left them elsewhere; NavVariant changes
-// them, and the keyPositions watcher restarts the sweep on the new layout.
-onMounted(() => resetGame());
-watch(keyPositions, () => resetGame());
+watch(phase, clearPick);
 
 function submit() {
-  if (!engine.value || !prompt.value || !tonic.value || !oct.value) return;
+  if (!prompt.value || !tonic.value || !oct.value) return;
 
-  const outcome = engine.value.answer({
-    pitch: tonic.value + oct.value,
-    elapsedMs: Date.now() - promptArmedAt,
-  });
-  grades.value[outcome.buttonIndex] = outcome.grade;
+  const outcome = answer({ pitch: tonic.value + oct.value });
+  if (!outcome) return;
 
-  // Proceed to next prompt
-  store.setTonic(null);
-  oct.value = null;
-  prompt.value = engine.value.prompt();
-  if (prompt.value) {
-    armClock();
-  } else {
-    isModalOpen.value = true;
-  }
+  clearPick();
+  next();
 }
 
 watch([tonic, oct], () => {
@@ -211,22 +181,9 @@ watch([tonic, oct], () => {
   }
 });
 
-// Counts per tier: [wrong, partial, correct].
-const counts = computed<[number, number, number]>((): [number, number, number] => {
-  const result: [number, number, number] = [0, 0, 0];
-
-  for (const g of Object.values(grades.value)) {
-    if (g === 2) result[2]++;
-    else if (g === 1) result[1]++;
-    else if (g === 0) result[0]++;
-  }
-
-  return result;
-});
-
 const progress = computed<[number, number, number]>((): [number, number, number] => {
-  if (keyPositions.value.length === 0) return [0, 0, 0];
-  return counts.value.map((value) => value / keyPositions.value.length) as [number, number, number];
+  if (total.value === 0) return [0, 0, 0];
+  return counts.value.map((value) => value / total.value) as [number, number, number];
 });
 
 // Keyboard shortcuts for octave

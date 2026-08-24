@@ -245,3 +245,53 @@ describe('draw: order and determinism', () => {
     expect([...other].sort()).toEqual([...first].sort());
   });
 });
+
+// The start card's info line: what starting a session right now would mean.
+describe('preview', () => {
+  const pool = [...layoutKeys('right', 'open', 30), ...layoutKeys('left', 'close', 30)];
+
+  it('counts the whole pool as unseen on a first visit', () => {
+    expect(scheduler().preview({ pool, memory: {}, scope: 'all', now: NOON })).toEqual({
+      prompts: 3,
+      newLeft: 3,
+      seen: 0,
+      total: 60,
+    });
+  });
+
+  it('counts prompts as the session size once enough items are seen', () => {
+    const memory = Object.fromEntries(
+      pool.slice(0, 25).map((key) => [key, record([2], NOON - DAY)]),
+    );
+
+    expect(scheduler().preview({ pool, memory, scope: 'all', now: NOON })).toEqual({
+      prompts: 20,
+      newLeft: 3,
+      seen: 25,
+      total: 60,
+    });
+  });
+
+  it('spends today’s new-item budget over the whole pool, however the session is scoped', () => {
+    const memory = {
+      [pool[0]]: record([2], NOON - 3_600_000),
+      [pool[1]]: record([2], NOON - 3_600_000),
+    };
+
+    expect(scheduler().preview({ pool, memory, scope: 'all', now: NOON }).newLeft).toBe(1);
+    expect(
+      scheduler().preview({ pool, memory, scope: { side: 'left', direction: 'close' }, now: NOON })
+        .newLeft,
+    ).toBe(1);
+  });
+
+  it('narrows the seen and pool counts to the chosen layout', () => {
+    const memory = Object.fromEntries(
+      [...pool.slice(0, 4), ...pool.slice(30, 37)].map((key) => [key, record([2], NOON - DAY)]),
+    );
+
+    expect(
+      scheduler().preview({ pool, memory, scope: { side: 'left', direction: 'close' }, now: NOON }),
+    ).toEqual({ prompts: 10, newLeft: 3, seen: 7, total: 30 });
+  });
+});
