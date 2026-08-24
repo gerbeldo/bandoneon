@@ -6,7 +6,6 @@ export const useSettingsStore = defineStore('settings', () => {
   const locale = ref(navigator.language?.split('-')[0] || 'en');
   const pitchNotation = ref<'scientific' | 'helmholtz' | 'solfege' | 'staff'>('scientific');
   const userChords = ref<Record<string, Record<string, string[]>>>({});
-  const difficulty = ref<'medium' | 'easy'>('medium');
 
   function saveUserChord(side: string, chordName: string, notes: string[]) {
     if (!userChords.value[side]) userChords.value[side] = {};
@@ -22,7 +21,6 @@ export const useSettingsStore = defineStore('settings', () => {
     locale,
     pitchNotation,
     userChords,
-    difficulty,
     saveUserChord,
     resetUserChord,
   };

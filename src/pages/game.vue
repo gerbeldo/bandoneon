@@ -24,8 +24,7 @@
       {{ t('hint_game_keyboard') }}
     </p>
     <NavTonic />
-    <!-- Medium mode: display octave buttons -->
-    <div v-if="difficulty !== 'easy'" class="mb-2 flex flex-wrap justify-center">
+    <div class="mb-2 flex flex-wrap justify-center">
       <Button
         v-for="octave in octaves"
         :key="octave"
@@ -48,11 +47,8 @@
   <Modal v-model="isModalOpen">
     <div class="px-4 py-8 text-center">
       <p class="mb-8">
-        <strong>{{ counts[2] }}</strong> {{ t('correct') }} ·
-        <template v-if="difficulty !== 'easy'">
-          <strong>{{ counts[1] }}</strong> {{ t('partial_credit') }} ·
-        </template>
-        <strong>{{ counts[0] }}</strong> {{ t('wrong') }}
+        <strong>{{ counts[2] }}</strong> {{ t('correct') }} · <strong>{{ counts[1] }}</strong>
+        {{ t('partial_credit') }} · <strong>{{ counts[0] }}</strong> {{ t('wrong') }}
       </p>
       <Button
         @click.prevent="
@@ -99,7 +95,7 @@ const store = useStore();
 const { tonic, keyPositions } = storeToRefs(store);
 
 const settings = useSettingsStore();
-const { pitchNotation, difficulty } = storeToRefs(settings);
+const { pitchNotation } = storeToRefs(settings);
 
 const formatOctave = (octave: number) => {
   if (pitchNotation.value !== 'helmholtz') {
@@ -114,8 +110,7 @@ const formatOctave = (octave: number) => {
 };
 
 const fillColor = (idx: number) => {
-  if (guessed.value[idx] === 2 || (difficulty.value === 'easy' && guessed.value[idx] === 1))
-    return '#22c55e88'; // green-500
+  if (guessed.value[idx] === 2) return '#22c55e88'; // green-500
   if (guessed.value[idx] === 1) return '#eab30888'; // yellow-500
   if (guessed.value[idx] === 0) return '#ef444488'; // red-500
   return 'transparent';
@@ -185,17 +180,17 @@ function check() {
 }
 
 watch([tonic, oct], () => {
-  if (tonic.value && (difficulty.value === 'easy' || oct.value)) {
+  if (tonic.value && oct.value) {
     check();
   }
 });
 
-// Counts per tier: [wrong, partial, correct]. Easy difficulty has no partial tier.
+// Counts per tier: [wrong, partial, correct].
 const counts = computed<[number, number, number]>((): [number, number, number] => {
   const result: [number, number, number] = [0, 0, 0];
 
   for (const g of guessed.value) {
-    if (g === 2 || (g === 1 && difficulty.value === 'easy')) result[2]++;
+    if (g === 2) result[2]++;
     else if (g === 1) result[1]++;
     else if (g === 0) result[0]++;
   }

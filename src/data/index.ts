@@ -16,8 +16,6 @@ export const instruments = <Record<string, Instrument>>{
   einheitskonzertina128,
 };
 
-export const difficulties = <Array<'easy' | 'medium'>>['easy', 'medium'];
-
 export const pitchNotations = <Array<'scientific' | 'helmholtz' | 'solfege' | 'staff'>>[
   'scientific',
   'helmholtz',
