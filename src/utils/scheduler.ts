@@ -118,3 +118,32 @@ export function createWeightedScheduler(random: () => number = Math.random): Sch
     },
   };
 }
+
+// What the start card's info line reports: the numbers a session started right
+// now would run under, adapted to the chosen scope.
+export interface SessionPreview {
+  // How many prompts the draw would hold — the session size, or less while the
+  // pool is still small.
+  prompts: number;
+  // Never-seen items still allowed today; the cap is per game, so this ignores
+  // the scope.
+  newLeft: number;
+  // Items already answered at least once, and the pool size, both in scope.
+  seen: number;
+  total: number;
+}
+
+export function sessionPreview(input: SchedulerInput): SessionPreview {
+  const { pool, memory, scope } = input;
+  const newLeft = Math.max(0, DAILY_NEW_ITEMS - introducedToday(input));
+  const scoped = pool.filter((key) => inScope(key, scope));
+  const seenCount = scoped.filter((key) => seen(memory[key])).length;
+  const fresh = Math.min(newLeft, scoped.length - seenCount);
+
+  return {
+    prompts: Math.min(SESSION_SIZE, fresh + seenCount),
+    newLeft,
+    seen: seenCount,
+    total: scoped.length,
+  };
+}

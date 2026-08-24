@@ -5,10 +5,12 @@ import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp, h, nextTick } from 'vue';
 
+import { instruments } from '../../data/index';
 import en from '../../locales/en.json';
 import { useStore } from '../../stores/main';
 import { usePracticeStore } from '../../stores/practice';
 import { useSettingsStore } from '../../stores/settings';
+import { introductionOrder } from '../../utils/introduction';
 import Game from '../game.vue';
 
 const GREEN = '#22c55e88';
@@ -51,6 +53,23 @@ const circles = (container: HTMLElement) => [...container.querySelectorAll('.key
 const click = (button?: HTMLElement) =>
   button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
+const buttonNamed = (container: HTMLElement, text: string) =>
+  buttons(container).find((b) => b.textContent?.trim() === text);
+
+// Play never begins without a tap: every test that wants a run starts one from
+// the card.
+async function startSweep(container: HTMLElement) {
+  click(buttonNamed(container, en.one_layout));
+  await nextTick();
+  click(buttonNamed(container, en.sweep_layout));
+  await nextTick();
+}
+
+async function startSession(container: HTMLElement) {
+  click(buttonNamed(container, en.start_session));
+  await nextTick();
+}
+
 // Math.random is constant, so the shuffle keeps the layout order and the
 // session's first prompt is keyPositions[0].
 function firstPrompt(store: ReturnType<typeof useStore>) {
@@ -76,7 +95,7 @@ afterEach(() => {
 describe('note game', () => {
   it('always demands the octave, even for a legacy blob that said easy', async () => {
     const { container, store } = mount({ difficulty: 'easy' });
-    await nextTick();
+    await startSweep(container);
 
     expect(octaveButtons(container).length).toBeGreaterThan(0);
 
@@ -89,7 +108,7 @@ describe('note game', () => {
 
   it('keeps octave buttons disabled until a note is picked', async () => {
     const { container, store } = mount();
-    await nextTick();
+    await startSweep(container);
 
     for (const button of octaveButtons(container)) expect(button.disabled).toBe(true);
 
@@ -99,7 +118,7 @@ describe('note game', () => {
 
   it('grades the right note in the wrong octave yellow (partial credit)', async () => {
     const { container, store } = mount();
-    await nextTick();
+    await startSweep(container);
 
     const { pc, octave } = firstPrompt(store);
     await answer(container, store, pc);
@@ -111,7 +130,7 @@ describe('note game', () => {
 
   it('grades the right note in the right octave green', async () => {
     const { container, store } = mount();
-    await nextTick();
+    await startSweep(container);
 
     const { pc, octave } = firstPrompt(store);
     await answer(container, store, pc);
@@ -129,7 +148,7 @@ const FIRST_KEY = 'rheinische142/right/open/0/2/forward';
 describe('note game recording', () => {
   it('writes one answer event immediately per answer; abandoning keeps them', async () => {
     const { container, store, practice } = mount();
-    await nextTick();
+    await startSweep(container);
 
     const { pc, octave } = firstPrompt(store);
     await answer(container, store, pc);
@@ -150,7 +169,7 @@ describe('note game recording', () => {
 
   it('grades through the engine: wrong octave records a 1, wrong note a 0', async () => {
     const { container, store, practice } = mount();
-    await nextTick();
+    await startSweep(container);
 
     const { pc, octave } = firstPrompt(store);
     await answer(container, store, pc);
@@ -172,7 +191,7 @@ describe('note game recording', () => {
     let clock = 100_000;
     vi.spyOn(Date, 'now').mockImplementation(() => clock);
     const { container, store, practice } = mount();
-    await nextTick();
+    await startSweep(container);
 
     const { pc, octave } = firstPrompt(store);
     clock = 101_234;
@@ -182,5 +201,79 @@ describe('note game recording', () => {
     await nextTick();
 
     expect(practice.items[FIRST_KEY].answers[0].responseMs).toBe(2_000);
+  });
+});
+
+const dialog = () => document.querySelector('[role="dialog"]');
+
+// Practice memory for items answered correctly yesterday, so they are seen and
+// carry a day's worth of sampling weight.
+function seed(practice: ReturnType<typeof usePracticeStore>, keys: string[]) {
+  const yesterday = Date.now() - 86_400_000;
+  for (const key of keys) {
+    practice.items[key] = {
+      firstSeen: yesterday,
+      answers: [{ grade: 2, timestamp: yesterday, responseMs: 1_000, mode: 'note-game' }],
+    };
+  }
+}
+
+// Names C in whatever octave the layout offers first, so the run advances
+// whatever the prompt was.
+async function answerAnything(container: HTMLElement) {
+  click(noteButton(container, 'C'));
+  await nextTick();
+  click(octaveButtons(container)[0]);
+  await nextTick();
+}
+
+describe('note game start card', () => {
+  const pool = () =>
+    introductionOrder({
+      instrument: 'rheinische142',
+      layouts: instruments.rheinische142,
+      quizDirection: 'forward',
+    });
+
+  it('lands on the card and starts nothing until the player taps', async () => {
+    const { container, practice } = mount();
+    await nextTick();
+
+    expect(container.textContent).toContain(en.start_session);
+    expect(circles(container)).toHaveLength(0);
+    expect(practice.items).toEqual({});
+  });
+
+  it('runs a scheduler-drawn session across layouts and ends in a summary', async () => {
+    const { container, store, practice } = mount();
+    seed(practice, pool().slice(0, 60));
+    await nextTick();
+    expect(container.textContent).toContain('20 prompts · 3 new left today · 60 of 142 seen');
+
+    await startSession(container);
+    const layouts = new Set<string>();
+    for (let i = 0; i < 40 && !dialog(); i++) {
+      layouts.add(`${store.side}/${store.direction}`);
+      await answerAnything(container);
+    }
+
+    expect(layouts.size).toBeGreaterThan(1);
+    expect(Object.values(practice.items).flatMap((item) => item.answers)).toHaveLength(80);
+    expect(dialog()?.textContent).toContain(en.new_session);
+
+    // Dismissing the summary hands the page back to the card.
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+    expect(container.textContent).toContain(en.start_session);
+  });
+
+  it('labels the sweep’s summary as a repeat, not a new session', async () => {
+    const { container } = mount();
+    await startSweep(container);
+
+    for (let i = 0; i < 40 && !dialog(); i++) await answerAnything(container);
+
+    expect(dialog()?.textContent).toContain(en.try_again);
+    expect(dialog()?.textContent).not.toContain(en.new_session);
   });
 });

@@ -1,4 +1,5 @@
 {
+  "all_layouts": "All layouts",
   "chord": "Chord",
   "chromatic": "chrom",
   "close": "close",
@@ -6,6 +7,7 @@
   "correct": "correct",
   "display": "Display",
   "einheitsbandonion144": "144 tones, Einheitsbandonion",
+  "einheitskonzertina128": "128 tones, Einheitskonzertina",
   "helmholtz": "c♯’’",
   "hint_game": "Name the highlighted button — pick the note, then the octave.",
   "hint_game_keyboard": "Keyboard: letters for notes, hold Shift for sharps, digits for the octave.",
@@ -19,6 +21,8 @@
   "major": "maj",
   "manouri148": "148 tones, Manouri (chromatic)",
   "minor": "min",
+  "new_session": "New session",
+  "one_layout": "One layout",
   "open": "open",
   "partial_credit": "partial credit",
   "peguri146": "146 tones, Peguri (chromatic)",
@@ -31,11 +35,13 @@
   "save_voicing": "Save voicing",
   "scale": "Scale",
   "scientific": "C♯5",
-  "try_again": "Try again",
+  "session_info": "{prompts} prompts · {newLeft} new left today · {seen} of {total} seen",
   "solfege": "Do♯5",
   "staff": "Staff",
+  "start_session": "Start",
+  "sweep_layout": "Sweep this layout",
+  "try_again": "Try again",
   "twin_expected": "Two buttons sound this note — tap either one.",
   "twin_follow_up": "Now tap the other button that sounds this note.",
-  "wrong": "wrong",
-  "einheitskonzertina128": "128 tones, Einheitskonzertina"
+  "wrong": "wrong"
 }

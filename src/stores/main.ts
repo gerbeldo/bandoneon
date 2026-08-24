@@ -2,6 +2,7 @@ import { defineStore } from 'pinia';
 
 import chords from '../data/chords';
 import { instruments } from '../data/index';
+import type { QuizDirection } from '../utils/session';
 import { useSettingsStore } from './settings';
 
 export const useStore = defineStore('main', {
@@ -10,6 +11,10 @@ export const useStore = defineStore('main', {
     showEnharmonics: false,
     side: 'right' as 'right' | 'left',
     direction: 'open' as 'open' | 'close',
+    // Session scope per game, kept for the browser session only — like side
+    // and direction, this store is never persisted, so a fresh visit resets
+    // both games to all layouts. 'one' means the current side + direction.
+    sessionScope: { forward: 'all', reverse: 'all' } as Record<QuizDirection, 'all' | 'one'>,
     tonic: null as null | string,
     chordType: null as null | string,
     scaleType: null as null | string,
