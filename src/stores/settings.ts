@@ -1,6 +1,17 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
+import type { StorageSpec } from '../utils/storage';
+
+export const settingsStorage: StorageSpec = {
+  key: 'settings',
+  version: 1,
+  migrations: {
+    // v1: easy mode was removed; drop the orphaned difficulty key.
+    1: ({ difficulty: _difficulty, ...rest }) => rest,
+  },
+};
+
 export const useSettingsStore = defineStore('settings', () => {
   const instrument = ref('rheinische142');
   const locale = ref(navigator.language?.split('-')[0] || 'en');

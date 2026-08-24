@@ -18,7 +18,9 @@ import { watchEffect } from 'vue';
 import AppFooter from './components/AppFooter.vue';
 import AppHeader from './components/AppHeader.vue';
 import { instruments } from './data/index';
-import { useSettingsStore } from './stores/settings';
+import { practiceStorage, usePracticeStore } from './stores/practice';
+import { settingsStorage, useSettingsStore } from './stores/settings';
+import { persistStore } from './utils/storage';
 
 useHead({ title: 'Bandoneon.app' });
 
@@ -31,21 +33,13 @@ watchEffect(() => {
   window!.document.querySelector('html')!.lang = lang;
 });
 
-// Persist settings to localStorage
-try {
-  const item = localStorage.getItem('settings');
-  if (item) {
-    const storedSettings = JSON.parse(item);
-    if (!(storedSettings.instrument in instruments)) {
-      storedSettings.instrument = 'rheinische142';
-    }
-    settings.$patch(storedSettings);
+// Versioned localStorage persistence (ADR 0003): migrations run before hydration.
+persistStore(settings, settingsStorage, (blob) => {
+  if (!(typeof blob.instrument === 'string' && blob.instrument in instruments)) {
+    blob.instrument = 'rheinische142';
   }
-} catch {
-  // ignore
-}
-
-settings.$subscribe((_mutation, state) => {
-  localStorage.setItem('settings', JSON.stringify(state));
 });
+
+const practice = usePracticeStore();
+persistStore(practice, practiceStorage);
 </script>
