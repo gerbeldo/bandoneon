@@ -8,6 +8,7 @@ import { createApp, h, nextTick } from 'vue';
 import { instruments } from '../../data/index';
 import en from '../../locales/en.json';
 import { useStore } from '../../stores/main';
+import { usePracticeStore } from '../../stores/practice';
 import StaffGame from '../staff-game.vue';
 
 let cleanup: (() => void) | null = null;
@@ -16,6 +17,7 @@ function mount(side: 'left' | 'right', direction: 'open' | 'close') {
   const pinia = createPinia();
   setActivePinia(pinia);
   const store = useStore();
+  const practice = usePracticeStore();
   store.$patch({ side, direction });
 
   const i18n = createI18n({ legacy: false, messages: { en }, locale: 'en', fallbackLocale: 'en' });
@@ -31,7 +33,7 @@ function mount(side: 'left' | 'right', direction: 'open' | 'close') {
     app.unmount();
     container.remove();
   };
-  return { container, store };
+  return { container, store, practice };
 }
 
 const buttons = (container: HTMLElement) => [...container.querySelectorAll('button')];
@@ -99,5 +101,95 @@ describe('staff game', () => {
     await nextTick();
 
     for (const button of buttons(container)) expect(button.disabled).toBe(true);
+  });
+});
+
+const GREEN = '#22c55e88';
+const YELLOW = '#eab30888';
+const RED = '#ef444488';
+
+const circles = (container: HTMLElement) => [...container.querySelectorAll('.keyboard > g circle')];
+const tap = (container: HTMLElement, idx: number) =>
+  keys(container)[idx].dispatchEvent(new MouseEvent('click', { bubbles: true }));
+const indexOf = (store: ReturnType<typeof useStore>, tonal: string) =>
+  store.keyPositions.findIndex(([, , t]) => t === tonal);
+
+// With the constant-random shuffle the sweep prompts in layout order: first
+// B6 (row 0, column 2), then G#6 (row 0, column 3) — the note game's keys,
+// but with the reverse quiz direction.
+const FIRST_KEY = 'rheinische142/right/open/0/2/reverse';
+const SECOND_KEY = 'rheinische142/right/open/0/3/reverse';
+
+describe('staff game recording', () => {
+  it('writes one answer event immediately, tagged staff-game; abandoning keeps it', async () => {
+    vi.useFakeTimers();
+    const { container, practice } = mount('right', 'open');
+    await nextTick();
+
+    tap(container, 0); // B6, the prompted button
+    await nextTick();
+
+    // Written at the tap, not at round end.
+    expect(Object.keys(practice.items)).toEqual([FIRST_KEY]);
+    const event = practice.items[FIRST_KEY].answers[0];
+    expect(event.grade).toBe(2);
+    expect(event.mode).toBe('staff-game');
+    expect(circles(container)[0].getAttribute('fill')).toBe(GREEN);
+
+    // Abandon mid-pause: the event stays.
+    cleanup?.();
+    cleanup = null;
+    expect(practice.items[FIRST_KEY].answers).toHaveLength(1);
+  });
+
+  it('grades like today: yellow on a pitch-class match, red otherwise', async () => {
+    vi.useFakeTimers();
+    const { container, store, practice } = mount('right', 'open');
+    await nextTick();
+
+    // Prompted B6: B3 shares the pitch class — partial credit.
+    tap(container, indexOf(store, 'B3'));
+    await nextTick();
+    expect(practice.items[FIRST_KEY].answers[0].grade).toBe(1);
+    expect(circles(container)[0].getAttribute('fill')).toBe(YELLOW);
+
+    vi.advanceTimersByTime(1_000);
+    await nextTick();
+
+    // Prompted G#6: C4 is a different pitch class — wrong.
+    tap(container, indexOf(store, 'C4'));
+    await nextTick();
+    expect(practice.items[SECOND_KEY].answers[0].grade).toBe(0);
+    expect(circles(container)[1].getAttribute('fill')).toBe(RED);
+  });
+
+  it('starts the response clock when the prompt accepts input, after the pause', async () => {
+    vi.useFakeTimers();
+    const { container, practice } = mount('right', 'open');
+    await nextTick();
+
+    vi.advanceTimersByTime(1_500);
+    tap(container, 0);
+    expect(practice.items[FIRST_KEY].answers[0].responseMs).toBe(1_500);
+
+    // The 900 ms feedback pause must not count toward the next answer.
+    vi.advanceTimersByTime(900);
+    await nextTick();
+    vi.advanceTimersByTime(700);
+    tap(container, 1); // G#6, the next prompted button
+    expect(practice.items[SECOND_KEY].answers[0].responseMs).toBe(700);
+  });
+
+  it('ignores taps during the feedback pause and writes nothing for them', async () => {
+    vi.useFakeTimers();
+    const { container, practice } = mount('right', 'open');
+    await nextTick();
+
+    tap(container, 0);
+    vi.advanceTimersByTime(100); // mid-pause
+    tap(container, 5);
+    await nextTick();
+
+    expect(Object.values(practice.items).flatMap((item) => item.answers)).toHaveLength(1);
   });
 });

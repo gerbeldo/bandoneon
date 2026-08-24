@@ -36,19 +36,19 @@ describe('sweep', () => {
 
     expect(engine.total).toBe(3);
 
-    expect(engine.prompt()).toEqual({ index: 0, total: 3, buttonIndex: 0 });
+    expect(engine.prompt()).toEqual({ index: 0, total: 3, buttonIndex: 0, pitch: 'C4' });
     engine.answer({ pitch: 'C4', elapsedMs: 1_200 });
     expect(recorded).toHaveLength(1);
     expect(recorded[0].key).toBe('rheinische142/right/open/0/0/forward');
     expect(recorded[0].event.grade).toBe(2);
 
-    expect(engine.prompt()).toEqual({ index: 1, total: 3, buttonIndex: 1 });
+    expect(engine.prompt()).toEqual({ index: 1, total: 3, buttonIndex: 1, pitch: 'D4' });
     engine.answer({ pitch: 'D5', elapsedMs: 800 });
     expect(recorded).toHaveLength(2);
     expect(recorded[1].key).toBe('rheinische142/right/open/1/0/forward');
     expect(recorded[1].event.grade).toBe(1);
 
-    expect(engine.prompt()).toEqual({ index: 2, total: 3, buttonIndex: 2 });
+    expect(engine.prompt()).toEqual({ index: 2, total: 3, buttonIndex: 2, pitch: 'E4' });
     engine.answer({ pitch: 'C4', elapsedMs: 500 });
     expect(recorded).toHaveLength(3);
     expect(recorded[2].key).toBe('rheinische142/right/open/1/1/forward');
@@ -91,12 +91,12 @@ describe('sweep', () => {
   it('follows an injected prompt order, keying each answer to the prompted button', () => {
     const { engine, recorded } = testSweep({ order: (count) => [2, 0, 1].slice(0, count) });
 
-    expect(engine.prompt()).toEqual({ index: 0, total: 3, buttonIndex: 2 });
+    expect(engine.prompt()).toEqual({ index: 0, total: 3, buttonIndex: 2, pitch: 'E4' });
     const outcome = engine.answer({ pitch: 'E4', elapsedMs: 1 });
 
     expect(outcome).toEqual({ grade: 2, buttonIndex: 2 });
     expect(recorded[0].key).toBe('rheinische142/right/open/1/1/forward');
-    expect(engine.prompt()).toEqual({ index: 1, total: 3, buttonIndex: 0 });
+    expect(engine.prompt()).toEqual({ index: 1, total: 3, buttonIndex: 0, pitch: 'C4' });
   });
 
   it('refuses an answer after the sweep is done', () => {
@@ -106,6 +106,64 @@ describe('sweep', () => {
 
     expect(() => engine.answer({ pitch: 'C4', elapsedMs: 1 })).toThrow();
     expect(recorded).toHaveLength(1);
+  });
+});
+
+// The staff game answers with a tapped position; the engine resolves it to a
+// pitch through the same grid it prompts from (ADR 0004).
+describe('sweep with tapped-position answers', () => {
+  const PAIR_GRID = [
+    ['C4', ''],
+    ['D4', 'C5'],
+  ];
+
+  function tapSweep() {
+    return testSweep({
+      grid: PAIR_GRID,
+      quizDirection: 'reverse',
+      mode: 'staff-game',
+    });
+  }
+
+  it('resolves the tapped position through the grid and grades with the midi rule', () => {
+    const { engine, recorded } = tapSweep();
+
+    // Prompted C4: tapping its own button is correct.
+    expect(engine.prompt()).toEqual({ index: 0, total: 3, buttonIndex: 0, pitch: 'C4' });
+    expect(engine.answer({ tappedIndex: 0, elapsedMs: 700 })).toEqual({
+      grade: 2,
+      buttonIndex: 0,
+    });
+
+    // Prompted D4: tapping C4 is a different pitch class — wrong.
+    expect(engine.prompt()?.pitch).toBe('D4');
+    expect(engine.answer({ tappedIndex: 0, elapsedMs: 700 }).grade).toBe(0);
+
+    // Prompted C5: tapping C4 matches the pitch class — partial credit.
+    expect(engine.prompt()?.pitch).toBe('C5');
+    expect(engine.answer({ tappedIndex: 0, elapsedMs: 700 }).grade).toBe(1);
+
+    expect(recorded.map((r) => r.event.grade)).toEqual([2, 0, 1]);
+  });
+
+  it('keys each answer to the prompted button and tags the staff-game mode', () => {
+    const { engine, recorded } = tapSweep();
+
+    engine.answer({ tappedIndex: 2, elapsedMs: 1_500 });
+
+    expect(recorded[0].key).toBe('rheinische142/right/open/0/0/reverse');
+    expect(recorded[0].event).toEqual({
+      grade: 1,
+      timestamp: 1_000,
+      responseMs: 1_500,
+      mode: 'staff-game',
+    });
+  });
+
+  it('grades a tap outside the grid wrong instead of throwing', () => {
+    const { engine } = tapSweep();
+
+    expect(engine.answer({ tappedIndex: 99, elapsedMs: 1 }).grade).toBe(0);
   });
 });
 

@@ -58,11 +58,28 @@ export function flattenGrid(grid: string[][]): GridButton[] {
   return buttons;
 }
 
+// Random prompt order for a sweep; sort keys are drawn once per index so the
+// comparator stays consistent while sorting.
+export function shuffledOrder(count: number): number[] {
+  const indices = [...Array(count).keys()];
+  const random = indices.map(() => Math.random());
+  indices.sort((a, b) => (random[a] ?? 0) - (random[b] ?? 0));
+  return indices;
+}
+
 export interface Prompt {
   index: number;
   total: number;
   buttonIndex: number;
+  // The prompted button's pitch — what the staff game draws.
+  pitch: string;
 }
+
+// The two answer forms on the seam (ADR 0004): the note game names a pitch;
+// the staff game hands back the tapped button's index in render order.
+export type AnswerInput =
+  | { pitch: string; elapsedMs: number }
+  | { tappedIndex: number; elapsedMs: number };
 
 export interface AnswerOutcome {
   grade: Grade;
@@ -85,7 +102,7 @@ export interface SweepOptions {
 export interface SessionEngine {
   total: number;
   prompt(): Prompt | null;
-  answer(input: { pitch: string; elapsedMs: number }): AnswerOutcome;
+  answer(input: AnswerInput): AnswerOutcome;
 }
 
 export function createSweep(options: SweepOptions): SessionEngine {
@@ -98,14 +115,18 @@ export function createSweep(options: SweepOptions): SessionEngine {
 
     prompt() {
       if (index >= buttons.length) return null;
-      return { index, total: buttons.length, buttonIndex: order[index] };
+      const buttonIndex = order[index];
+      return { index, total: buttons.length, buttonIndex, pitch: buttons[buttonIndex].pitch };
     },
 
-    answer({ pitch, elapsedMs }) {
+    answer(input) {
       if (index >= buttons.length) throw new Error('sweep is done');
       const buttonIndex = order[index];
       const button = buttons[buttonIndex];
-      const grade: Grade = scoreTap(button.pitch, pitch) ?? 0;
+      // A tapped position resolves to its pitch through the same grid it was
+      // prompted from; a tap outside the grid grades wrong, not a throw.
+      const answered = 'pitch' in input ? input.pitch : (buttons[input.tappedIndex]?.pitch ?? '');
+      const grade: Grade = scoreTap(button.pitch, answered) ?? 0;
       options.record(
         itemKey(
           options.instrument,
@@ -118,7 +139,7 @@ export function createSweep(options: SweepOptions): SessionEngine {
         {
           grade,
           timestamp: options.now(),
-          responseMs: Math.min(Math.max(elapsedMs, 0), RESPONSE_MS_CAP),
+          responseMs: Math.min(Math.max(input.elapsedMs, 0), RESPONSE_MS_CAP),
           mode: options.mode,
         },
       );

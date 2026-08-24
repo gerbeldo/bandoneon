@@ -5,7 +5,7 @@
     <!-- Phone: staff beside the counter/progress/hint to keep the page one screen tall.
          md+: everything stacked in a wider column so the staff can fill it. -->
     <div class="mx-auto flex w-full max-w-md shrink-0 flex-wrap items-center gap-x-4 md:w-80">
-      <NavVariant class="w-full" :readonly="currentPosition > 0" />
+      <NavVariant class="w-full" :readonly="answeredCount > 0" />
       <GrandStaff
         class="w-48 shrink-0 md:w-full"
         :notes="quizzedSpelled ? [quizzedSpelled] : []"
@@ -15,7 +15,7 @@
       />
       <div class="min-w-0 flex-1 md:w-full">
         <p class="text-center text-sm text-neutral-500 dark:text-neutral-400">
-          {{ Math.min(currentPosition + 1, positions.length) }} / {{ positions.length }}
+          {{ Math.min(answeredCount + 1, total) }} / {{ total }}
         </p>
         <Progress
           class="mt-2"
@@ -33,7 +33,7 @@
     <div class="flex min-h-0 min-w-0 flex-1 items-center">
       <SvgKeyboard>
         <SvgButton
-          v-for="([x, y, tonal], idx) in positions"
+          v-for="([x, y, tonal], idx) in keyPositions"
           :key="idx"
           :x="x"
           :y="y"
@@ -68,7 +68,7 @@ import { useHead } from '@unhead/vue';
 import { useI18n } from 'petite-vue-i18n';
 import { storeToRefs } from 'pinia';
 import { Note } from 'tonal';
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, shallowRef, watch } from 'vue';
 
 import Button from '../components/Button.vue';
 import GrandStaff from '../components/GrandStaff.vue';
@@ -77,8 +77,13 @@ import NavVariant from '../components/NavVariant.vue';
 import Progress from '../components/Progress.vue';
 import SvgButton from '../components/SvgButton.vue';
 import SvgKeyboard from '../components/SvgKeyboard.vue';
+import { instruments } from '../data/index';
 import { useStore } from '../stores/main';
-import { scoreTap, type TapScore } from '../utils/game';
+import type { Grade } from '../stores/practice';
+import { usePracticeStore } from '../stores/practice';
+import { useSettingsStore } from '../stores/settings';
+import type { Prompt, SessionEngine } from '../utils/session';
+import { createSweep, layoutGrid, shuffledOrder } from '../utils/session';
 
 useHead({ title: 'Staff game – Bandoneon.app' });
 
@@ -86,27 +91,36 @@ const SCORE_COLORS = ['#ef4444', '#eab308', '#22c55e'] as const; // red-500, yel
 const FLASH_MS = 700;
 const PAUSE_MS = 900;
 
-const currentPosition = ref(0);
-const guessed = ref<TapScore[]>([]);
-const positions = ref<[number, number, string][]>([]);
+// The sweep runs through the session engine (ADR 0004): it draws each prompt
+// (the pitch this page puts on the staff), resolves the tapped position to a
+// pitch, grades, and records; this page only renders prompts and captures taps.
+const engine = shallowRef<SessionEngine | null>(null);
+const prompt = ref<Prompt | null>(null);
+const grades = ref<Record<number, Grade>>({});
 // The last tap's result, kept while the feedback pause runs; taps are ignored meanwhile.
-const tapResult = ref<{ note: string; score: TapScore } | null>(null);
-const flash = ref<{ idx: number; score: TapScore } | null>(null);
+const tapResult = ref<{ note: string; score: Grade } | null>(null);
+const flash = ref<{ idx: number; score: Grade } | null>(null);
 const isModalOpen = ref(false);
 let pauseTimer: ReturnType<typeof setTimeout> | null = null;
 let flashTimer: ReturnType<typeof setTimeout> | null = null;
+let promptArmedAt = 0;
 
 const { t } = useI18n();
 
 const store = useStore();
-const { side, keyPositions, showEnharmonics } = storeToRefs(store);
+const { side, direction, keyPositions, showEnharmonics } = storeToRefs(store);
+
+const settings = useSettingsStore();
+const practice = usePracticeStore();
 
 const spell = (tonal: string) => (showEnharmonics.value ? Note.enharmonic(tonal) : tonal);
 
-const quizzedSpelled = computed(() => {
-  const tonal = positions.value[Math.min(currentPosition.value, positions.value.length - 1)]?.[2];
-  return tonal ? spell(tonal) : '';
-});
+const total = computed(() => engine.value?.total ?? 0);
+// The prompt ref stays on the answered prompt while the feedback pause runs,
+// so the count advances only when the next prompt appears.
+const answeredCount = computed(() => (prompt.value ? prompt.value.index : total.value));
+
+const quizzedSpelled = computed(() => (prompt.value ? spell(prompt.value.pitch) : ''));
 
 // A correct tap recolors the quizzed note green; wrong and partial taps keep it
 // in the text color and draw the tapped note next to it in the result color.
@@ -120,13 +134,13 @@ const staffFeedback = computed(() =>
 
 const fillColor = (idx: number) => {
   if (flash.value?.idx === idx) return SCORE_COLORS[flash.value.score] + '88';
-  if (typeof guessed.value[idx] === 'number') return SCORE_COLORS[guessed.value[idx]] + '88';
+  if (typeof grades.value[idx] === 'number') return SCORE_COLORS[grades.value[idx]] + '88';
   return 'transparent';
 };
 
 // Buttons stay blank during play; a quizzed button reveals its note name once scored.
 const label = (idx: number) => {
-  if (typeof guessed.value[idx] === 'number') return null;
+  if (typeof grades.value[idx] === 'number') return null;
   return '';
 };
 
@@ -135,49 +149,67 @@ function clearTimers() {
   if (flashTimer) clearTimeout(flashTimer);
 }
 
+// The response clock starts once the prompt is rendered and accepting input.
+function armClock() {
+  void nextTick(() => {
+    promptArmedAt = Date.now();
+  });
+}
+
 function resetGame() {
   clearTimers();
-  currentPosition.value = 0;
-  guessed.value = [];
+  grades.value = {};
   tapResult.value = null;
   flash.value = null;
 
-  // Randomize position order
-  const array = [...keyPositions.value];
-  const random = array.map(() => Math.random());
-  array.sort((a, b) => (random[array.indexOf(a)] || 0) - (random[array.indexOf(b)] || 0));
-  positions.value = array;
+  const instrumentData = instruments[settings.instrument];
+  engine.value = instrumentData
+    ? createSweep({
+        grid: layoutGrid(instrumentData, side.value, direction.value),
+        instrument: settings.instrument,
+        side: side.value,
+        direction: direction.value,
+        quizDirection: 'reverse',
+        mode: 'staff-game',
+        record: practice.recordAnswer,
+        now: Date.now,
+        order: shuffledOrder,
+      })
+    : null;
+  prompt.value = engine.value?.prompt() ?? null;
+  armClock();
 }
 
 // Side and direction stay as the player left them elsewhere; NavVariant changes
-// them, and the keyPositions watcher restarts the round on the new layout.
+// them, and the keyPositions watcher restarts the sweep on the new layout.
 onMounted(() => resetGame());
 onUnmounted(() => clearTimers());
 watch(keyPositions, () => resetGame());
 
 function tap(idx: number) {
-  if (tapResult.value || currentPosition.value >= positions.value.length) return;
+  if (!engine.value || !prompt.value || tapResult.value) return;
 
-  const score = scoreTap(positions.value[currentPosition.value][2], positions.value[idx][2]);
-  if (score === null) return;
+  const outcome = engine.value.answer({
+    tappedIndex: idx,
+    elapsedMs: Date.now() - promptArmedAt,
+  });
+  grades.value[outcome.buttonIndex] = outcome.grade;
+  tapResult.value = { note: spell(keyPositions.value[idx][2]), score: outcome.grade };
 
-  guessed.value[currentPosition.value] = score;
-  tapResult.value = { note: spell(positions.value[idx][2]), score };
-
-  if (idx !== currentPosition.value) {
-    flash.value = { idx, score };
+  if (idx !== outcome.buttonIndex) {
+    flash.value = { idx, score: outcome.grade };
     flashTimer = setTimeout(() => {
       if (flash.value?.idx === idx) flash.value = null;
     }, FLASH_MS);
   }
 
-  // Show the feedback, then proceed to the next position
+  // Show the feedback, then move on to the next prompt.
   pauseTimer = setTimeout(() => {
     tapResult.value = null;
-    currentPosition.value++;
-
-    // Game is done
-    if (currentPosition.value >= positions.value.length) {
+    prompt.value = engine.value?.prompt() ?? null;
+    if (prompt.value) {
+      armClock();
+    } else {
       isModalOpen.value = true;
     }
   }, PAUSE_MS);
@@ -187,7 +219,7 @@ function tap(idx: number) {
 const counts = computed<[number, number, number]>((): [number, number, number] => {
   const result: [number, number, number] = [0, 0, 0];
 
-  for (const g of guessed.value) {
+  for (const g of Object.values(grades.value)) {
     if (g === 2) result[2]++;
     else if (g === 1) result[1]++;
     else if (g === 0) result[0]++;
@@ -197,7 +229,7 @@ const counts = computed<[number, number, number]>((): [number, number, number] =
 });
 
 const progress = computed<[number, number, number]>((): [number, number, number] => {
-  if (positions.value.length === 0) return [0, 0, 0];
-  return counts.value.map((value) => value / positions.value.length) as [number, number, number];
+  if (total.value === 0) return [0, 0, 0];
+  return counts.value.map((value) => value / total.value) as [number, number, number];
 });
 </script>

@@ -82,7 +82,7 @@ import type { Grade } from '../stores/practice';
 import { usePracticeStore } from '../stores/practice';
 import { useSettingsStore } from '../stores/settings';
 import type { Prompt, SessionEngine } from '../utils/session';
-import { createSweep, layoutGrid } from '../utils/session';
+import { createSweep, layoutGrid, shuffledOrder } from '../utils/session';
 
 useHead({ title: 'Play a game! – Bandoneon.app' });
 
@@ -149,15 +149,6 @@ const octaves = computed(() => {
     .map((item) => Number.parseInt(item, 10))
     .sort();
 });
-
-// Random prompt order per sweep; sort keys are drawn once per index so the
-// comparator stays consistent while sorting.
-function shuffledOrder(count: number): number[] {
-  const indices = [...Array(count).keys()];
-  const random = indices.map(() => Math.random());
-  indices.sort((a, b) => (random[a] ?? 0) - (random[b] ?? 0));
-  return indices;
-}
 
 // The response clock starts once the prompt is rendered and accepting input.
 function armClock() {
