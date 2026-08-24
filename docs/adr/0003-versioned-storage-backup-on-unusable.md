@@ -1,0 +1,3 @@
+# Versioned storage blobs; back up and start fresh when unusable
+
+Settings and practice memory persist as separate localStorage blobs, each carrying a top-level integer version with stepwise migrations (1→2, 2→3, …) run before the store hydrates. A blob that fails to parse, or whose version is newer than the running app (deploy rollback), is copied to a backup key and the app starts fresh — never a hard failure, never a silent delete. Considered and rejected: one shared blob (a settings bug or reset would take practice history with it) and failing hard on unusable data (a static page with no server has nowhere to escalate to). Everything stays client-side, so progress is per browser per device.
