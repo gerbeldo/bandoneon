@@ -15,6 +15,8 @@ import {
   twinGroups,
 } from '../session';
 
+const RIGHT_OPEN = { side: 'right', direction: 'open' } as const;
+
 // Toy grid with an empty cell, so button order and grid coordinates diverge
 // the way they do on real layouts.
 const GRID = [
@@ -27,8 +29,7 @@ function testSweep(overrides: Partial<Parameters<typeof createSweep>[0]> = {}) {
   const engine = createSweep({
     grid: GRID,
     instrument: 'rheinische142',
-    side: 'right',
-    direction: 'open',
+    layout: { side: 'right', direction: 'open' },
     quizDirection: 'forward',
     mode: 'note-game',
     record: (key, event) => recorded.push({ key, event }),
@@ -47,8 +48,7 @@ describe('sweep', () => {
     expect(engine.prompt()).toEqual({
       index: 0,
       total: 3,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'C4',
     });
@@ -60,8 +60,7 @@ describe('sweep', () => {
     expect(engine.prompt()).toEqual({
       index: 1,
       total: 3,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D4',
     });
@@ -73,8 +72,7 @@ describe('sweep', () => {
     expect(engine.prompt()).toEqual({
       index: 2,
       total: 3,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 2,
       pitch: 'E4',
     });
@@ -123,8 +121,7 @@ describe('sweep', () => {
     expect(engine.prompt()).toEqual({
       index: 0,
       total: 3,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 2,
       pitch: 'E4',
     });
@@ -135,8 +132,7 @@ describe('sweep', () => {
     expect(engine.prompt()).toEqual({
       index: 1,
       total: 3,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'C4',
     });
@@ -175,8 +171,7 @@ describe('sweep with tapped-position answers', () => {
     expect(engine.prompt()).toEqual({
       index: 0,
       total: 3,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'C4',
     });
@@ -268,8 +263,7 @@ describe('duplicate-pitch follow-up', () => {
     expect(engine.prompt()).toEqual({
       index: 0,
       total: 4,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'E5',
       twin: 'expected',
@@ -282,8 +276,7 @@ describe('duplicate-pitch follow-up', () => {
     expect(engine.prompt()).toEqual({
       index: 1,
       total: 5,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 2,
       pitch: 'E5',
       twin: 'follow-up',
@@ -301,8 +294,7 @@ describe('duplicate-pitch follow-up', () => {
     expect(engine.prompt()).toEqual({
       index: 2,
       total: 5,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D5',
     });
@@ -344,8 +336,7 @@ describe('duplicate-pitch follow-up', () => {
       expect(engine.prompt()).toEqual({
         index: 2,
         total: 5,
-        side: 'right',
-        direction: 'open',
+        layout: RIGHT_OPEN,
         buttonIndex: 1,
         pitch: 'D5',
       });
@@ -362,8 +353,7 @@ describe('duplicate-pitch follow-up', () => {
     expect(engine.prompt()).toEqual({
       index: 1,
       total: 4,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D5',
     });
@@ -380,8 +370,7 @@ describe('duplicate-pitch follow-up', () => {
     expect(engine.prompt()).toMatchObject({
       index: 4,
       total: 6,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 2,
       twin: 'follow-up',
     });
@@ -405,8 +394,7 @@ describe('duplicate-pitch follow-up', () => {
     expect(engine.prompt()).toEqual({
       index: 0,
       total: 4,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'E5',
     });
@@ -416,8 +404,7 @@ describe('duplicate-pitch follow-up', () => {
     expect(engine.prompt()).toEqual({
       index: 1,
       total: 4,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D5',
     });
@@ -440,7 +427,7 @@ describe('duplicate-pitch follow-up', () => {
     const second = buttons.findIndex((b, i) => b.pitch === 'E5' && i !== first);
     const { engine, recorded } = testSweep({
       grid,
-      direction: 'close',
+      layout: { side: 'right', direction: 'close' },
       quizDirection: 'reverse',
       mode: 'staff-game',
       order: (count) => [first, ...[...Array(count).keys()].filter((i) => i !== first)],
@@ -548,22 +535,20 @@ describe('scheduler-drawn session', () => {
     expect(engine.prompt()).toEqual({
       index: 0,
       total: 3,
-      side: 'left',
-      direction: 'close',
+      layout: { side: 'left', direction: 'close' },
       buttonIndex: 0,
       pitch: 'A3',
     });
 
     engine.answer({ pitch: 'A3', elapsedMs: 500 });
     expect(engine.prompt()).toMatchObject({
-      side: 'right',
-      direction: 'close',
+      layout: { side: 'right', direction: 'close' },
       buttonIndex: 1,
       pitch: 'E4',
     });
 
     engine.answer({ pitch: 'E4', elapsedMs: 500 });
-    expect(engine.prompt()).toMatchObject({ side: 'right', direction: 'open', pitch: 'C4' });
+    expect(engine.prompt()).toMatchObject({ layout: RIGHT_OPEN, pitch: 'C4' });
 
     engine.answer({ pitch: 'C4', elapsedMs: 500 });
     expect(engine.prompt()).toBeNull();
@@ -590,13 +575,6 @@ describe('scheduler-drawn session', () => {
     });
   });
 
-  it('skips a drawn key whose button the layout no longer has', () => {
-    const { engine } = testSession(['toy/right/open/9/9/forward', 'toy/right/open/0/0/forward']);
-
-    expect(engine.total).toBe(1);
-    expect(engine.prompt()).toMatchObject({ pitch: 'C4' });
-  });
-
   it('inserts a duplicate-pitch follow-up inside the prompt’s own layout', () => {
     const twinLayouts = {
       right: { open: [['E5', 'D5', 'E5']], close: [['C4']] },
@@ -619,14 +597,16 @@ describe('scheduler-drawn session', () => {
     expect(engine.prompt()).toMatchObject({
       index: 1,
       total: 3,
-      side: 'right',
-      direction: 'open',
+      layout: RIGHT_OPEN,
       buttonIndex: 0,
       twin: 'follow-up',
     });
 
     engine.answer({ tappedIndex: 0, elapsedMs: 300 });
     expect(recorded[1].key).toBe('toy/right/open/0/0/reverse');
-    expect(engine.prompt()).toMatchObject({ side: 'left', direction: 'close', pitch: 'A3' });
+    expect(engine.prompt()).toMatchObject({
+      layout: { side: 'left', direction: 'close' },
+      pitch: 'A3',
+    });
   });
 });

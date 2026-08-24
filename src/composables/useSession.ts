@@ -6,39 +6,40 @@ import { computed, nextTick, ref, shallowRef } from 'vue';
 
 import { instruments } from '../data/index';
 import { useStore } from '../stores/main';
+import type { Grade } from '../stores/practice';
 import { usePracticeStore } from '../stores/practice';
 import { useSettingsStore } from '../stores/settings';
 import { introductionOrder } from '../utils/introduction';
 import type { SessionScope } from '../utils/scheduler';
-import { createWeightedScheduler, sessionPreview } from '../utils/scheduler';
-import type { AnswerOutcome, Prompt, QuizDirection, SessionEngine } from '../utils/session';
-import { createSession, createSweep, layoutGrid, shuffledOrder } from '../utils/session';
+import { createWeightedScheduler } from '../utils/scheduler';
+import type { AnswerOutcome, Layout, Prompt, QuizDirection, RawAnswer } from '../utils/session';
+import { createSession, createSweep, layoutGrid, layoutKey, shuffledOrder } from '../utils/session';
 
-// The card gates play: nothing starts without a tap or Enter, and dismissing
-// the summary comes back here.
-export type SessionPhase = 'card' | 'playing' | 'summary';
-
-// A page hands back what the player did, not how long it took — the composable
-// holds the response clock.
-export type Response = { pitch: string } | { tappedIndex: number };
+// The start card gates play: nothing runs without a tap or Enter, and
+// dismissing the summary comes back to it.
+export type SessionPhase = 'start-card' | 'playing' | 'summary';
 
 export function useSession(options: { quizDirection: QuizDirection; mode: string }) {
   const store = useStore();
   const settings = useSettingsStore();
   const practice = usePracticeStore();
+  const scheduler = createWeightedScheduler();
 
-  const phase = ref<SessionPhase>('card');
-  const engine = shallowRef<SessionEngine | null>(null);
+  const phase = ref<SessionPhase>('start-card');
+  const engine = shallowRef<ReturnType<typeof createSession> | null>(null);
   const prompt = ref<Prompt | null>(null);
   // Re-read after each answer: a duplicate-pitch follow-up grows it mid-run.
   const total = ref(0);
   // Per answer, [wrong, partial, correct]; a follow-up counts as its own answer.
   const counts = ref<[number, number, number]>([0, 0, 0]);
+  // Graded buttons of the run so far, keyed by layout: a session moves the
+  // keyboard between prompts, so a button index alone would carry colors across.
+  const grades = ref<Record<string, Grade>>({});
   // What the summary's primary action repeats.
   const ran = ref<'session' | 'sweep'>('session');
   // The layout the player picked on the card, restored when a session that
   // crossed layouts hands the page back.
-  let chosenLayout = { side: store.side, direction: store.direction };
+  let chosenLayout: Layout = { side: store.side, direction: store.direction };
   let armedAt = 0;
 
   const scope = computed({
@@ -69,7 +70,7 @@ export function useSession(options: { quizDirection: QuizDirection; mode: string
   const shownAt = ref(Date.now());
 
   const preview = computed(() =>
-    sessionPreview({
+    scheduler.preview({
       pool: pool.value,
       memory: practice.items,
       scope: drawScope.value,
@@ -81,11 +82,19 @@ export function useSession(options: { quizDirection: QuizDirection; mode: string
   // so the count advances only when the next prompt appears.
   const answeredCount = computed(() => (prompt.value ? prompt.value.index : total.value));
 
-  function begin(started: SessionEngine, kind: 'session' | 'sweep') {
-    chosenLayout = { side: store.side, direction: store.direction };
+  const gradeOf = (buttonIndex: number): Grade | undefined =>
+    grades.value[`${store.side}/${store.direction}/${buttonIndex}`];
+
+  function begin(started: ReturnType<typeof createSession>, kind: 'session' | 'sweep') {
+    // Only a run started from the card can change the layout the card offers;
+    // chaining sessions from the summary must not repoint it.
+    if (phase.value === 'start-card') {
+      chosenLayout = { side: store.side, direction: store.direction };
+    }
     engine.value = started;
     ran.value = kind;
     counts.value = [0, 0, 0];
+    grades.value = {};
     total.value = started.total;
     phase.value = 'playing';
     next();
@@ -93,7 +102,7 @@ export function useSession(options: { quizDirection: QuizDirection; mode: string
 
   function start() {
     if (!layouts.value) return;
-    const draw = createWeightedScheduler().draw({
+    const draw = scheduler.draw({
       pool: pool.value,
       memory: practice.items,
       scope: drawScope.value,
@@ -115,12 +124,12 @@ export function useSession(options: { quizDirection: QuizDirection; mode: string
 
   function sweep() {
     if (!layouts.value) return;
+    const layout = { side: store.side, direction: store.direction };
     begin(
       createSweep({
-        grid: layoutGrid(layouts.value, store.side, store.direction),
+        grid: layoutGrid(layouts.value, layout.side, layout.direction),
+        layout,
         instrument: settings.instrument,
-        side: store.side,
-        direction: store.direction,
         quizDirection: options.quizDirection,
         mode: options.mode,
         record: practice.recordAnswer,
@@ -145,29 +154,31 @@ export function useSession(options: { quizDirection: QuizDirection; mode: string
       return;
     }
     // A session draws across layouts, so the keyboard follows the prompt.
-    store.side = prompt.value.side;
-    store.direction = prompt.value.direction;
+    store.side = prompt.value.layout.side;
+    store.direction = prompt.value.layout.direction;
     // The response clock starts once the prompt is rendered and accepting input.
     void nextTick(() => {
       armedAt = Date.now();
     });
   }
 
-  function answer(response: Response): AnswerOutcome | null {
+  function answer(raw: RawAnswer): AnswerOutcome | null {
     if (!engine.value || !prompt.value) return null;
-    const outcome = engine.value.answer({ ...response, elapsedMs: Date.now() - armedAt });
+    const layout = prompt.value.layout;
+    const outcome = engine.value.answer({ ...raw, elapsedMs: Date.now() - armedAt });
     counts.value[outcome.grade] += 1;
     total.value = engine.value.total;
+    grades.value[`${layoutKey(layout)}/${outcome.buttonIndex}`] = outcome.grade;
     return outcome;
   }
 
-  function toCard() {
+  function toStartCard() {
     store.side = chosenLayout.side;
     store.direction = chosenLayout.direction;
     engine.value = null;
     prompt.value = null;
     shownAt.value = Date.now();
-    phase.value = 'card';
+    phase.value = 'start-card';
   }
 
   return {
@@ -178,12 +189,13 @@ export function useSession(options: { quizDirection: QuizDirection; mode: string
     total,
     counts,
     answeredCount,
+    gradeOf,
     ran,
     start,
     sweep,
     again,
     next,
     answer,
-    toCard,
+    toStartCard,
   };
 }

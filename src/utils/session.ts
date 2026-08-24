@@ -13,6 +13,16 @@ export type Side = 'right' | 'left';
 export type Direction = 'open' | 'close';
 export type QuizDirection = 'forward' | 'reverse';
 
+// One side in one direction — the set of buttons the player sees at once.
+export interface Layout {
+  side: Side;
+  direction: Direction;
+}
+
+export function layoutKey(layout: Layout): string {
+  return `${layout.side}/${layout.direction}`;
+}
+
 // Fixed constant, not a setting: response times longer than this record as
 // exactly 60 s (the player walked away, not a 4-minute think).
 export const RESPONSE_MS_CAP = 60_000;
@@ -114,10 +124,9 @@ export function shuffledOrder(count: number): number[] {
 export interface Prompt {
   index: number;
   total: number;
-  // The layout the prompted button lives on. A sweep never changes it; a
-  // scheduler-drawn session crosses all four layouts of the game.
-  side: Side;
-  direction: Direction;
+  // A sweep never leaves its layout; a scheduler-drawn session crosses all
+  // four layouts of the game.
+  layout: Layout;
   buttonIndex: number;
   // The prompted button's pitch — what the staff game draws.
   pitch: string;
@@ -129,9 +138,10 @@ export interface Prompt {
 
 // The two answer forms on the seam (ADR 0004): the note game names a pitch;
 // the staff game hands back the tapped button's index in render order.
-export type AnswerInput =
-  | { pitch: string; elapsedMs: number }
-  | { tappedIndex: number; elapsedMs: number };
+export type RawAnswer = { pitch: string } | { tappedIndex: number };
+
+// What a game hands back: the raw answer plus how long the player took.
+export type AnswerInput = RawAnswer & { elapsedMs: number };
 
 export interface AnswerOutcome {
   grade: Grade;
@@ -157,8 +167,7 @@ interface RunOptions {
 
 export interface SweepOptions extends RunOptions {
   grid: string[][];
-  side: Side;
-  direction: Direction;
+  layout: Layout;
   // Permutation of button indices to prompt in; identity when omitted.
   order?: (count: number) => number[];
 }
@@ -170,15 +179,14 @@ export interface SessionOptions extends RunOptions {
 }
 
 interface DrawnPrompt {
-  side: Side;
-  direction: Direction;
+  layout: Layout;
   buttonIndex: number;
   // Set on a follow-up: the twin already credited, which this prompt must not accept again.
   followUpOf?: number;
 }
 
 interface EngineCore extends RunOptions {
-  buttonsFor: (side: Side, direction: Direction) => GridButton[];
+  buttonsFor: (layout: Layout) => GridButton[];
   draw: DrawnPrompt[];
 }
 
@@ -188,26 +196,25 @@ function createEngine(core: EngineCore): SessionEngine {
 
   // Only a pitch-prompted mode can be ambiguous; the note game prompts by button.
   const twinsByLayout = new Map<string, Map<number, number[]>>();
-  function twinsFor(side: Side, direction: Direction): Map<number, number[]> {
-    const layout = `${side}/${direction}`;
-    let twins = twinsByLayout.get(layout);
+  function twinsFor(layout: Layout): Map<number, number[]> {
+    let twins = twinsByLayout.get(layoutKey(layout));
     if (!twins) {
       twins = new Map();
       if (core.quizDirection === 'reverse') {
-        for (const group of twinGroups(core.buttonsFor(side, direction))) {
+        for (const group of twinGroups(core.buttonsFor(layout))) {
           for (const i of group) twins.set(i, group);
         }
       }
-      twinsByLayout.set(layout, twins);
+      twinsByLayout.set(layoutKey(layout), twins);
     }
     return twins;
   }
 
-  const key = (drawn: DrawnPrompt, button: GridButton) =>
+  const key = (layout: Layout, button: GridButton) =>
     itemKey(
       core.instrument,
-      drawn.side,
-      drawn.direction,
+      layout.side,
+      layout.direction,
       button.row,
       button.column,
       core.quizDirection,
@@ -221,28 +228,25 @@ function createEngine(core: EngineCore): SessionEngine {
     prompt() {
       const drawn = draw[index];
       if (!drawn) return null;
-      const buttons = core.buttonsFor(drawn.side, drawn.direction);
+      const buttons = core.buttonsFor(drawn.layout);
       const prompt: Prompt = {
         index,
         total: draw.length,
-        side: drawn.side,
-        direction: drawn.direction,
+        layout: drawn.layout,
         buttonIndex: drawn.buttonIndex,
         pitch: buttons[drawn.buttonIndex].pitch,
       };
       if (drawn.followUpOf !== undefined) prompt.twin = 'follow-up';
-      else if (twinsFor(drawn.side, drawn.direction).has(drawn.buttonIndex)) {
-        prompt.twin = 'expected';
-      }
+      else if (twinsFor(drawn.layout).has(drawn.buttonIndex)) prompt.twin = 'expected';
       return prompt;
     },
 
     answer(input) {
       const drawn = draw[index];
       if (!drawn) throw new Error('the run is done');
-      const buttons = core.buttonsFor(drawn.side, drawn.direction);
+      const buttons = core.buttonsFor(drawn.layout);
       const target = buttons[drawn.buttonIndex];
-      const group = twinsFor(drawn.side, drawn.direction).get(drawn.buttonIndex);
+      const group = twinsFor(drawn.layout).get(drawn.buttonIndex);
       let credited = drawn.buttonIndex;
       let grade: Grade;
 
@@ -260,7 +264,7 @@ function createEngine(core: EngineCore): SessionEngine {
         if (grade === 2 && group) credited = input.tappedIndex;
       }
 
-      core.record(key(drawn, buttons[credited]), {
+      core.record(key(drawn.layout, buttons[credited]), {
         grade,
         timestamp: core.now(),
         responseMs: Math.min(Math.max(input.elapsedMs, 0), RESPONSE_MS_CAP),
@@ -272,8 +276,7 @@ function createEngine(core: EngineCore): SessionEngine {
         const other = group.find((i) => i !== credited);
         if (other !== undefined) {
           draw.splice(index + 1, 0, {
-            side: drawn.side,
-            direction: drawn.direction,
+            layout: drawn.layout,
             buttonIndex: other,
             followUpOf: credited,
           });
@@ -294,11 +297,7 @@ export function createSweep(options: SweepOptions): SessionEngine {
   return createEngine({
     ...options,
     buttonsFor: () => buttons,
-    draw: order.map((buttonIndex) => ({
-      side: options.side,
-      direction: options.direction,
-      buttonIndex,
-    })),
+    draw: order.map((buttonIndex) => ({ layout: options.layout, buttonIndex })),
   });
 }
 
@@ -306,26 +305,25 @@ export function createSweep(options: SweepOptions): SessionEngine {
 // so the keyboard changes between prompts.
 export function createSession(options: SessionOptions): SessionEngine {
   const buttonsByLayout = new Map<string, GridButton[]>();
-  const buttonsFor = (side: Side, direction: Direction) => {
-    const layout = `${side}/${direction}`;
-    let buttons = buttonsByLayout.get(layout);
+  const buttonsFor = (layout: Layout) => {
+    let buttons = buttonsByLayout.get(layoutKey(layout));
     if (!buttons) {
-      buttons = flattenGrid(layoutGrid(options.layouts, side, direction));
-      buttonsByLayout.set(layout, buttons);
+      buttons = flattenGrid(layoutGrid(options.layouts, layout.side, layout.direction));
+      buttonsByLayout.set(layoutKey(layout), buttons);
     }
     return buttons;
   };
 
-  const draw: DrawnPrompt[] = [];
-  for (const key of options.draw) {
+  // The draw comes from a pool built off these same grids (ADR 0002 keeps keys
+  // and grids in step), so every key names a button that is there.
+  const draw = options.draw.map((key): DrawnPrompt => {
     const { side, direction, row, column } = parseItemKey(key);
-    // A key whose button the layout data no longer has (a grid edit without a
-    // remap) is dropped rather than prompted as a hole.
-    const buttonIndex = buttonsFor(side, direction).findIndex(
+    const layout = { side, direction };
+    const buttonIndex = buttonsFor(layout).findIndex(
       (button) => button.row === row && button.column === column,
     );
-    if (buttonIndex >= 0) draw.push({ side, direction, buttonIndex });
-  }
+    return { layout, buttonIndex };
+  });
 
   return createEngine({ ...options, buttonsFor, draw });
 }

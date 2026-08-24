@@ -1,6 +1,6 @@
 <template>
-  <SessionStart
-    v-if="phase === 'card'"
+  <StartCard
+    v-if="phase === 'start-card'"
     v-model="scope"
     :preview="preview"
     @start="start"
@@ -13,6 +13,9 @@
     <!-- Phone: staff beside the counter/progress/hint to keep the page one screen tall.
          md+: everything stacked in a wider column so the staff can fill it. -->
     <div class="mx-auto flex w-full max-w-md shrink-0 flex-wrap items-center gap-x-4 md:w-80">
+      <!-- Read-only during play: it is the prompt's layout, not a choice. The
+           scope is picked on the start card. -->
+      <NavVariant class="w-full" readonly />
       <GrandStaff
         class="w-48 shrink-0 md:w-full"
         :notes="quizzedSpelled ? [quizzedSpelled] : []"
@@ -59,17 +62,13 @@
       </SvgKeyboard>
     </div>
   </div>
-  <Modal :model-value="phase === 'summary'" @update:model-value="toCard">
-    <div class="px-4 py-8 text-center">
-      <p class="mb-8">
-        <strong>{{ counts[2] }}</strong> {{ t('correct') }} · <strong>{{ counts[1] }}</strong>
-        {{ t('partial_credit') }} · <strong>{{ counts[0] }}</strong> {{ t('wrong') }}
-      </p>
-      <Button primary @click.prevent="again()">
-        {{ ran === 'sweep' ? t('try_again') : t('new_session') }}
-      </Button>
-    </div>
-  </Modal>
+  <SessionSummary
+    :open="phase === 'summary'"
+    :counts="counts"
+    :ran="ran"
+    @again="again"
+    @dismiss="toStartCard"
+  />
 </template>
 
 <script setup lang="ts">
@@ -79,11 +78,11 @@ import { storeToRefs } from 'pinia';
 import { Note } from 'tonal';
 import { computed, onUnmounted, ref, watch } from 'vue';
 
-import Button from '../components/Button.vue';
 import GrandStaff from '../components/GrandStaff.vue';
-import Modal from '../components/Modal.vue';
+import NavVariant from '../components/NavVariant.vue';
 import Progress from '../components/Progress.vue';
-import SessionStart from '../components/SessionStart.vue';
+import SessionSummary from '../components/SessionSummary.vue';
+import StartCard from '../components/StartCard.vue';
 import SvgButton from '../components/SvgButton.vue';
 import SvgKeyboard from '../components/SvgKeyboard.vue';
 import { useSession } from '../composables/useSession';
@@ -107,18 +106,16 @@ const {
   total,
   counts,
   answeredCount,
+  gradeOf,
   ran,
   start,
   sweep,
   again,
   next,
   answer,
-  toCard,
+  toStartCard,
 } = useSession({ quizDirection: 'reverse', mode: 'staff-game' });
 
-// Graded buttons keyed by layout: a session moves the keyboard between prompts,
-// so a button index alone would carry colors across.
-const grades = ref<Record<string, Grade>>({});
 // The last tap's result, kept while the feedback pause runs; taps are ignored meanwhile.
 const tapResult = ref<{ note: string; score: Grade } | null>(null);
 const flash = ref<{ idx: number; score: Grade } | null>(null);
@@ -128,11 +125,9 @@ let flashTimer: ReturnType<typeof setTimeout> | null = null;
 const { t } = useI18n();
 
 const store = useStore();
-const { side, direction, keyPositions, showEnharmonics } = storeToRefs(store);
+const { side, keyPositions, showEnharmonics } = storeToRefs(store);
 
 const spell = (tonal: string) => (showEnharmonics.value ? Note.enharmonic(tonal) : tonal);
-
-const gradeKey = (idx: number) => `${side.value}/${direction.value}/${idx}`;
 
 const quizzedSpelled = computed(() => (prompt.value ? spell(prompt.value.pitch) : ''));
 
@@ -155,14 +150,14 @@ const staffFeedback = computed(() =>
 
 const fillColor = (idx: number) => {
   if (flash.value?.idx === idx) return SCORE_COLORS[flash.value.score] + '88';
-  const grade = grades.value[gradeKey(idx)];
+  const grade = gradeOf(idx);
   if (typeof grade === 'number') return SCORE_COLORS[grade] + '88';
   return 'transparent';
 };
 
 // Buttons stay blank during play; a quizzed button reveals its note name once scored.
 const label = (idx: number) => {
-  if (typeof grades.value[gradeKey(idx)] === 'number') return null;
+  if (typeof gradeOf(idx) === 'number') return null;
   return '';
 };
 
@@ -171,12 +166,11 @@ function clearTimers() {
   if (flashTimer) clearTimeout(flashTimer);
 }
 
-// Starting a run clears the board; the card owns when that happens.
-watch(phase, (value) => {
+// Feedback belongs to the run that produced it.
+watch(phase, () => {
   clearTimers();
   tapResult.value = null;
   flash.value = null;
-  if (value === 'playing') grades.value = {};
 });
 
 onUnmounted(() => clearTimers());
@@ -186,7 +180,6 @@ function tap(idx: number) {
 
   const outcome = answer({ tappedIndex: idx });
   if (!outcome) return;
-  grades.value[gradeKey(outcome.buttonIndex)] = outcome.grade;
   tapResult.value = { note: spell(keyPositions.value[idx][2]), score: outcome.grade };
 
   if (idx !== outcome.buttonIndex) {

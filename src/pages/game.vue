@@ -1,6 +1,6 @@
 <template>
-  <SessionStart
-    v-if="phase === 'card'"
+  <StartCard
+    v-if="phase === 'start-card'"
     v-model="scope"
     :preview="preview"
     @start="start"
@@ -24,6 +24,9 @@
       </SvgKeyboard>
     </div>
     <div class="mx-auto max-w-(--breakpoint-md) shrink-0 px-6 pb-4 sm:pb-6">
+      <!-- Read-only during play: it is the prompt's layout, not a choice. The
+           scope is picked on the start card. -->
+      <NavVariant readonly />
       <p class="mb-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
         {{ t('hint_game') }}
       </p>
@@ -52,17 +55,13 @@
       />
     </div>
   </template>
-  <Modal :model-value="phase === 'summary'" @update:model-value="toCard">
-    <div class="px-4 py-8 text-center">
-      <p class="mb-8">
-        <strong>{{ counts[2] }}</strong> {{ t('correct') }} · <strong>{{ counts[1] }}</strong>
-        {{ t('partial_credit') }} · <strong>{{ counts[0] }}</strong> {{ t('wrong') }}
-      </p>
-      <Button primary @click.prevent="again()">
-        {{ ran === 'sweep' ? t('try_again') : t('new_session') }}
-      </Button>
-    </div>
-  </Modal>
+  <SessionSummary
+    :open="phase === 'summary'"
+    :counts="counts"
+    :ran="ran"
+    @again="again"
+    @dismiss="toStartCard"
+  />
 </template>
 
 <script setup lang="ts">
@@ -72,16 +71,16 @@ import { storeToRefs } from 'pinia';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 import Button from '../components/Button.vue';
-import Modal from '../components/Modal.vue';
 import NavTonic from '../components/NavTonic.vue';
+import NavVariant from '../components/NavVariant.vue';
 import Progress from '../components/Progress.vue';
-import SessionStart from '../components/SessionStart.vue';
+import SessionSummary from '../components/SessionSummary.vue';
+import StartCard from '../components/StartCard.vue';
 import SvgButton from '../components/SvgButton.vue';
 import SvgKeyboard from '../components/SvgKeyboard.vue';
 import { useKeyboard } from '../composables/useKeyboard';
 import { useSession } from '../composables/useSession';
 import { useStore } from '../stores/main';
-import type { Grade } from '../stores/practice';
 import { useSettingsStore } from '../stores/settings';
 
 useHead({ title: 'Play a game! – Bandoneon.app' });
@@ -97,31 +96,27 @@ const {
   prompt,
   total,
   counts,
+  gradeOf,
   ran,
   start,
   sweep,
   again,
   next,
   answer,
-  toCard,
+  toStartCard,
 } = useSession({ quizDirection: 'forward', mode: 'note-game' });
 
-// Graded buttons keyed by layout: a session moves the keyboard between prompts,
-// so a button index alone would carry colors across.
-const grades = ref<Record<string, Grade>>({});
 const oct = ref<number | null>(null);
 
 const { t } = useI18n();
 
 const store = useStore();
-const { tonic, side, direction, keyPositions } = storeToRefs(store);
+const { tonic, keyPositions } = storeToRefs(store);
 
 const settings = useSettingsStore();
 const { pitchNotation } = storeToRefs(settings);
 
 const currentButton = computed(() => prompt.value?.buttonIndex ?? -1);
-
-const gradeKey = (idx: number) => `${side.value}/${direction.value}/${idx}`;
 
 const formatOctave = (octave: number) => {
   if (pitchNotation.value !== 'helmholtz') {
@@ -136,7 +131,7 @@ const formatOctave = (octave: number) => {
 };
 
 const fillColor = (idx: number) => {
-  const grade = grades.value[gradeKey(idx)];
+  const grade = gradeOf(idx);
   if (grade === 2) return '#22c55e88'; // green-500
   if (grade === 1) return '#eab30888'; // yellow-500
   if (grade === 0) return '#ef444488'; // red-500
@@ -145,7 +140,7 @@ const fillColor = (idx: number) => {
 
 const label = (idx: number) => {
   if (idx === currentButton.value) return tonic.value || '?';
-  if (typeof grades.value[gradeKey(idx)] === 'number') return;
+  if (typeof gradeOf(idx) === 'number') return;
   return '?';
 };
 
@@ -162,25 +157,21 @@ const octaves = computed(() => {
     .sort();
 });
 
-function reset() {
+// Drops a half-made answer: the note without its octave, or both once graded.
+function clearPick() {
   oct.value = null;
   store.setTonic(null);
 }
 
-// Starting a run clears the board; the card owns when that happens.
-watch(phase, (value) => {
-  if (value === 'playing') grades.value = {};
-  reset();
-});
+watch(phase, clearPick);
 
 function submit() {
   if (!prompt.value || !tonic.value || !oct.value) return;
 
   const outcome = answer({ pitch: tonic.value + oct.value });
   if (!outcome) return;
-  grades.value[gradeKey(outcome.buttonIndex)] = outcome.grade;
 
-  reset();
+  clearPick();
   next();
 }
 

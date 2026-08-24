@@ -3,7 +3,7 @@
 // model without touching them.
 
 import type { Grade, ItemRecord } from '../stores/practice';
-import type { Direction, Side } from './session';
+import type { Layout } from './session';
 import { parseItemKey, shuffled } from './session';
 
 // Fixed constants, not settings: prompts per session, never-seen items per
@@ -30,8 +30,8 @@ export function itemWeight(record: ItemRecord, now: number): number {
   return days * (1 + errorTally(record));
 }
 
-// Session scope: all four layouts of the game, or one side + direction.
-export type SessionScope = 'all' | { side: Side; direction: Direction };
+// Session scope: all four layouts of the game, or one of them.
+export type SessionScope = 'all' | Layout;
 
 export interface SchedulerInput {
   // Every item of one game (instrument × quiz direction), in introduction
@@ -43,9 +43,25 @@ export interface SchedulerInput {
   now: number;
 }
 
+// What the start card's info line reports: the numbers a session started right
+// now would run under, adapted to the chosen scope.
+export interface SessionPreview {
+  // How many prompts the draw would hold — the session size, or less while the
+  // pool is still small.
+  prompts: number;
+  // Never-seen items still allowed today; the cap is per game, so this ignores
+  // the scope.
+  newLeft: number;
+  // Items already answered at least once, and the pool size, both in scope.
+  seen: number;
+  total: number;
+}
+
 export interface Scheduler {
   // A fixed session draw: item keys, shuffled, each at most once.
   draw(input: SchedulerInput): string[];
+  // What that draw would come to, without making it — the card's info line.
+  preview(input: SchedulerInput): SessionPreview;
 }
 
 interface Weighted {
@@ -82,6 +98,19 @@ function introducedToday({ pool, memory, now }: SchedulerInput): number {
   }).length;
 }
 
+// The scoped pool split into what a draw takes from each half, plus the day's
+// remaining new-item budget. The cap is per game, so it is counted over the
+// whole pool even when the draw is scoped to one layout.
+function candidates(input: SchedulerInput) {
+  const budget = Math.max(0, DAILY_NEW_ITEMS - introducedToday(input));
+  const scoped = input.pool.filter((key) => inScope(key, input.scope));
+  return {
+    budget,
+    fresh: scoped.filter((key) => !seen(input.memory[key])),
+    review: scoped.filter((key) => seen(input.memory[key])),
+  };
+}
+
 export function createWeightedScheduler(random: () => number = Math.random): Scheduler {
   // Weighted sampling without replacement. Once only weightless items remain
   // (everything just answered), the rest are drawn evenly rather than skipped.
@@ -105,45 +134,26 @@ export function createWeightedScheduler(random: () => number = Math.random): Sch
 
   return {
     draw(input) {
-      const { pool, memory, scope, now } = input;
-      // The cap is per game, so it is counted over the whole pool even when
-      // the draw is scoped to one layout.
-      const budget = Math.max(0, DAILY_NEW_ITEMS - introducedToday(input));
-      const scoped = pool.filter((key) => inScope(key, scope));
-      const fresh = scoped.filter((key) => !seen(memory[key])).slice(0, budget);
-      const review = scoped
-        .filter((key) => seen(memory[key]))
-        .map((key) => ({ key, weight: itemWeight(memory[key], now) }));
-      return shuffled([...fresh, ...sample(review, SESSION_SIZE - fresh.length)], random);
+      const { budget, fresh, review } = candidates(input);
+      const introduced = fresh.slice(0, budget);
+      const weighted = review.map((key) => ({
+        key,
+        weight: itemWeight(input.memory[key], input.now),
+      }));
+      return shuffled(
+        [...introduced, ...sample(weighted, SESSION_SIZE - introduced.length)],
+        random,
+      );
     },
-  };
-}
 
-// What the start card's info line reports: the numbers a session started right
-// now would run under, adapted to the chosen scope.
-export interface SessionPreview {
-  // How many prompts the draw would hold — the session size, or less while the
-  // pool is still small.
-  prompts: number;
-  // Never-seen items still allowed today; the cap is per game, so this ignores
-  // the scope.
-  newLeft: number;
-  // Items already answered at least once, and the pool size, both in scope.
-  seen: number;
-  total: number;
-}
-
-export function sessionPreview(input: SchedulerInput): SessionPreview {
-  const { pool, memory, scope } = input;
-  const newLeft = Math.max(0, DAILY_NEW_ITEMS - introducedToday(input));
-  const scoped = pool.filter((key) => inScope(key, scope));
-  const seenCount = scoped.filter((key) => seen(memory[key])).length;
-  const fresh = Math.min(newLeft, scoped.length - seenCount);
-
-  return {
-    prompts: Math.min(SESSION_SIZE, fresh + seenCount),
-    newLeft,
-    seen: seenCount,
-    total: scoped.length,
+    preview(input) {
+      const { budget, fresh, review } = candidates(input);
+      return {
+        prompts: Math.min(SESSION_SIZE, Math.min(budget, fresh.length) + review.length),
+        newLeft: budget,
+        seen: review.length,
+        total: fresh.length + review.length,
+      };
+    },
   };
 }

@@ -12,6 +12,7 @@ import { usePracticeStore } from '../../stores/practice';
 import { useSettingsStore } from '../../stores/settings';
 import { introductionOrder } from '../../utils/introduction';
 import Game from '../game.vue';
+import { click, dialog, seed, startSession, startSweep } from './start-card';
 
 const GREEN = '#22c55e88';
 const YELLOW = '#eab30888';
@@ -50,26 +51,6 @@ const octaveButtons = (container: HTMLElement) =>
 const noteButton = (container: HTMLElement, pc: string) =>
   buttons(container).find((b) => b.textContent?.trim() === pc.replace('#', '♯'));
 const circles = (container: HTMLElement) => [...container.querySelectorAll('.keyboard > g circle')];
-const click = (button?: HTMLElement) =>
-  button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-
-const buttonNamed = (container: HTMLElement, text: string) =>
-  buttons(container).find((b) => b.textContent?.trim() === text);
-
-// Play never begins without a tap: every test that wants a run starts one from
-// the card.
-async function startSweep(container: HTMLElement) {
-  click(buttonNamed(container, en.one_layout));
-  await nextTick();
-  click(buttonNamed(container, en.sweep_layout));
-  await nextTick();
-}
-
-async function startSession(container: HTMLElement) {
-  click(buttonNamed(container, en.start_session));
-  await nextTick();
-}
-
 // Math.random is constant, so the shuffle keeps the layout order and the
 // session's first prompt is keyPositions[0].
 function firstPrompt(store: ReturnType<typeof useStore>) {
@@ -204,20 +185,6 @@ describe('note game recording', () => {
   });
 });
 
-const dialog = () => document.querySelector('[role="dialog"]');
-
-// Practice memory for items answered correctly yesterday, so they are seen and
-// carry a day's worth of sampling weight.
-function seed(practice: ReturnType<typeof usePracticeStore>, keys: string[]) {
-  const yesterday = Date.now() - 86_400_000;
-  for (const key of keys) {
-    practice.items[key] = {
-      firstSeen: yesterday,
-      answers: [{ grade: 2, timestamp: yesterday, responseMs: 1_000, mode: 'note-game' }],
-    };
-  }
-}
-
 // Names C in whatever octave the layout offers first, so the run advances
 // whatever the prompt was.
 async function answerAnything(container: HTMLElement) {
@@ -246,7 +213,7 @@ describe('note game start card', () => {
 
   it('runs a scheduler-drawn session across layouts and ends in a summary', async () => {
     const { container, store, practice } = mount();
-    seed(practice, pool().slice(0, 60));
+    seed(practice, pool().slice(0, 60), 'note-game');
     await nextTick();
     expect(container.textContent).toContain('20 prompts · 3 new left today · 60 of 142 seen');
 

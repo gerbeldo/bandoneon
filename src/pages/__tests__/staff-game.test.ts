@@ -11,6 +11,7 @@ import { useStore } from '../../stores/main';
 import { usePracticeStore } from '../../stores/practice';
 import { introductionOrder } from '../../utils/introduction';
 import StaffGame from '../staff-game.vue';
+import { buttonNamed, click, dialog, seed, startSession, startSweep } from './start-card';
 
 let cleanup: (() => void) | null = null;
 
@@ -43,25 +44,6 @@ function mount(
 
 const buttons = (container: HTMLElement) => [...container.querySelectorAll('button')];
 const keys = (container: HTMLElement) => [...container.querySelectorAll('.keyboard > g')];
-
-const buttonNamed = (container: HTMLElement, text: string) =>
-  buttons(container).find((b) => b.textContent?.trim() === text);
-const click = (button?: HTMLElement) =>
-  button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
-
-// Play never begins without a tap: every test that wants a run starts one from
-// the card.
-async function startSweep(container: HTMLElement) {
-  click(buttonNamed(container, en.one_layout));
-  await nextTick();
-  click(buttonNamed(container, en.sweep_layout));
-  await nextTick();
-}
-
-async function startSession(container: HTMLElement) {
-  click(buttonNamed(container, en.start_session));
-  await nextTick();
-}
 
 const layoutNotes = (side: 'left' | 'right', direction: 'open' | 'close') =>
   (instruments.rheinische142[side] as Record<string, string[][]>)[direction].flat().filter(Boolean);
@@ -128,12 +110,20 @@ describe('staff game', () => {
     expect(keys(container)).toHaveLength(layoutNotes('right', 'close').length);
   });
 
-  it('shows no side or direction controls once the run has begun', async () => {
+  it('shows the run’s layout read-only, so the bellows direction stays visible', async () => {
     vi.useFakeTimers();
-    const { container } = mount('right', 'open');
+    const { container } = mount('right', 'close');
     await startSweep(container);
 
-    expect(buttons(container).map((b) => b.textContent?.trim())).toEqual([]);
+    expect(buttons(container).map((b) => b.textContent?.trim())).toEqual([
+      'left',
+      'right',
+      'close',
+      'open',
+    ]);
+    const pressed = buttons(container).filter((b) => b.getAttribute('aria-pressed') === 'true');
+    expect(pressed.map((b) => b.textContent?.trim())).toEqual(['right', 'close']);
+    for (const button of buttons(container)) expect(button.disabled).toBe(true);
   });
 });
 
@@ -292,7 +282,6 @@ describe('staff game duplicate-pitch follow-up', () => {
   });
 });
 
-const dialog = () => document.querySelector('[role="dialog"]');
 const text = (container: HTMLElement) => container.textContent ?? '';
 
 // Item keys of one layout, in the grid's own order.
@@ -305,18 +294,6 @@ function layoutKeys(side: 'left' | 'right', direction: 'open' | 'close'): string
     }),
   );
   return found;
-}
-
-// Practice memory for items answered correctly yesterday, so they are seen and
-// carry a day's worth of sampling weight.
-function seed(practice: ReturnType<typeof usePracticeStore>, keys: string[]) {
-  const yesterday = Date.now() - 86_400_000;
-  for (const key of keys) {
-    practice.items[key] = {
-      firstSeen: yesterday,
-      answers: [{ grade: 2, timestamp: yesterday, responseMs: 1_000, mode: 'staff-game' }],
-    };
-  }
 }
 
 // Taps the first button of whatever layout is showing until the summary opens.
@@ -341,7 +318,7 @@ describe('start card', () => {
 
   it('shows the session size, new items left today, and pool coverage', async () => {
     const { container, practice } = mount('right', 'open');
-    seed(practice, layoutKeys('right', 'open').slice(0, 5));
+    seed(practice, layoutKeys('right', 'open').slice(0, 5), 'staff-game');
     await nextTick();
 
     expect(text(container)).toContain('8 prompts · 3 new left today · 5 of 142 seen');
@@ -349,10 +326,11 @@ describe('start card', () => {
 
   it('narrows the coverage to the chosen layout, keeping the shared daily cap', async () => {
     const { container, practice } = mount('right', 'open');
-    seed(practice, [
-      ...layoutKeys('right', 'open').slice(0, 5),
-      ...layoutKeys('left', 'close').slice(0, 7),
-    ]);
+    seed(
+      practice,
+      [...layoutKeys('right', 'open').slice(0, 5), ...layoutKeys('left', 'close').slice(0, 7)],
+      'staff-game',
+    );
     await nextTick();
     expect(text(container)).toContain('15 prompts · 3 new left today · 12 of 142 seen');
 
@@ -416,6 +394,35 @@ describe('start card', () => {
     expect(buttonNamed(container, en.start_session)).toBeUndefined();
   });
 
+  it('starts a session on Enter after the player has touched the scope control', async () => {
+    const { container } = mount('right', 'open');
+    await nextTick();
+    const scopeButton = buttonNamed(container, en.one_layout);
+    click(scopeButton);
+    await nextTick();
+
+    scopeButton?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await nextTick();
+
+    expect(keys(container).length).toBeGreaterThan(0);
+  });
+
+  it('leaves Enter on the sweep button to the sweep', async () => {
+    const { container, practice } = mount('right', 'open');
+    await nextTick();
+    click(buttonNamed(container, en.one_layout));
+    await nextTick();
+
+    const sweepButton = buttonNamed(container, en.sweep_layout);
+    sweepButton?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await nextTick();
+
+    // Nothing started: the button's own Enter would have swept, and jsdom does
+    // not synthesize that click, so the card is still up.
+    expect(buttonNamed(container, en.start_session)).toBeDefined();
+    expect(practice.items).toEqual({});
+  });
+
   it('keeps the scope for this game through the browser session, and resets on a fresh visit', async () => {
     const first = mount('right', 'open');
     click(buttonNamed(first.container, en.one_layout));
@@ -451,7 +458,7 @@ describe('sessions', () => {
   it('draws 20 prompts that cross layouts under the default scope', async () => {
     vi.useFakeTimers();
     const { container, store, practice } = mount('right', 'open');
-    seed(practice, pool().slice(0, 60));
+    seed(practice, pool().slice(0, 60), 'staff-game');
     await nextTick();
     await startSession(container);
 
@@ -464,10 +471,29 @@ describe('sessions', () => {
     expect(Object.values(practice.items).flatMap((item) => item.answers)).toHaveLength(80);
   });
 
+  it('shows each prompt’s own layout as a session crosses them', async () => {
+    vi.useFakeTimers();
+    const { container, store, practice } = mount('right', 'open');
+    seed(practice, pool().slice(0, 60), 'staff-game');
+    await nextTick();
+    await startSession(container);
+
+    const shown = new Set<string>();
+    await playOut(container, () => {
+      const pressed = buttons(container)
+        .filter((b) => b.getAttribute('aria-pressed') === 'true')
+        .map((b) => b.textContent?.trim());
+      expect(pressed).toEqual([store.side, store.direction]);
+      shown.add(pressed.join('/'));
+    });
+
+    expect(shown.size).toBeGreaterThan(1);
+  });
+
   it('keeps a scoped session inside its layout', async () => {
     vi.useFakeTimers();
     const { container, store, practice } = mount('left', 'close');
-    seed(practice, layoutKeys('left', 'close'));
+    seed(practice, layoutKeys('left', 'close'), 'staff-game');
     await nextTick();
     click(buttonNamed(container, en.one_layout));
     await nextTick();
@@ -482,7 +508,7 @@ describe('sessions', () => {
   it('ends in a summary that starts another session of the same scope, then returns to the card', async () => {
     vi.useFakeTimers();
     const { container, store, practice } = mount('right', 'open');
-    seed(practice, layoutKeys('right', 'open').slice(0, 4));
+    seed(practice, layoutKeys('right', 'open').slice(0, 4), 'staff-game');
     await nextTick();
     click(buttonNamed(container, en.one_layout));
     await nextTick();
@@ -507,10 +533,36 @@ describe('sessions', () => {
     expect(text(container)).toContain(en.start_session);
   });
 
+  it('keeps the layout the player picked through a chain of all-layout sessions', async () => {
+    vi.useFakeTimers();
+    const { container, store, practice } = mount('right', 'open');
+    seed(practice, pool().slice(0, 60), 'staff-game');
+    await nextTick();
+    // Pick a layout, then hand the scope back to all layouts.
+    click(buttonNamed(container, en.one_layout));
+    await nextTick();
+    click(buttonNamed(container, 'left'));
+    click(buttonNamed(container, 'close'));
+    await nextTick();
+    click(buttonNamed(container, en.all_layouts));
+    await nextTick();
+
+    await startSession(container);
+    await playOut(container);
+    // Chaining from the summary must not adopt the last prompt's layout.
+    click(buttonNamed(document.body, en.new_session));
+    await nextTick();
+    await playOut(container);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
+    await nextTick();
+
+    expect([store.side, store.direction]).toEqual(['left', 'close']);
+  });
+
   it('abandons silently when the player navigates away, keeping the answers', async () => {
     vi.useFakeTimers();
     const { container, practice } = mount('right', 'open');
-    seed(practice, pool().slice(0, 60));
+    seed(practice, pool().slice(0, 60), 'staff-game');
     await nextTick();
     await startSession(container);
 

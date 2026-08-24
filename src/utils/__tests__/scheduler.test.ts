@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import type { AnswerEvent, Grade, ItemRecord } from '../../stores/practice';
 import type { SchedulerInput } from '../scheduler';
-import { createWeightedScheduler, errorTally, itemWeight, sessionPreview } from '../scheduler';
+import { createWeightedScheduler, errorTally, itemWeight } from '../scheduler';
 import type { Direction, Side } from '../session';
 import { itemKey } from '../session';
 
@@ -247,11 +247,11 @@ describe('draw: order and determinism', () => {
 });
 
 // The start card's info line: what starting a session right now would mean.
-describe('sessionPreview', () => {
+describe('preview', () => {
   const pool = [...layoutKeys('right', 'open', 30), ...layoutKeys('left', 'close', 30)];
 
   it('counts the whole pool as unseen on a first visit', () => {
-    expect(sessionPreview({ pool, memory: {}, scope: 'all', now: NOON })).toEqual({
+    expect(scheduler().preview({ pool, memory: {}, scope: 'all', now: NOON })).toEqual({
       prompts: 3,
       newLeft: 3,
       seen: 0,
@@ -264,7 +264,7 @@ describe('sessionPreview', () => {
       pool.slice(0, 25).map((key) => [key, record([2], NOON - DAY)]),
     );
 
-    expect(sessionPreview({ pool, memory, scope: 'all', now: NOON })).toEqual({
+    expect(scheduler().preview({ pool, memory, scope: 'all', now: NOON })).toEqual({
       prompts: 20,
       newLeft: 3,
       seen: 25,
@@ -278,9 +278,9 @@ describe('sessionPreview', () => {
       [pool[1]]: record([2], NOON - 3_600_000),
     };
 
-    expect(sessionPreview({ pool, memory, scope: 'all', now: NOON }).newLeft).toBe(1);
+    expect(scheduler().preview({ pool, memory, scope: 'all', now: NOON }).newLeft).toBe(1);
     expect(
-      sessionPreview({ pool, memory, scope: { side: 'left', direction: 'close' }, now: NOON })
+      scheduler().preview({ pool, memory, scope: { side: 'left', direction: 'close' }, now: NOON })
         .newLeft,
     ).toBe(1);
   });
@@ -291,7 +291,7 @@ describe('sessionPreview', () => {
     );
 
     expect(
-      sessionPreview({ pool, memory, scope: { side: 'left', direction: 'close' }, now: NOON }),
+      scheduler().preview({ pool, memory, scope: { side: 'left', direction: 'close' }, now: NOON }),
     ).toEqual({ prompts: 10, newLeft: 3, seen: 7, total: 30 });
   });
 });

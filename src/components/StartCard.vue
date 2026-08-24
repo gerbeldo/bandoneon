@@ -33,7 +33,9 @@
     <Button primary class="w-48" :disabled="preview.prompts === 0" @click="emit('start')">
       {{ t('start_session') }}
     </Button>
-    <Button v-if="scope === 'one'" @click="emit('sweep')">{{ t('sweep_layout') }}</Button>
+    <Button v-if="scope === 'one'" data-sweep @click="emit('sweep')">
+      {{ t('sweep_layout') }}
+    </Button>
   </div>
 </template>
 
@@ -54,10 +56,12 @@ const scope = defineModel<'all' | 'one'>({ required: true });
 
 const { t } = useI18n();
 
-// Enter starts a session, unless a button has focus and is handling its own.
+// Enter means Start anywhere on the card, whichever control the player last
+// touched — only the sweep keeps its own. Space still works the scope buttons.
 function onKeydown(event: KeyboardEvent) {
   if (event.key !== 'Enter' || props.preview.prompts === 0) return;
-  if (event.target instanceof HTMLElement && event.target.tagName === 'BUTTON') return;
+  if (event.target instanceof HTMLElement && event.target.hasAttribute('data-sweep')) return;
+  event.preventDefault();
   emit('start');
 }
 

@@ -11,9 +11,8 @@ export const useStore = defineStore('main', {
     showEnharmonics: false,
     side: 'right' as 'right' | 'left',
     direction: 'open' as 'open' | 'close',
-    // Session scope per game, kept for the browser session only — like side
-    // and direction, this store is never persisted, so a fresh visit resets
-    // both games to all layouts. 'one' means the current side + direction.
+    // Per game, and only for this browser session: the store is never
+    // persisted, so a fresh visit resets both games to all layouts.
     sessionScope: { forward: 'all', reverse: 'all' } as Record<QuizDirection, 'all' | 'one'>,
     tonic: null as null | string,
     chordType: null as null | string,
