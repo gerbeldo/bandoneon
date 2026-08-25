@@ -7,8 +7,8 @@ import { scientificToSolfegeNotation } from './solfege';
 
 export type Spelling = 'sharp' | 'flat';
 
-// What a run is set to: one spelling, or both — each accidental item asked
-// once per spelling.
+// What a run is set to: one spelling, or both — each accidental item named
+// one way or the other, drawn at random per run.
 export type SpellingChoice = Spelling | 'both';
 
 export const SPELLINGS: SpellingChoice[] = ['sharp', 'flat', 'both'];

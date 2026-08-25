@@ -1,5 +1,4 @@
 // @vitest-environment jsdom
-import { Note } from 'tonal';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 
@@ -12,7 +11,6 @@ import {
   dialog,
   inGroup,
   LABELS,
-  layoutButtons,
   mountPractice,
   pitchOf,
   press,
@@ -26,9 +24,6 @@ import {
 
 const RIGHT_OPEN: Layout = { side: 'right', direction: 'open' };
 const RIGHT_OPEN_SIZE = 38;
-const RIGHT_OPEN_ACCIDENTALS = layoutButtons('right', 'open').filter(
-  (button) => Note.get(button.pitch).acc !== '',
-).length;
 
 const noteRun = (extra: Partial<PracticeSetup> = {}): Partial<PracticeSetup> => ({
   game: 'note',
@@ -190,18 +185,17 @@ describe('practice setup, accidentals', () => {
     expect(store.showEnharmonics).toBe(true);
   });
 
-  it('asks every accidental twice under Both', async () => {
+  it('asks each item once under Both, whichever way it is named', async () => {
     const { container, settings } = mountPractice();
     await setupRun(settings, noteRun());
     click(buttonNamed(container, LABELS.both));
     await nextTick();
 
     expect(settings.practiceSetup.spelling).toBe('both');
-    expect(text(container)).toContain(`${RIGHT_OPEN_SIZE} items, both spellings`);
+    expect(text(container)).toContain(`${RIGHT_OPEN_SIZE} prompts`);
 
     await start(container);
-    // Naturals once, accidentals once per spelling.
-    expect(text(container)).toContain(`of ${RIGHT_OPEN_SIZE + RIGHT_OPEN_ACCIDENTALS}`);
+    expect(text(container)).toContain(`of ${RIGHT_OPEN_SIZE}`);
   });
 
   it('puts the explore screen’s ♯/♭ choice back when the run hands the page over', async () => {

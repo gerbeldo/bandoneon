@@ -83,7 +83,7 @@ The per-item record of answers that scheduling, retirement, and summaries derive
 _Avoid_: stats, progress data
 
 **Session**:
-One scheduled practice run: a fixed, shuffled draw the scheduler assembles at start under the session size and the daily cap, each item at most once (once per spelling under Both), ending in a summary.
+One scheduled practice run: a fixed, shuffled draw the scheduler assembles at start under the session size and the daily cap, each item at most once, ending in a summary.
 _Avoid_: round
 
 **Session scope**:
@@ -103,7 +103,7 @@ The fixed run over every item of one layout — "All" on the practice setup with
 _Avoid_: full-keyboard round
 
 **Spelling**:
-Which name an accidental goes by in a run: sharps or flats, chosen on the practice setup. Under Both, each accidental item is asked once per spelling and the two prompts are kept apart. Every prompt carries its spelling, and the keyboard's ♯/♭ display follows the prompt.
+Which name an accidental goes by in a run: sharps or flats, chosen on the practice setup. Under Both, each accidental item is named as a sharp or a flat, drawn at random when the run starts. Every prompt carries its spelling, and the keyboard's ♯/♭ display follows the prompt.
 _Avoid_: enharmonics toggle (that is Explore's ♯/♭ button), notation (that is pitch notation)
 
 **Direction badge**:
@@ -123,7 +123,7 @@ The swappable component that picks which items a session draws, weighting by rec
 _Avoid_: queue
 
 **Session size**:
-How many items a session draws — 10, 20, 30, or 50 on the practice setup, 20 by default; one prompt each, or two for an accidental under Both. A fixed run's size is its N.
+How many items a session draws — 10, 20, 30, or 50 on the practice setup, 20 by default; one prompt each. A fixed run's size is its N.
 _Avoid_: session length, round size
 
 **Daily cap**:

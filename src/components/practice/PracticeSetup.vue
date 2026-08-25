@@ -223,7 +223,7 @@ const SPELLING_CHOICES: Choice<SpellingChoice>[] = [
 const SPELLING_HINTS: Record<SpellingChoice, string> = {
   sharp: 'Accidentals are named as sharps (C♯, D♯, F♯…).',
   flat: 'Accidentals are named as flats (D♭, E♭, G♭…).',
-  both: 'Each accidental is asked twice — once as a sharp, once as a flat.',
+  both: 'Each accidental is named as a sharp or a flat, drawn at random for every run.',
 };
 
 const sizeOptions = SESSION_SIZES.map((n) => ({ value: n, label: String(n) }));
@@ -246,7 +246,6 @@ const quickPicks = computed(() => [
 const headline = computed(() => {
   const { prompts } = props.preview;
   if (prompts === 0) return 'Nothing to draw';
-  if (setup.value.spelling === 'both') return `${prompts} items, both spellings`;
   return prompts === 1 ? '1 prompt' : `${prompts} prompts`;
 });
 

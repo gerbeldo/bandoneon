@@ -124,32 +124,6 @@ export function shuffled<T>(items: T[], random: () => number = Math.random): T[]
     .map((index) => items[index]);
 }
 
-// Shuffle, then keep any two prompts of the same item apart: the second of an
-// adjacent pair swaps with the nearest slot, forward then backward, where both
-// swapped prompts end up next to prompts of other items. Tiny draws that
-// cannot be spread are left as they are.
-export function shuffledApart<T>(
-  items: T[],
-  same: (a: T, b: T) => boolean,
-  random: () => number = Math.random,
-): T[] {
-  const out = shuffled(items, random);
-  const apart = (pos: number) =>
-    (pos === 0 || !same(out[pos - 1], out[pos])) &&
-    (pos === out.length - 1 || !same(out[pos], out[pos + 1]));
-  for (let i = 1; i < out.length; i++) {
-    if (!same(out[i - 1], out[i])) continue;
-    const slots = [...Array(out.length).keys()].filter((k) => k > i || k < i - 1);
-    slots.sort((a, b) => Math.abs(a - i) - Math.abs(b - i));
-    for (const k of slots) {
-      [out[i], out[k]] = [out[k], out[i]];
-      if (apart(i) && apart(k)) break;
-      [out[i], out[k]] = [out[k], out[i]];
-    }
-  }
-  return out;
-}
-
 export interface Prompt {
   index: number;
   total: number;
@@ -196,10 +170,10 @@ export interface SessionOptions {
   mode: string;
   // The item keys to prompt, in prompt order (already shuffled by the caller).
   draw: string[];
-  // Sharps unless set; 'both' asks each accidental item once per spelling and
-  // reshuffles so the pair is kept apart.
+  // Sharps unless set; 'both' names each accidental item as a sharp or a flat,
+  // drawn at random for this run.
   spelling?: SpellingChoice;
-  // Only the 'both' reshuffle draws from it; injectable so runs are repeatable.
+  // Only the 'both' spelling draw uses it; injectable so runs are repeatable.
   random?: () => number;
   record: (key: string, event: AnswerEvent) => void;
   now: () => number;
@@ -212,9 +186,6 @@ interface DrawnPrompt {
   // Set on a follow-up: the twin already credited, which this prompt must not accept again.
   followUpOf?: number;
 }
-
-const sameItem = (a: DrawnPrompt, b: DrawnPrompt) =>
-  a.buttonIndex === b.buttonIndex && layoutKey(a.layout) === layoutKey(b.layout);
 
 // A run over the drawn items: a scheduler's session or a fixed run, both
 // naming items by key, so the keyboard may change between prompts.
@@ -241,21 +212,13 @@ export function createSession(options: SessionOptions): SessionEngine {
   });
 
   const spelling = options.spelling ?? 'sharp';
-  const draw: DrawnPrompt[] =
-    spelling === 'both'
-      ? shuffledApart(
-          items.flatMap((item): DrawnPrompt[] =>
-            isAccidental(buttonsFor(item.layout)[item.buttonIndex].pitch)
-              ? [
-                  { ...item, spelling: 'sharp' },
-                  { ...item, spelling: 'flat' },
-                ]
-              : [{ ...item, spelling: 'sharp' }],
-          ),
-          sameItem,
-          options.random,
-        )
-      : items.map((item) => ({ ...item, spelling }));
+  const random = options.random ?? Math.random;
+  const spellingFor = (item: { layout: Layout; buttonIndex: number }): Spelling => {
+    if (spelling !== 'both') return spelling;
+    if (!isAccidental(buttonsFor(item.layout)[item.buttonIndex].pitch)) return 'sharp';
+    return random() < 0.5 ? 'sharp' : 'flat';
+  };
+  const draw: DrawnPrompt[] = items.map((item) => ({ ...item, spelling: spellingFor(item) }));
 
   let index = 0;
 

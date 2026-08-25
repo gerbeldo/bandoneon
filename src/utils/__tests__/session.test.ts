@@ -13,10 +13,9 @@ import {
   itemKey,
   layoutGrid,
   parseItemKey,
-  shuffledApart,
   twinGroups,
 } from '../session';
-import type { SpellingChoice } from '../spelling';
+import type { Spelling, SpellingChoice } from '../spelling';
 
 const RIGHT_OPEN = { side: 'right', direction: 'open' } as const;
 
@@ -727,43 +726,49 @@ describe('spelling', () => {
     expect(answeredSharp.engine.answer({ pitch: 'C#4', elapsedMs: 1 }).grade).toBe(2);
   });
 
-  it('asks each accidental once per spelling and each natural once, under “both”', () => {
+  it('asks each item once under “both”, naming each accidental one way for the run', () => {
     const { engine } = testRun({ grid: ACCIDENTAL_GRID, spelling: 'both', random: seeded(1) });
-    expect(engine.total).toBe(5);
+    expect(engine.total).toBe(3);
 
     const prompts = allPrompts(engine);
 
-    expect(prompts.map((prompt) => prompt.total)).toEqual([5, 5, 5, 5, 5]);
-    expect(prompts.map((prompt) => prompt.index)).toEqual([0, 1, 2, 3, 4]);
     expect(named(prompts, 'C4')).toEqual(['sharp']);
-    expect([...named(prompts, 'C#4')].sort()).toEqual(['flat', 'sharp']);
-    expect([...named(prompts, 'D#4')].sort()).toEqual(['flat', 'sharp']);
+    expect(named(prompts, 'C#4')).toHaveLength(1);
+    expect(named(prompts, 'D#4')).toHaveLength(1);
+    for (const prompt of prompts) expect(['sharp', 'flat']).toContain(prompt.spelling);
   });
 
-  it('keeps the two prompts of one accidental apart, whatever the shuffle', () => {
+  it('draws the spelling per accidental and per run, so both names come up', () => {
+    const drawn = new Set<string>();
     for (let seed = 1; seed <= 40; seed++) {
       const { engine } = testRun({ grid: ACCIDENTAL_GRID, spelling: 'both', random: seeded(seed) });
-      const buttons = allPrompts(engine).map((prompt) => prompt.buttonIndex);
-      const adjacent = buttons.findIndex((button, i) => i > 0 && button === buttons[i - 1]);
-      expect(adjacent, `seed ${seed}`).toBe(-1);
+      const prompts = allPrompts(engine);
+      const [cSharp] = named(prompts, 'C#4');
+      const [dSharp] = named(prompts, 'D#4');
+      drawn.add(`C#4 ${cSharp}`);
+      drawn.add(`D#4 ${dSharp}`);
+      // Two accidentals in one run can disagree: it is a draw per item, not per run.
+      if (cSharp !== dSharp) drawn.add('mixed');
     }
+    expect([...drawn].sort()).toEqual(['C#4 flat', 'C#4 sharp', 'D#4 flat', 'D#4 sharp', 'mixed']);
   });
 
   it('gives a twin follow-up the spelling of the prompt that triggered it', () => {
-    for (const spelling of ['sharp', 'flat'] as const) {
+    const covered = new Set<Spelling>();
+    for (let seed = 1; seed <= 20; seed++) {
       const { engine } = testRun({
         grid: TWIN_ACCIDENTAL_GRID,
         quizDirection: 'reverse',
         mode: 'staff-game',
         spelling: 'both',
-        random: seeded(4),
+        random: seeded(seed),
       });
 
-      // Scan the draw for a twin prompt in this spelling; every other prompt is
-      // answered with D5, which is never a twin, so no follow-up is inserted.
+      // Scan the draw for a twin prompt; every other prompt is answered with
+      // D5, which is never a twin, so no follow-up is inserted.
       let triggered: Prompt | null = null;
       for (let prompt = engine.prompt(); prompt; prompt = engine.prompt()) {
-        if (prompt.twin === 'expected' && prompt.spelling === spelling) {
+        if (prompt.twin === 'expected') {
           engine.answer({ tappedIndex: prompt.buttonIndex, elapsedMs: 1 });
           triggered = prompt;
           break;
@@ -771,41 +776,12 @@ describe('spelling', () => {
         engine.answer({ tappedIndex: 1, elapsedMs: 1 });
       }
 
-      expect(triggered, spelling).not.toBeNull();
+      expect(triggered, `seed ${seed}`).not.toBeNull();
+      const spelling = (triggered as Prompt).spelling;
       expect(engine.prompt()).toMatchObject({ pitch: 'C#5', spelling, twin: 'follow-up' });
+      covered.add(spelling);
     }
-  });
-});
-
-describe('shuffledApart', () => {
-  const same = (a: number, b: number) => a === b;
-
-  it('returns a two-element draw as it is: a pair on its own cannot be spread', () => {
-    expect(shuffledApart([1, 1], same, seeded(3))).toEqual([1, 1]);
-  });
-
-  it('shuffles without losing or repeating anything', () => {
-    const out = shuffledApart([1, 1, 2, 3, 4, 5], same, seeded(2));
-
-    expect([...out].sort()).toEqual([1, 1, 2, 3, 4, 5]);
-  });
-
-  it('keeps equal elements apart, whatever the shuffle', () => {
-    for (let seed = 1; seed <= 40; seed++) {
-      const out = shuffledApart([1, 1, 2, 3, 4, 5], same, seeded(seed));
-      const adjacent = out.findIndex((value, i) => i > 0 && value === out[i - 1]);
-      expect(adjacent, `seed ${seed}`).toBe(-1);
-    }
-  });
-
-  // Two pairs in four slots: only the interleaving 1 2 1 2 (or 2 1 2 1) keeps both apart.
-  it('spreads several pairs at once', () => {
-    for (let seed = 1; seed <= 40; seed++) {
-      const out = shuffledApart([1, 1, 2, 2], same, seeded(seed));
-      expect(
-        out.findIndex((value, i) => i > 0 && value === out[i - 1]),
-        `seed ${seed}`,
-      ).toBe(-1);
-    }
+    // Across these seeds the twin was named both ways, so both were inherited.
+    expect([...covered].sort()).toEqual(['flat', 'sharp']);
   });
 });
