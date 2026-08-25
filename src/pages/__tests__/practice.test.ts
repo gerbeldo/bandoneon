@@ -220,6 +220,18 @@ describe('practice setup, accidentals', () => {
     expect(text(container)).toContain(LABELS.start);
     expect(store.showEnharmonics).toBe(true);
   });
+
+  it('puts the ♯/♭ choice back when the player leaves mid-run', async () => {
+    const { container, store, settings } = mountPractice();
+    store.showEnharmonics = true;
+    await setupRun(settings, noteRun({ fixedCount: 3 }));
+    await start(container);
+    expect(store.showEnharmonics).toBe(false);
+
+    unmountPractice();
+
+    expect(store.showEnharmonics).toBe(true);
+  });
 });
 
 describe('practice setup, starting', () => {

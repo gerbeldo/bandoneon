@@ -2,7 +2,7 @@
 // the run behind the Start button, and the summary. Game views keep only
 // prompt rendering and answer capture (ADR 0004).
 
-import { computed, nextTick, ref, shallowRef } from 'vue';
+import { computed, nextTick, onScopeDispose, ref, shallowRef } from 'vue';
 
 import { instruments } from '../data/index';
 import { useStore } from '../stores/main';
@@ -118,6 +118,22 @@ export function useSession() {
 
   const gradeOf = (buttonIndex: number): Grade | undefined =>
     grades.value[`${store.side}/${store.direction}/${buttonIndex}`];
+
+  // Navigating away mid-run skips toSetup, so the display state goes back
+  // with the page.
+  onScopeDispose(() => {
+    store.showEnharmonics = enharmonicsBefore;
+  });
+
+  // A setup left open across midnight would keep yesterday's numbers (and a
+  // spent cap) until the page reloads; coming back to the tab re-stamps it.
+  function refreshDay() {
+    if (document.visibilityState === 'visible' && phase.value === 'setup') {
+      asOf.value = Date.now();
+    }
+  }
+  document.addEventListener('visibilitychange', refreshDay);
+  onScopeDispose(() => document.removeEventListener('visibilitychange', refreshDay));
 
   function start() {
     if (!layouts.value) return;
