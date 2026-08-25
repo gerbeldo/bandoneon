@@ -56,7 +56,7 @@ const buttons = (container: HTMLElement) => [...container.querySelectorAll('butt
 const keys = (container: HTMLElement) => [...container.querySelectorAll('.keyboard > g')];
 
 const layoutNotes = (side: 'left' | 'right', direction: 'open' | 'close') =>
-  (instruments.rheinische142[side] as Record<string, string[][]>)[direction].flat().filter(Boolean);
+  instruments.rheinische142[side][direction].flat().filter(Boolean);
 
 beforeEach(() => {
   // Would send the old randomizing newGame() to right/open, whatever the player chose.
@@ -291,7 +291,7 @@ const text = (container: HTMLElement) => container.textContent ?? '';
 
 // Item keys of one layout, in the grid's own order.
 function layoutKeys(side: 'left' | 'right', direction: 'open' | 'close'): string[] {
-  const grid = (instruments.rheinische142[side] as Record<string, string[][]>)[direction];
+  const grid = instruments.rheinische142[side][direction];
   const found: string[] = [];
   grid.forEach((row, r) =>
     row.forEach((pitch, c) => {

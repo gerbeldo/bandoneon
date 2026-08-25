@@ -1,22 +1,11 @@
-import einheitsbandonion144 from './instruments/einheitsbandonion144';
-import einheitskonzertina128 from './instruments/einheitskonzertina128';
-import manouri148 from './instruments/manouri148';
-import peguri146 from './instruments/peguri146';
 import rheinische142 from './instruments/rheinische142';
-import rheinische152 from './instruments/rheinische152';
 
-export type Instrument = Record<
-  'right' | 'left',
-  Record<'open' | 'close', string[][]> | string[][]
->;
+export type Instrument = Record<'right' | 'left', Record<'open' | 'close', string[][]>>;
 
+// The app models exactly one instrument; the registry stays a map so item keys
+// keep naming it (ADR 0002).
 export const instruments = <Record<string, Instrument>>{
   rheinische142,
-  rheinische152,
-  einheitsbandonion144,
-  peguri146,
-  manouri148,
-  einheitskonzertina128,
 };
 
 export const pitchNotations = <Array<'scientific' | 'helmholtz' | 'solfege' | 'staff'>>[

@@ -78,8 +78,8 @@ import {
   stepIndex,
 } from '../utils/staff';
 
-// Fixed 240×260 drawing area sized so the full A#1–B6 range of all six
-// instruments fits and the staff never moves between rounds.
+// Fixed 240×260 drawing area, sized for an A#1–B6 range so it clears the 142's
+// C2–B6 and the staff never moves between rounds.
 const SP = 10; // staff space, px
 const STEP = SP / 2; // one diatonic step
 const S = SP / FONT_UNITS_PER_STAFF_SPACE; // glyph scale, font units -> px

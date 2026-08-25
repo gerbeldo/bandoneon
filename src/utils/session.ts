@@ -60,16 +60,10 @@ export function parseItemKey(key: string): ItemKeyParts {
   };
 }
 
-// An instrument nests grids per direction, except when one grid serves both
-// directions (peguri146 stores a flat array per side).
-export function layoutGrid(
-  instrument: Record<string, Record<string, string[][]> | string[][]>,
-  side: Side,
-  direction: Direction,
-): string[][] {
-  const keys = instrument[side];
-  if (Array.isArray(keys)) return keys;
-  return keys?.[direction] ?? [];
+// Test layouts may leave a side's grid empty, so callers get [] rather than
+// undefined and flattenGrid stays total.
+export function layoutGrid(instrument: Instrument, side: Side, direction: Direction): string[][] {
+  return instrument[side]?.[direction] ?? [];
 }
 
 export interface GridButton {

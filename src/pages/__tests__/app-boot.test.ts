@@ -8,6 +8,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 
 import App from '../../App.vue';
 import en from '../../locales/en.json';
+import { useStore } from '../../stores/main';
 import { usePracticeStore } from '../../stores/practice';
 import { useSettingsStore } from '../../stores/settings';
 
@@ -83,10 +84,13 @@ describe('app boot persistence', () => {
   });
 
   it('falls back to the default instrument when the stored one no longer exists', async () => {
-    localStorage.setItem('settings', JSON.stringify({ version: 1, instrument: 'gone' }));
+    // A stored blob naming an instrument the app no longer has.
+    localStorage.setItem('settings', JSON.stringify({ version: 1, instrument: 'rheinische152' }));
 
     await mountApp();
 
     expect(useSettingsStore().instrument).toBe('rheinische142');
+    // The fallback ran before hydration, so the keyboard has buttons to draw.
+    expect(useStore().keyPositions.length).toBeGreaterThan(0);
   });
 });
