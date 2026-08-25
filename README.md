@@ -75,6 +75,13 @@ stay in step with the repository name. The workflow also copies `index.html` to
 `404.html`, because GitHub Pages has no rewrite rules and serves `404.html` for
 unknown paths — that is what hands deep links to the client-side router.
 
+The app is installable and works offline: a service worker keeps a copy of the
+current build. After a deploy, an open copy of the app fetches the new build in
+the background and shows a "New version available" bar; tap Reload to switch.
+Without the tap, the new build takes over once every tab (or the home-screen
+app) has been closed. GitHub's CDN caches for up to ten minutes, so a
+just-finished deploy can take that long to reach the bar.
+
 ## Original author
 
 ### Nico Kaiser

@@ -18,6 +18,8 @@ export default defineConfig({
     VueRouter(),
     vue(),
     VitePWA({
+      // A new build waits for the Reload tap (UpdateBar) instead of taking over mid-run.
+      registerType: 'prompt',
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'Bandoneon.app',

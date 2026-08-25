@@ -7,14 +7,17 @@
     <AppHeader />
     <RouterView />
     <AppFooter />
+    <UpdateBar :open="needRefresh" @reload="updateServiceWorker()" @dismiss="needRefresh = false" />
   </div>
 </template>
 
 <script setup lang="ts">
 import { useHead } from '@unhead/vue';
+import { useRegisterSW } from 'virtual:pwa-register/vue';
 
 import AppFooter from './components/AppFooter.vue';
 import AppHeader from './components/AppHeader.vue';
+import UpdateBar from './components/UpdateBar.vue';
 import { instruments } from './data/index';
 import { practiceStorage, usePracticeStore } from './stores/practice';
 import { sanitizePracticeSetup, settingsStorage, useSettingsStore } from './stores/settings';
@@ -34,4 +37,15 @@ persistStore(settings, settingsStorage, (blob) => {
 
 const practice = usePracticeStore();
 persistStore(practice, practiceStorage);
+
+// A new build installs in the background and waits for the Reload tap, so a
+// run is never cut off by a reload. A home-screen app can stay open for days;
+// coming back to the front asks for the newest build.
+const { needRefresh, updateServiceWorker } = useRegisterSW({
+  onRegisteredSW(_url, registration) {
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') void registration?.update();
+    });
+  },
+});
 </script>
