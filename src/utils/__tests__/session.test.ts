@@ -464,16 +464,6 @@ describe('twinGroups', () => {
     expect(found).toEqual([
       'rheinische142 right close E5 4,5 5,4',
       'rheinische142 left close E3 4,1 5,1',
-      'rheinische152 right close E5 4,5 5,4',
-      'rheinische152 left close E3 4,1 5,1',
-      'einheitsbandonion144 left close C#2 5,0 5,7',
-      'peguri146 right open D#6 2,5 5,8',
-      'peguri146 right close D#6 2,5 5,8',
-      'peguri146 left open A4 2,3 5,0',
-      'peguri146 left close A4 2,3 5,0',
-      'manouri148 right open D#6 2,5 5,8',
-      'manouri148 right close D#6 2,5 5,8',
-      'manouri148 left close A4 2,3 5,0',
     ]);
   });
 });

@@ -53,13 +53,7 @@ export const useStore = defineStore('main', {
     keyPositions(state): [number, number, string][] {
       const settings = useSettingsStore();
 
-      if (!settings.instrument) return [];
-
-      const keys = Array.isArray(instruments[settings.instrument][state.side])
-        ? instruments[settings.instrument][state.side]
-        : // @ts-expect-error TODO
-          instruments[settings.instrument][state.side][state.direction];
-
+      const keys = instruments[settings.instrument]?.[state.side]?.[state.direction];
       if (!keys) return [];
 
       const positions: [number, number, string][] = [];
@@ -67,8 +61,8 @@ export const useStore = defineStore('main', {
       let offsetY = 0;
 
       // Center
-      const cols = Math.max(...keys.map((row: string[]) => row.length));
-      const rows = keys.reduce((acc: number, row: string[]) => acc + (row.length > 0 ? 1 : 0), 0);
+      const cols = Math.max(...keys.map((row) => row.length));
+      const rows = keys.reduce((acc, row) => acc + (row.length > 0 ? 1 : 0), 0);
       if (cols < 9) offsetX += 39 * (9 - cols);
       if (rows < 6) offsetY -= 32 * (6 - rows);
       let gapX = 79;

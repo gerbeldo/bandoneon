@@ -7,7 +7,7 @@ A learning app for bisonoric bandoneon keyboards: it renders each keyboard layou
 ### Instrument and notation
 
 **Instrument**:
-A specific bandoneon or concertina model (Rheinische 142, Einheitskonzertina 128, …), each with its own keyboards. Chosen in settings.
+The one model the app teaches: the Rheinische 142 — 142 tones, bisonoric, Argentine-style Rheinische Tonlage. Not selectable; it names the item keys practice memory is stored under.
 _Avoid_: keyboard (as the model name), model
 
 **Side**:
@@ -75,7 +75,7 @@ The prompt the session engine inserts right after a correct tap on a pitch with 
 _Avoid_: bonus prompt, second ask
 
 **Item**:
-The schedulable unit of practice memory: one button, on one side, in one bellows direction, quizzed in one direction. Scoped to one instrument; instruments never share items.
+The schedulable unit of practice memory: one button, on one side, in one bellows direction, quizzed in one direction. Its key names the instrument it belongs to.
 _Avoid_: card, fact
 
 **Practice memory**:

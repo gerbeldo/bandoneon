@@ -4,22 +4,6 @@
     <div class="mx-auto max-w-(--breakpoint-md) p-6">
       <div class="mb-4">
         <label class="block text-xs font-medium text-neutral-500 dark:text-neutral-400">
-          {{ t('instrument') }}
-          <Select
-            v-model="instrument"
-            class="mt-1"
-            :options="
-              Object.keys(instruments).map((value) => ({
-                label: t(value),
-                value,
-              }))
-            "
-          />
-        </label>
-      </div>
-
-      <div class="mb-4">
-        <label class="block text-xs font-medium text-neutral-500 dark:text-neutral-400">
           {{ t('pitch_notation') }}
         </label>
         <div class="mt-1 flex w-full flex-row gap-2">
@@ -65,15 +49,14 @@
 import { useI18n } from 'petite-vue-i18n';
 import { storeToRefs } from 'pinia';
 
-import { instruments, pitchNotations } from '../data/index';
+import { pitchNotations } from '../data/index';
 import { useSettingsStore } from '../stores/settings';
 import Button from './Button.vue';
 import IconGitHub from './icons/IconGitHub.vue';
-import Select from './Select.vue';
 
 const settings = useSettingsStore();
 
-const { instrument, pitchNotation, locale } = storeToRefs(settings);
+const { pitchNotation, locale } = storeToRefs(settings);
 
 const { availableLocales, t } = useI18n({ useScope: 'global' });
 </script>
