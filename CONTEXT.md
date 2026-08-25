@@ -87,7 +87,7 @@ One scheduled practice run: a fixed, shuffled draw the scheduler assembles at st
 _Avoid_: round
 
 **Session scope**:
-The layouts a run draws from — all four layouts of one game by default, optionally narrowed to one side + direction. Chosen on the practice setup and persisted with it.
+The layouts a run draws from, set one axis at a time on the practice setup: a side or both, a direction or both. Both and both is all four layouts (the default); a side alone is its two layouts; a side and a direction is one layout. Persisted with the setup.
 _Avoid_: filter, layout selection
 
 **Practice setup**:
@@ -99,7 +99,7 @@ A run over the first N items of the introduction order inside the session scope,
 _Avoid_: drill, ordered run, custom session
 
 **Sweep**:
-The fixed run over every item of one layout — "All" on the practice setup with one layout chosen. Records through the same seam as sessions.
+The fixed run over every item of one layout — the items slider at its far end with one layout chosen. Records through the same seam as sessions.
 _Avoid_: full-keyboard round
 
 **Spelling**:
