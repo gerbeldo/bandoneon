@@ -15,7 +15,7 @@ import {
   parseItemKey,
   twinGroups,
 } from '../session';
-import type { Spelling } from '../spelling';
+import type { RunSpelling, Spelling } from '../spelling';
 import { FLATS, SHARPS } from '../spelling';
 
 const RIGHT_OPEN = { side: 'right', direction: 'open' } as const;
@@ -47,7 +47,7 @@ interface RunOptions {
   mode: string;
   // Permutation of button indices to draw in; render order when omitted.
   order?: (count: number) => number[];
-  spelling?: Spelling | 'both';
+  spelling?: RunSpelling;
   random?: () => number;
   now: () => number;
 }
@@ -723,12 +723,12 @@ describe('spelling', () => {
 
   it('stamps a key’s table on every prompt, naturals included', () => {
     // F♯ major names F as E♯.
-    const fSharpMajor = SHARPS.map((name, chroma) => (chroma === 5 ? 'E#' : name));
-    const { engine } = testRun({ grid: [['F4', 'F#4']], spelling: fSharpMajor });
+    const F_SHARP_MAJOR = SHARPS.map((name, chroma) => (chroma === 5 ? 'E#' : name));
+    const { engine } = testRun({ grid: [['F4', 'F#4']], spelling: F_SHARP_MAJOR });
 
     expect(allPrompts(engine).map((prompt) => [prompt.pitch, prompt.spelling])).toEqual([
-      ['F4', fSharpMajor],
-      ['F#4', fSharpMajor],
+      ['F4', F_SHARP_MAJOR],
+      ['F#4', F_SHARP_MAJOR],
     ]);
   });
 

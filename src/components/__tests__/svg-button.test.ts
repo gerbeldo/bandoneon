@@ -72,8 +72,8 @@ describe('SvgButton', () => {
   });
 
   it('names a natural by the table too: F4 reads E♯4 under F♯ major, in every notation', async () => {
-    const fSharpMajor = SHARPS.map((name, chroma) => (chroma === 5 ? 'E#' : name));
-    const props = { x: 0, y: 0, tonal: 'F4', spelling: fSharpMajor };
+    const F_SHARP_MAJOR = SHARPS.map((name, chroma) => (chroma === 5 ? 'E#' : name));
+    const props = { x: 0, y: 0, tonal: 'F4', spelling: F_SHARP_MAJOR };
 
     expect(await render(props)).toContain('E♯');
     expect(await render(props)).toContain('>4<');

@@ -7,6 +7,7 @@ import {
   chromaOf,
   inScale,
   isKeyed,
+  keyAccidental,
   keyName,
   keySpelling,
   scaleChromas,
@@ -28,6 +29,20 @@ const everyKey = KEYED_KINDS.flatMap((kind) =>
 
 // Sharps with the seventh degree of F♯ major (and second of D♯ minor) named E♯.
 const SHARPS_WITH_E_SHARP = SHARPS.map((name, chroma) => (chroma === 5 ? 'E#' : name));
+
+// The keys whose signature is flats; every other key goes by sharps.
+const FLAT_KEYS = new Set([
+  'Db major',
+  'Eb major',
+  'F major',
+  'Ab major',
+  'Bb major',
+  'C minor',
+  'D minor',
+  'F minor',
+  'G minor',
+  'Bb minor',
+]);
 
 describe('isKeyed', () => {
   it('tells the chromatic run from a keyed one', () => {
@@ -103,7 +118,7 @@ describe('keySpelling', () => {
     for (const { kind, tonic, label } of everyKey) {
       const table = keySpelling({ kind, tonic })!;
       const names = scaleNoteNames({ kind, tonic });
-      const base = names.some((name) => name.includes('b')) ? FLATS : SHARPS;
+      const base = FLAT_KEYS.has(label) ? FLATS : SHARPS;
 
       table.forEach((name, i) => {
         if (!names.includes(name)) expect(name, `${label} at ${i}`).toBe(base[i]);
@@ -132,6 +147,23 @@ describe('keySpelling', () => {
 
   it('leaves the spelling to the setup under chromatic', () => {
     expect(keySpelling(CHROMATIC)).toBeNull();
+  });
+});
+
+describe('keyAccidental', () => {
+  it('is the sign of the key’s accidentals, or null where it has none', () => {
+    expect(keyAccidental(major('F'))).toBe('b');
+    expect(keyAccidental(major('F#'))).toBe('#');
+    expect(keyAccidental(minor('D#'))).toBe('#');
+    expect(keyAccidental(major('C'))).toBeNull();
+    expect(keyAccidental(minor('A'))).toBeNull();
+    expect(keyAccidental(CHROMATIC)).toBeNull();
+  });
+
+  it('is flats for exactly the flat-signature keys', () => {
+    for (const { kind, tonic, label } of everyKey) {
+      expect(keyAccidental({ kind, tonic }) === 'b', label).toBe(FLAT_KEYS.has(label));
+    }
   });
 });
 

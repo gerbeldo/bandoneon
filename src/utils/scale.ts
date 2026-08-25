@@ -31,8 +31,7 @@ const DEGREES: Record<KeyedScaleKind, number[]> = {
 };
 
 // One conventional tonic name per chroma. The six-accidental keys go by
-// F♯ major and D♯ minor: E♭ minor would need C♭, whose written octave is not
-// the sounding one (C♭4 sounds B3), while E♯4 sounds F4 and keeps its number.
+// F♯ major and D♯ minor, so E♯ is the only unusual name any key needs (ADR 0006).
 const KEYS: Record<KeyedScaleKind, string[]> = {
   major: ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'],
   minor: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'],
@@ -60,13 +59,26 @@ export function scaleNoteNames(scale: ScaleChoice): string[] {
   return Scale.get(`${KEYS[scale.kind][scale.tonic]} ${scale.kind}`).notes;
 }
 
+// A key's accidentals are all sharps or all flats, so the first one tells.
+function accidentalSign(names: string[]): '#' | 'b' | null {
+  const accidental = names.find((name) => name.length > 1);
+  if (!accidental) return null;
+  return accidental.includes('b') ? 'b' : '#';
+}
+
+// The sign the key's accidentals carry; null where it has none (C major,
+// A minor) and under chromatic.
+export function keyAccidental(scale: ScaleChoice): '#' | 'b' | null {
+  return isKeyed(scale) ? accidentalSign(scaleNoteNames(scale)) : null;
+}
+
 // How the chosen key names the twelve chromas: the scale's own names, and
 // sharps or flats by its signature for the rest. Null under chromatic, where
 // the setup's own accidentals choice applies.
 export function keySpelling(scale: ScaleChoice): Spelling | null {
   if (!isKeyed(scale)) return null;
   const names = scaleNoteNames(scale);
-  const table = [...(names.some((name) => name.includes('b')) ? FLATS : SHARPS)];
+  const table = [...(accidentalSign(names) === 'b' ? FLATS : SHARPS)];
   for (const name of names) table[chromaOf(name)] = name;
   return table;
 }

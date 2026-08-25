@@ -8,7 +8,7 @@ import { Note } from 'tonal';
 import type { Instrument } from '../data/index';
 import type { AnswerEvent, Grade } from '../stores/practice';
 import { scoreTap } from './game';
-import type { Spelling } from './spelling';
+import type { RunSpelling, Spelling } from './spelling';
 import { FLATS, isAccidental, SHARPS } from './spelling';
 
 export type Side = 'right' | 'left';
@@ -178,9 +178,8 @@ export interface SessionOptions {
   // The item keys to prompt, in prompt order (already shuffled by the caller);
   // a key may repeat — a walk asks each item on the way up and on the way down.
   draw: string[];
-  // Sharps unless set; 'both' names each accidental item as a sharp or a flat,
-  // drawn at random for this run.
-  spelling?: Spelling | 'both';
+  // Sharps unless set.
+  spelling?: RunSpelling;
   // Only the 'both' spelling draw uses it; injectable so runs are repeatable.
   random?: () => number;
   record: (key: string, event: AnswerEvent) => void;

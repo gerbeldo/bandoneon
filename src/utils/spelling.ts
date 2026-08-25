@@ -12,14 +12,22 @@ export type Spelling = readonly string[];
 export const SHARPS: Spelling = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 export const FLATS: Spelling = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
-// What the practice setup stores: one spelling, or both — each accidental item
-// named one way or the other, drawn at random per run.
+// What the practice setup stores: sharps, flats, or both.
 export type SpellingChoice = 'sharp' | 'flat' | 'both';
 
 export const SPELLINGS: SpellingChoice[] = ['sharp', 'flat', 'both'];
 
 export function spellingTable(choice: Exclude<SpellingChoice, 'both'>): Spelling {
   return choice === 'flat' ? FLATS : SHARPS;
+}
+
+// What a run is set to: one table for every prompt, or 'both' — each accidental
+// item named from SHARPS or FLATS, drawn at random when the run starts.
+export type RunSpelling = Spelling | 'both';
+
+// The setup's stored choice as a run takes it.
+export function runSpelling(choice: SpellingChoice): RunSpelling {
+  return choice === 'both' ? 'both' : spellingTable(choice);
 }
 
 export function isAccidental(pitch: string): boolean {

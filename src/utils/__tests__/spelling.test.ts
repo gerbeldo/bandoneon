@@ -7,6 +7,7 @@ import {
   displayPitchClass,
   FLATS,
   isAccidental,
+  runSpelling,
   SHARPS,
   SPELLINGS,
   spellingTable,
@@ -58,6 +59,14 @@ describe('spellingTable', () => {
   it('maps the setup’s one-way choices to their tables', () => {
     expect(spellingTable('sharp')).toBe(SHARPS);
     expect(spellingTable('flat')).toBe(FLATS);
+  });
+});
+
+describe('runSpelling', () => {
+  it('hands a run the table of a one-way choice, or both', () => {
+    expect(runSpelling('sharp')).toBe(SHARPS);
+    expect(runSpelling('flat')).toBe(FLATS);
+    expect(runSpelling('both')).toBe('both');
   });
 });
 
