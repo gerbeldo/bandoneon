@@ -13,7 +13,7 @@
     </ButtonGroup>
     <ButtonGroup>
       <Button
-        v-for="value in ['close', 'open']"
+        v-for="value in ['open', 'close']"
         :key="value"
         :aria-pressed="direction === value"
         class="w-20 sm:w-28"

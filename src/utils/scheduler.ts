@@ -1,16 +1,18 @@
 // Scheduler: picks which items a session draws. Games and the engine see only
 // `Scheduler`, so the sampling behind it can be replaced by a spaced-repetition
-// model without touching them.
+// model without touching them. Fixed runs — the first N items of the
+// introduction order, no cap — share the pool and preview vocabulary.
 
 import type { Grade, ItemRecord } from '../stores/practice';
 import type { Layout } from './session';
 import { parseItemKey, shuffled } from './session';
 
-// Fixed constants, not settings: prompts per session, never-seen items per
-// local calendar day per game, answers in the error tally, and the two
-// retirement numbers.
+// Defaults for the two run parameters the player can change: prompts per
+// session and never-seen items per local calendar day per game.
 export const SESSION_SIZE = 20;
 export const DAILY_NEW_ITEMS = 3;
+// Fixed constants, not settings: answers in the error tally and the two
+// retirement numbers.
 const TALLY_WINDOW = 5;
 const TALLY_WEIGHT: Record<Grade, number> = { 2: 0, 1: 0.5, 0: 1 };
 const RETIREMENT_DAYS = 3;
@@ -62,7 +64,7 @@ export function itemWeight(record: ItemRecord, now: number): number {
 // Session scope: all four layouts of the game, or one of them.
 export type SessionScope = 'all' | Layout;
 
-export interface SchedulerInput {
+export interface PoolInput {
   // Every item of one game (instrument × quiz direction), in introduction
   // order. The daily new-item cap is counted over this whole pool.
   pool: string[];
@@ -72,19 +74,27 @@ export interface SchedulerInput {
   now: number;
 }
 
-// What the start card's info line reports: the numbers a session started right
-// now would run under, adapted to the chosen scope.
+export interface SchedulerInput extends PoolInput {
+  // Prompts per session and never-seen items allowed per day; the defaults
+  // above when omitted.
+  sessionSize?: number;
+  dailyNewItems?: number;
+}
+
+// What the setup screen's summary and the session strip report: the numbers a
+// run started right now would run under.
 export interface SessionPreview {
-  // How many prompts the draw would hold — the session size, or less while the
-  // pool is still small.
+  // How many prompts the draw would hold, before any spelling doubling or
+  // twin follow-up — the session size, or less while the pool is small.
   prompts: number;
-  // Never-seen items still allowed today; the cap is per game, so this ignores
-  // the scope.
-  newLeft: number;
-  // Items first seen today — what the session strip counts against
-  // DAILY_NEW_ITEMS. Ignores the scope for the same reason.
+  // Never-seen items the run would introduce.
+  fresh: number;
+  // Items first seen today, over the whole pool — what the strip counts.
   newToday: number;
-  // Items already answered at least once, and the pool size, both in scope.
+  // The cap newToday is counted against; null when the run has none.
+  newCap: number | null;
+  // Items already answered at least once, and the pool size, both within what
+  // the run draws from.
   seen: number;
   total: number;
 }
@@ -92,7 +102,7 @@ export interface SessionPreview {
 export interface Scheduler {
   // A fixed session draw: item keys, shuffled, each at most once.
   draw(input: SchedulerInput): string[];
-  // What that draw would come to, without making it — the card's info line.
+  // What that draw would come to, without making it.
   preview(input: SchedulerInput): SessionPreview;
 }
 
@@ -111,9 +121,13 @@ function inScope(key: string, scope: SessionScope): boolean {
   return side === scope.side && direction === scope.direction;
 }
 
+export function scopedPool({ pool, scope }: Pick<PoolInput, 'pool' | 'scope'>): string[] {
+  return pool.filter((key) => inScope(key, scope));
+}
+
 // Items introduced today are those first seen on the local calendar day of
-// `now` — derived from history, so a sweep's introductions count too.
-function introducedToday({ pool, memory, now }: SchedulerInput): number {
+// `now` — derived from history, so a fixed run's introductions count too.
+function introducedToday({ pool, memory, now }: PoolInput): number {
   const today = localDay(now);
   return pool.filter((key) => {
     const record = memory[key];
@@ -125,11 +139,13 @@ function introducedToday({ pool, memory, now }: SchedulerInput): number {
 // remaining new-item budget. The cap is per game, so it is counted over the
 // whole pool even when the draw is scoped to one layout.
 function candidates(input: SchedulerInput) {
+  const cap = input.dailyNewItems ?? DAILY_NEW_ITEMS;
   const newToday = introducedToday(input);
-  const scoped = input.pool.filter((key) => inScope(key, input.scope));
+  const scoped = scopedPool(input);
   return {
     newToday,
-    budget: Math.max(0, DAILY_NEW_ITEMS - newToday),
+    cap,
+    budget: Math.max(0, cap - newToday),
     fresh: scoped.filter((key) => !seen(input.memory[key])),
     review: scoped.filter((key) => seen(input.memory[key])),
   };
@@ -158,27 +174,52 @@ export function createWeightedScheduler(random: () => number = Math.random): Sch
 
   return {
     draw(input) {
+      const size = input.sessionSize ?? SESSION_SIZE;
       const { budget, fresh, review } = candidates(input);
-      const introduced = fresh.slice(0, budget);
+      const introduced = fresh.slice(0, Math.min(budget, size));
       const weighted = review.map((key) => ({
         key,
         weight: itemWeight(input.memory[key], input.now),
       }));
-      return shuffled(
-        [...introduced, ...sample(weighted, SESSION_SIZE - introduced.length)],
-        random,
-      );
+      return shuffled([...introduced, ...sample(weighted, size - introduced.length)], random);
     },
 
     preview(input) {
-      const { newToday, budget, fresh, review } = candidates(input);
+      const size = input.sessionSize ?? SESSION_SIZE;
+      const { newToday, cap, budget, fresh, review } = candidates(input);
+      const introduced = Math.min(budget, fresh.length, size);
       return {
-        prompts: Math.min(SESSION_SIZE, Math.min(budget, fresh.length) + review.length),
-        newLeft: budget,
+        prompts: Math.min(size, introduced + review.length),
+        fresh: introduced,
         newToday,
+        newCap: cap,
         seen: review.length,
         total: fresh.length + review.length,
       };
     },
+  };
+}
+
+// A fixed run: the first `count` items of the scoped pool, in introduction
+// order, every one asked once, no daily cap. The sweep is the fixed run over a
+// whole layout.
+export interface FixedRunInput extends PoolInput {
+  count: number;
+}
+
+export function fixedRunKeys(input: FixedRunInput): string[] {
+  return scopedPool(input).slice(0, Math.max(0, input.count));
+}
+
+export function previewFixedRun(input: FixedRunInput): SessionPreview {
+  const keys = fixedRunKeys(input);
+  const seenCount = keys.filter((key) => seen(input.memory[key])).length;
+  return {
+    prompts: keys.length,
+    fresh: keys.length - seenCount,
+    newToday: introducedToday(input),
+    newCap: null,
+    seen: seenCount,
+    total: keys.length,
   };
 }

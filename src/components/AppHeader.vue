@@ -16,17 +16,10 @@
       </RouterLink>
       <RouterLink
         class="inline-flex min-h-12 items-center justify-center rounded-lg px-1 select-none sm:px-3"
-        :class="linkClass('/game')"
-        to="/game"
+        :class="linkClass('/practice')"
+        to="/practice"
       >
-        Game
-      </RouterLink>
-      <RouterLink
-        class="inline-flex min-h-12 items-center justify-center rounded-lg px-1 select-none sm:px-3"
-        :class="linkClass('/staff-game')"
-        to="/staff-game"
-      >
-        <span>Staff<span class="hidden sm:inline">&nbsp;game</span></span>
+        Practice
       </RouterLink>
     </div>
     <div class="flex-none">
@@ -72,6 +65,7 @@ watch(
 );
 
 function linkClass(path: string): string {
-  return route.path === path ? 'font-semibold' : 'text-neutral-500 dark:text-neutral-400';
+  const active = path === '/' ? route.path === '/' : route.path.startsWith(path);
+  return active ? 'font-semibold' : 'text-neutral-500 dark:text-neutral-400';
 }
 </script>

@@ -14,7 +14,6 @@
 import { computed } from 'vue';
 
 import type { SessionPreview } from '../utils/scheduler';
-import { DAILY_NEW_ITEMS } from '../utils/scheduler';
 
 // Takes the picker row's place during play. Side is left out on purpose — the
 // rendered keyboard shows it; direction lives in DirectionBadge.
@@ -30,13 +29,11 @@ const promptText = computed(() => `Prompt ${props.promptNumber} of ${props.total
 
 const seenText = computed(() => `${props.preview.seen} of ${props.preview.total} seen`);
 
-// The cap binds sessions, not sweeps: a sweep of an untouched layout introduces
-// far more than three, and "38 of 3" would be nonsense. Past the cap the strip
-// reports the count alone.
+// The cap binds scheduled sessions only: a fixed run over an untouched layout
+// introduces far more than three, and "38 of 3" would be nonsense. Without a
+// cap, or past it, the strip reports the count alone.
 const newTodayText = computed(() => {
-  const count = props.preview.newToday;
-  return count > DAILY_NEW_ITEMS
-    ? `${count} new today`
-    : `${count} of ${DAILY_NEW_ITEMS} new today`;
+  const { newToday: count, newCap: cap } = props.preview;
+  return cap === null || count > cap ? `${count} new today` : `${count} of ${cap} new today`;
 });
 </script>

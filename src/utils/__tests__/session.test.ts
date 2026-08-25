@@ -1,19 +1,22 @@
 import { createPinia, setActivePinia } from 'pinia';
 import { describe, expect, it } from 'vitest';
 
+import type { Instrument } from '../../data/index';
 import { instruments } from '../../data/index';
 import { useStore } from '../../stores/main';
 import type { AnswerEvent } from '../../stores/practice';
 import { useSettingsStore } from '../../stores/settings';
+import type { Layout, Prompt, QuizDirection, SessionEngine } from '../session';
 import {
   createSession,
-  createSweep,
   flattenGrid,
   itemKey,
   layoutGrid,
   parseItemKey,
+  shuffledApart,
   twinGroups,
 } from '../session';
+import type { SpellingChoice } from '../spelling';
 
 const RIGHT_OPEN = { side: 'right', direction: 'open' } as const;
 
@@ -24,24 +27,80 @@ const GRID = [
   ['D4', 'E4'],
 ];
 
-function testSweep(overrides: Partial<Parameters<typeof createSweep>[0]> = {}) {
-  const recorded: { key: string; event: AnswerEvent }[] = [];
-  const engine = createSweep({
+// Small deterministic random source (mulberry32), so draws are repeatable.
+function seeded(seed: number): () => number {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let t = state;
+    t = Math.imul(t ^ (t >>> 15), t | 1);
+    t ^= t + Math.imul(t ^ (t >>> 7), t | 61);
+    return ((t ^ (t >>> 14)) >>> 0) / 4_294_967_296;
+  };
+}
+
+interface RunOptions {
+  grid: string[][];
+  instrument: string;
+  layout: Layout;
+  quizDirection: QuizDirection;
+  mode: string;
+  // Permutation of button indices to draw in; render order when omitted.
+  order?: (count: number) => number[];
+  spelling?: SpellingChoice;
+  random?: () => number;
+  now: () => number;
+}
+
+// A fixed run over one layout: the draw is that layout's buttons as item keys,
+// in render order or in the injected permutation. The instrument carries the
+// tested grid and nothing else, so a stray key would find no button.
+function testRun(overrides: Partial<RunOptions> = {}) {
+  const options: RunOptions = {
     grid: GRID,
     instrument: 'rheinische142',
-    layout: { side: 'right', direction: 'open' },
+    layout: RIGHT_OPEN,
     quizDirection: 'forward',
     mode: 'note-game',
-    record: (key, event) => recorded.push({ key, event }),
     now: () => 1_000,
     ...overrides,
+  };
+  const { grid, instrument, layout, quizDirection } = options;
+  const buttons = flattenGrid(grid);
+  const indices = options.order?.(buttons.length) ?? buttons.map((_, i) => i);
+  const layouts: Instrument = {
+    right: { open: [], close: [] },
+    left: { open: [], close: [] },
+  };
+  layouts[layout.side][layout.direction] = grid;
+
+  const recorded: { key: string; event: AnswerEvent }[] = [];
+  const engine = createSession({
+    layouts,
+    instrument,
+    quizDirection,
+    mode: options.mode,
+    spelling: options.spelling,
+    random: options.random,
+    draw: indices.map((i) =>
+      itemKey(
+        instrument,
+        layout.side,
+        layout.direction,
+        buttons[i].row,
+        buttons[i].column,
+        quizDirection,
+      ),
+    ),
+    record: (key, event) => recorded.push({ key, event }),
+    now: options.now,
   });
   return { engine, recorded };
 }
 
-describe('sweep', () => {
+describe('fixed run over one layout', () => {
   it('prompts every button once and records one graded event per answer, immediately', () => {
-    const { engine, recorded } = testSweep();
+    const { engine, recorded } = testRun();
 
     expect(engine.total).toBe(3);
 
@@ -51,6 +110,7 @@ describe('sweep', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'C4',
+      spelling: 'sharp',
     });
     engine.answer({ pitch: 'C4', elapsedMs: 1_200 });
     expect(recorded).toHaveLength(1);
@@ -63,6 +123,7 @@ describe('sweep', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D4',
+      spelling: 'sharp',
     });
     engine.answer({ pitch: 'D5', elapsedMs: 800 });
     expect(recorded).toHaveLength(2);
@@ -75,6 +136,7 @@ describe('sweep', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 2,
       pitch: 'E4',
+      spelling: 'sharp',
     });
     engine.answer({ pitch: 'C4', elapsedMs: 500 });
     expect(recorded).toHaveLength(3);
@@ -86,7 +148,7 @@ describe('sweep', () => {
 
   it('stamps each event with the injected clock, the mode tag, and the response time clamped to 60 s', () => {
     let clock = 5_000;
-    const { engine, recorded } = testSweep({ now: () => clock });
+    const { engine, recorded } = testRun({ now: () => clock });
 
     engine.answer({ pitch: 'C4', elapsedMs: 2_345 });
     clock = 9_000;
@@ -106,7 +168,7 @@ describe('sweep', () => {
 
   it('grades by sounding pitch, independent of spelling; an unreadable answer grades wrong', () => {
     const grades = [];
-    const { engine } = testSweep({ grid: [['A#4', 'A#4', 'A#4']] });
+    const { engine } = testRun({ grid: [['A#4', 'A#4', 'A#4']] });
 
     grades.push(engine.answer({ pitch: 'Bb4', elapsedMs: 1 }).grade);
     grades.push(engine.answer({ pitch: 'Bb2', elapsedMs: 1 }).grade);
@@ -116,7 +178,7 @@ describe('sweep', () => {
   });
 
   it('follows an injected prompt order, keying each answer to the prompted button', () => {
-    const { engine, recorded } = testSweep({ order: (count) => [2, 0, 1].slice(0, count) });
+    const { engine, recorded } = testRun({ order: (count) => [2, 0, 1].slice(0, count) });
 
     expect(engine.prompt()).toEqual({
       index: 0,
@@ -124,6 +186,7 @@ describe('sweep', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 2,
       pitch: 'E4',
+      spelling: 'sharp',
     });
     const outcome = engine.answer({ pitch: 'E4', elapsedMs: 1 });
 
@@ -135,11 +198,12 @@ describe('sweep', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'C4',
+      spelling: 'sharp',
     });
   });
 
-  it('refuses an answer after the sweep is done', () => {
-    const { engine, recorded } = testSweep({ grid: [['C4']] });
+  it('refuses an answer after the run is done', () => {
+    const { engine, recorded } = testRun({ grid: [['C4']] });
 
     engine.answer({ pitch: 'C4', elapsedMs: 1 });
 
@@ -150,14 +214,14 @@ describe('sweep', () => {
 
 // The staff game answers with a tapped position; the engine resolves it to a
 // pitch through the same grid it prompts from (ADR 0004).
-describe('sweep with tapped-position answers', () => {
+describe('fixed run with tapped-position answers', () => {
   const PAIR_GRID = [
     ['C4', ''],
     ['D4', 'C5'],
   ];
 
-  function tapSweep() {
-    return testSweep({
+  function tapRun() {
+    return testRun({
       grid: PAIR_GRID,
       quizDirection: 'reverse',
       mode: 'staff-game',
@@ -165,7 +229,7 @@ describe('sweep with tapped-position answers', () => {
   }
 
   it('resolves the tapped position through the grid and grades with the midi rule', () => {
-    const { engine, recorded } = tapSweep();
+    const { engine, recorded } = tapRun();
 
     // Prompted C4: tapping its own button is correct.
     expect(engine.prompt()).toEqual({
@@ -174,6 +238,7 @@ describe('sweep with tapped-position answers', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'C4',
+      spelling: 'sharp',
     });
     expect(engine.answer({ tappedIndex: 0, elapsedMs: 700 })).toEqual({
       grade: 2,
@@ -192,7 +257,7 @@ describe('sweep with tapped-position answers', () => {
   });
 
   it('keys each answer to the prompted button and tags the staff-game mode', () => {
-    const { engine, recorded } = tapSweep();
+    const { engine, recorded } = tapRun();
 
     engine.answer({ tappedIndex: 2, elapsedMs: 1_500 });
 
@@ -206,7 +271,7 @@ describe('sweep with tapped-position answers', () => {
   });
 
   it('grades a tap outside the grid wrong instead of throwing', () => {
-    const { engine } = tapSweep();
+    const { engine } = tapRun();
 
     expect(engine.answer({ tappedIndex: 99, elapsedMs: 1 }).grade).toBe(0);
   });
@@ -247,8 +312,8 @@ describe('duplicate-pitch follow-up', () => {
   const keyAt = (row: number, column: number) =>
     `rheinische142/right/open/${row}/${column}/reverse`;
 
-  function twinSweep(overrides: Partial<Parameters<typeof createSweep>[0]> = {}) {
-    return testSweep({
+  function twinRun(overrides: Partial<RunOptions> = {}) {
+    return testRun({
       grid: TWIN_GRID,
       quizDirection: 'reverse',
       mode: 'staff-game',
@@ -257,7 +322,7 @@ describe('duplicate-pitch follow-up', () => {
   }
 
   it('marks the twin prompt, credits the tapped button, and asks for the other one next', () => {
-    const { engine, recorded } = twinSweep();
+    const { engine, recorded } = twinRun();
     expect(engine.total).toBe(4);
 
     expect(engine.prompt()).toEqual({
@@ -266,6 +331,7 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'E5',
+      spelling: 'sharp',
       twin: 'expected',
     });
     expect(engine.answer({ tappedIndex: 0, elapsedMs: 900 })).toEqual({ grade: 2, buttonIndex: 0 });
@@ -279,6 +345,7 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 2,
       pitch: 'E5',
+      spelling: 'sharp',
       twin: 'follow-up',
     });
     expect(engine.answer({ tappedIndex: 2, elapsedMs: 1_100 })).toEqual({
@@ -297,11 +364,12 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D5',
+      spelling: 'sharp',
     });
   });
 
   it('credits the twin when the tap lands there first, then asks for the prompted button', () => {
-    const { engine, recorded } = twinSweep();
+    const { engine, recorded } = twinRun();
 
     expect(engine.answer({ tappedIndex: 2, elapsedMs: 1 })).toEqual({ grade: 2, buttonIndex: 2 });
     expect(recorded[0].key).toBe(keyAt(1, 0));
@@ -313,7 +381,7 @@ describe('duplicate-pitch follow-up', () => {
 
   it('grades the follow-up like any prompt, against the remaining button', () => {
     // Wrong octave: partial credit, keyed to the remaining button.
-    const partial = twinSweep();
+    const partial = twinRun();
     partial.engine.answer({ tappedIndex: 0, elapsedMs: 1 });
     expect(partial.engine.answer({ tappedIndex: 3, elapsedMs: 1 })).toEqual({
       grade: 1,
@@ -322,7 +390,7 @@ describe('duplicate-pitch follow-up', () => {
     expect(partial.recorded[1]).toMatchObject({ key: keyAt(1, 0), event: { grade: 1 } });
 
     // Re-tapping the button already credited is not the remaining one: wrong.
-    const spent = twinSweep();
+    const spent = twinRun();
     spent.engine.answer({ tappedIndex: 0, elapsedMs: 1 });
     expect(spent.engine.answer({ tappedIndex: 0, elapsedMs: 1 })).toEqual({
       grade: 0,
@@ -339,12 +407,13 @@ describe('duplicate-pitch follow-up', () => {
         layout: RIGHT_OPEN,
         buttonIndex: 1,
         pitch: 'D5',
+        spelling: 'sharp',
       });
     }
   });
 
   it('enqueues nothing after a partial or wrong first tap on a twin pitch', () => {
-    const { engine, recorded } = twinSweep();
+    const { engine, recorded } = twinRun();
 
     engine.answer({ tappedIndex: 3, elapsedMs: 1 }); // E4 for E5: partial credit
 
@@ -356,11 +425,12 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D5',
+      spelling: 'sharp',
     });
   });
 
   it('follows up once per correct twin prompt, so both regular prompts of a pair ask again', () => {
-    const { engine, recorded } = twinSweep();
+    const { engine, recorded } = twinRun();
 
     engine.answer({ tappedIndex: 0, elapsedMs: 1 }); // E5 → follow-up for button 2
     engine.answer({ tappedIndex: 2, elapsedMs: 1 });
@@ -389,7 +459,7 @@ describe('duplicate-pitch follow-up', () => {
   });
 
   it('never follows up in a button-prompted mode: the note game answers a twin pitch once', () => {
-    const { engine, recorded } = testSweep({ grid: TWIN_GRID });
+    const { engine, recorded } = testRun({ grid: TWIN_GRID });
 
     expect(engine.prompt()).toEqual({
       index: 0,
@@ -397,6 +467,7 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'E5',
+      spelling: 'sharp',
     });
     engine.answer({ pitch: 'E5', elapsedMs: 1 });
 
@@ -407,13 +478,14 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D5',
+      spelling: 'sharp',
     });
     expect(recorded).toHaveLength(1);
     expect(recorded[0].key).toBe('rheinische142/right/open/0/0/forward');
   });
 
   it('detects twins by sounding pitch, spelling aside', () => {
-    const { engine } = twinSweep({ grid: [['E5', 'Fb5']] });
+    const { engine } = twinRun({ grid: [['E5', 'Fb5']] });
 
     expect(engine.prompt()?.twin).toBe('expected');
     engine.answer({ tappedIndex: 1, elapsedMs: 1 });
@@ -425,7 +497,7 @@ describe('duplicate-pitch follow-up', () => {
     const buttons = flattenGrid(grid);
     const first = buttons.findIndex((b) => b.pitch === 'E5');
     const second = buttons.findIndex((b, i) => b.pitch === 'E5' && i !== first);
-    const { engine, recorded } = testSweep({
+    const { engine, recorded } = testRun({
       grid,
       layout: { side: 'right', direction: 'close' },
       quizDirection: 'reverse',
@@ -528,6 +600,7 @@ describe('scheduler-drawn session', () => {
       layout: { side: 'left', direction: 'close' },
       buttonIndex: 0,
       pitch: 'A3',
+      spelling: 'sharp',
     });
 
     engine.answer({ pitch: 'A3', elapsedMs: 500 });
@@ -535,6 +608,7 @@ describe('scheduler-drawn session', () => {
       layout: { side: 'right', direction: 'close' },
       buttonIndex: 1,
       pitch: 'E4',
+      spelling: 'sharp',
     });
 
     engine.answer({ pitch: 'E4', elapsedMs: 500 });
@@ -597,6 +671,141 @@ describe('scheduler-drawn session', () => {
     expect(engine.prompt()).toMatchObject({
       layout: { side: 'left', direction: 'close' },
       pitch: 'A3',
+      spelling: 'sharp',
     });
+  });
+});
+
+// Spelling (ADR 0004): a prompt names its accidental as a sharp or as a flat.
+// The grid keeps its own spelling either way; only the prompt is stamped.
+describe('spelling', () => {
+  const ACCIDENTAL_GRID = [['C4', 'C#4', 'D#4']];
+  // C#5 sounds on two buttons, so a correct tap inserts a follow-up.
+  const TWIN_ACCIDENTAL_GRID = [
+    ['C#5', 'D5'],
+    ['C#5', 'E4'],
+  ];
+
+  // Every prompt of a run, answered unreadably so nothing is inserted behind it.
+  function allPrompts(engine: SessionEngine): Prompt[] {
+    const prompts: Prompt[] = [];
+    for (let prompt = engine.prompt(); prompt; prompt = engine.prompt()) {
+      prompts.push(prompt);
+      engine.answer({ pitch: 'nope', elapsedMs: 1 });
+    }
+    return prompts;
+  }
+
+  const named = (prompts: Prompt[], pitch: string) =>
+    prompts.filter((prompt) => prompt.pitch === pitch).map((prompt) => prompt.spelling);
+
+  it('spells every prompt with sharps by default', () => {
+    const { engine } = testRun({ grid: ACCIDENTAL_GRID });
+
+    expect(allPrompts(engine).map((prompt) => [prompt.pitch, prompt.spelling])).toEqual([
+      ['C4', 'sharp'],
+      ['C#4', 'sharp'],
+      ['D#4', 'sharp'],
+    ]);
+  });
+
+  it('stamps a flat run flat, leaving the grid’s own spelling on the pitch', () => {
+    const { engine } = testRun({ grid: ACCIDENTAL_GRID, spelling: 'flat' });
+
+    expect(allPrompts(engine).map((prompt) => [prompt.pitch, prompt.spelling])).toEqual([
+      ['C4', 'flat'],
+      ['C#4', 'flat'],
+      ['D#4', 'flat'],
+    ]);
+  });
+
+  it('grades a flat run by sounding pitch, so either name of the prompt is right', () => {
+    const answeredFlat = testRun({ grid: [['C#4']], spelling: 'flat' });
+    const answeredSharp = testRun({ grid: [['C#4']], spelling: 'flat' });
+
+    expect(answeredFlat.engine.answer({ pitch: 'Db4', elapsedMs: 1 }).grade).toBe(2);
+    expect(answeredSharp.engine.answer({ pitch: 'C#4', elapsedMs: 1 }).grade).toBe(2);
+  });
+
+  it('asks each accidental once per spelling and each natural once, under “both”', () => {
+    const { engine } = testRun({ grid: ACCIDENTAL_GRID, spelling: 'both', random: seeded(1) });
+    expect(engine.total).toBe(5);
+
+    const prompts = allPrompts(engine);
+
+    expect(prompts.map((prompt) => prompt.total)).toEqual([5, 5, 5, 5, 5]);
+    expect(prompts.map((prompt) => prompt.index)).toEqual([0, 1, 2, 3, 4]);
+    expect(named(prompts, 'C4')).toEqual(['sharp']);
+    expect([...named(prompts, 'C#4')].sort()).toEqual(['flat', 'sharp']);
+    expect([...named(prompts, 'D#4')].sort()).toEqual(['flat', 'sharp']);
+  });
+
+  it('keeps the two prompts of one accidental apart, whatever the shuffle', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const { engine } = testRun({ grid: ACCIDENTAL_GRID, spelling: 'both', random: seeded(seed) });
+      const buttons = allPrompts(engine).map((prompt) => prompt.buttonIndex);
+      const adjacent = buttons.findIndex((button, i) => i > 0 && button === buttons[i - 1]);
+      expect(adjacent, `seed ${seed}`).toBe(-1);
+    }
+  });
+
+  it('gives a twin follow-up the spelling of the prompt that triggered it', () => {
+    for (const spelling of ['sharp', 'flat'] as const) {
+      const { engine } = testRun({
+        grid: TWIN_ACCIDENTAL_GRID,
+        quizDirection: 'reverse',
+        mode: 'staff-game',
+        spelling: 'both',
+        random: seeded(4),
+      });
+
+      // Scan the draw for a twin prompt in this spelling; every other prompt is
+      // answered with D5, which is never a twin, so no follow-up is inserted.
+      let triggered: Prompt | null = null;
+      for (let prompt = engine.prompt(); prompt; prompt = engine.prompt()) {
+        if (prompt.twin === 'expected' && prompt.spelling === spelling) {
+          engine.answer({ tappedIndex: prompt.buttonIndex, elapsedMs: 1 });
+          triggered = prompt;
+          break;
+        }
+        engine.answer({ tappedIndex: 1, elapsedMs: 1 });
+      }
+
+      expect(triggered, spelling).not.toBeNull();
+      expect(engine.prompt()).toMatchObject({ pitch: 'C#5', spelling, twin: 'follow-up' });
+    }
+  });
+});
+
+describe('shuffledApart', () => {
+  const same = (a: number, b: number) => a === b;
+
+  it('returns a two-element draw as it is: a pair on its own cannot be spread', () => {
+    expect(shuffledApart([1, 1], same, seeded(3))).toEqual([1, 1]);
+  });
+
+  it('shuffles without losing or repeating anything', () => {
+    const out = shuffledApart([1, 1, 2, 3, 4, 5], same, seeded(2));
+
+    expect([...out].sort()).toEqual([1, 1, 2, 3, 4, 5]);
+  });
+
+  it('keeps equal elements apart, whatever the shuffle', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const out = shuffledApart([1, 1, 2, 3, 4, 5], same, seeded(seed));
+      const adjacent = out.findIndex((value, i) => i > 0 && value === out[i - 1]);
+      expect(adjacent, `seed ${seed}`).toBe(-1);
+    }
+  });
+
+  // Two pairs in four slots: only the interleaving 1 2 1 2 (or 2 1 2 1) keeps both apart.
+  it('spreads several pairs at once', () => {
+    for (let seed = 1; seed <= 40; seed++) {
+      const out = shuffledApart([1, 1, 2, 2], same, seeded(seed));
+      expect(
+        out.findIndex((value, i) => i > 0 && value === out[i - 1]),
+        `seed ${seed}`,
+      ).toBe(-1);
+    }
   });
 });

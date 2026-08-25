@@ -1,6 +1,10 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
+import { DAILY_NEW_ITEMS, SESSION_SIZE } from '../utils/scheduler';
+import type { Layout } from '../utils/session';
+import type { SpellingChoice } from '../utils/spelling';
+import { SPELLINGS } from '../utils/spelling';
 import type { StorageSpec } from '../utils/storage';
 
 export const settingsStorage: StorageSpec = {
@@ -14,10 +18,78 @@ export const settingsStorage: StorageSpec = {
   },
 };
 
+export type PracticeGame = 'note' | 'staff';
+export type PracticePool = 'scheduled' | 'fixed';
+
+// Everything the practice setup screen chooses; persisted so a run can be
+// repeated tomorrow without setting anything again.
+export interface PracticeSetup {
+  game: PracticeGame;
+  // All four layouts of the game, or the one named by `layout`.
+  scope: 'all' | 'one';
+  layout: Layout;
+  // Scheduled: the scheduler draws under the daily cap. Fixed: the first
+  // `fixedCount` items of the introduction order, each asked once, no cap.
+  pool: PracticePool;
+  fixedCount: number;
+  sessionSize: number;
+  dailyNewItems: number;
+  spelling: SpellingChoice;
+}
+
+// The choices the setup screen offers for the two scheduler numbers.
+export const SESSION_SIZES = [10, 20, 30, 50];
+export const DAILY_NEW_CHOICES = [0, 3, 5, 10];
+
+export function defaultPracticeSetup(): PracticeSetup {
+  return {
+    game: 'note',
+    scope: 'all',
+    layout: { side: 'right', direction: 'open' },
+    pool: 'scheduled',
+    fixedCount: 20,
+    sessionSize: SESSION_SIZE,
+    dailyNewItems: DAILY_NEW_ITEMS,
+    spelling: 'sharp',
+  };
+}
+
+const oneOf = <T>(candidate: unknown, allowed: readonly T[], otherwise: T): T =>
+  allowed.includes(candidate as T) ? (candidate as T) : otherwise;
+
+const asRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+
+// A stored setup falls back field by field, so one value the app no longer
+// offers never resets the rest of it.
+export function sanitizePracticeSetup(value: unknown): PracticeSetup {
+  const fallback = defaultPracticeSetup();
+  const stored = asRecord(value);
+  const layout = asRecord(stored.layout);
+  const count = stored.fixedCount;
+  return {
+    game: oneOf(stored.game, ['note', 'staff'], fallback.game),
+    scope: oneOf(stored.scope, ['all', 'one'], fallback.scope),
+    layout: {
+      side: oneOf(layout.side, ['right', 'left'], fallback.layout.side),
+      direction: oneOf(layout.direction, ['open', 'close'], fallback.layout.direction),
+    },
+    pool: oneOf(stored.pool, ['scheduled', 'fixed'], fallback.pool),
+    fixedCount:
+      typeof count === 'number' && Number.isInteger(count) && count >= 1
+        ? count
+        : fallback.fixedCount,
+    sessionSize: oneOf(stored.sessionSize, SESSION_SIZES, fallback.sessionSize),
+    dailyNewItems: oneOf(stored.dailyNewItems, DAILY_NEW_CHOICES, fallback.dailyNewItems),
+    spelling: oneOf(stored.spelling, SPELLINGS, fallback.spelling),
+  };
+}
+
 export const useSettingsStore = defineStore('settings', () => {
   const instrument = ref('rheinische142');
   const pitchNotation = ref<'scientific' | 'helmholtz' | 'solfege' | 'staff'>('scientific');
   const userChords = ref<Record<string, Record<string, string[]>>>({});
+  const practiceSetup = ref<PracticeSetup>(defaultPracticeSetup());
 
   function saveUserChord(side: string, chordName: string, notes: string[]) {
     if (!userChords.value[side]) userChords.value[side] = {};
@@ -32,6 +104,7 @@ export const useSettingsStore = defineStore('settings', () => {
     instrument,
     pitchNotation,
     userChords,
+    practiceSetup,
     saveUserChord,
     resetUserChord,
   };

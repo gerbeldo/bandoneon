@@ -17,7 +17,7 @@ import AppFooter from './components/AppFooter.vue';
 import AppHeader from './components/AppHeader.vue';
 import { instruments } from './data/index';
 import { practiceStorage, usePracticeStore } from './stores/practice';
-import { settingsStorage, useSettingsStore } from './stores/settings';
+import { sanitizePracticeSetup, settingsStorage, useSettingsStore } from './stores/settings';
 import { persistStore } from './utils/storage';
 
 useHead({ title: 'Bandoneon.app' });
@@ -29,6 +29,7 @@ persistStore(settings, settingsStorage, (blob) => {
   if (!(typeof blob.instrument === 'string' && blob.instrument in instruments)) {
     blob.instrument = 'rheinische142';
   }
+  blob.practiceSetup = sanitizePracticeSetup(blob.practiceSetup);
 });
 
 const practice = usePracticeStore();

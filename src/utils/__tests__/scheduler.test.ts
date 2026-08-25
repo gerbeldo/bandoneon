@@ -2,7 +2,15 @@ import { describe, expect, it } from 'vitest';
 
 import type { AnswerEvent, Grade, ItemRecord } from '../../stores/practice';
 import type { SchedulerInput } from '../scheduler';
-import { createWeightedScheduler, errorTally, isRetired, itemWeight } from '../scheduler';
+import {
+  createWeightedScheduler,
+  errorTally,
+  fixedRunKeys,
+  isRetired,
+  itemWeight,
+  previewFixedRun,
+  scopedPool,
+} from '../scheduler';
 import type { Direction, Side } from '../session';
 import { itemKey } from '../session';
 
@@ -238,6 +246,62 @@ describe('draw: session size', () => {
 
     expect([...draw].sort()).toEqual([...pool].sort());
   });
+
+  it('draws the session size it is given instead of the default', () => {
+    const pool = layoutKeys('right', 'open', 60);
+    const memory = seenBeforeToday(pool.slice(3));
+
+    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON, sessionSize: 10 });
+
+    expect(draw).toHaveLength(10);
+    expect(new Set(draw).size).toBe(10);
+  });
+
+  it('draws the whole pool when the session size outruns it', () => {
+    const pool = layoutKeys('right', 'open', 8);
+    const memory = seenBeforeToday(pool);
+
+    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON, sessionSize: 50 });
+
+    expect([...draw].sort()).toEqual([...pool].sort());
+  });
+});
+
+describe('draw: daily new items', () => {
+  const pool = layoutKeys('right', 'open', 30);
+
+  it('introduces as many never-seen items as the cap it is given', () => {
+    const memory = seenBeforeToday(pool.slice(5));
+
+    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON, dailyNewItems: 5 });
+
+    expect(draw.filter((key) => !(key in memory)).sort()).toEqual(pool.slice(0, 5).sort());
+  });
+
+  it('introduces none under a cap of 0, so a first visit draws nothing at all', () => {
+    expect(
+      scheduler().draw({ pool, memory: {}, scope: 'all', now: NOON, dailyNewItems: 0 }),
+    ).toEqual([]);
+
+    const memory = seenBeforeToday(pool.slice(4));
+    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON, dailyNewItems: 0 });
+
+    expect(draw.every((key) => key in memory)).toBe(true);
+  });
+
+  it('never introduces more than the session size, however high the cap', () => {
+    const draw = scheduler().draw({
+      pool,
+      memory: {},
+      scope: 'all',
+      now: NOON,
+      sessionSize: 5,
+      dailyNewItems: 10,
+    });
+
+    expect(draw).toHaveLength(5);
+    expect([...draw].sort()).toEqual(pool.slice(0, 5).sort());
+  });
 });
 
 describe('draw: scope', () => {
@@ -403,8 +467,9 @@ describe('preview', () => {
   it('counts the whole pool as unseen on a first visit', () => {
     expect(scheduler().preview({ pool, memory: {}, scope: 'all', now: NOON })).toEqual({
       prompts: 3,
-      newLeft: 3,
+      fresh: 3,
       newToday: 0,
+      newCap: 3,
       seen: 0,
       total: 60,
     });
@@ -417,8 +482,9 @@ describe('preview', () => {
 
     expect(scheduler().preview({ pool, memory, scope: 'all', now: NOON })).toEqual({
       prompts: 20,
-      newLeft: 3,
+      fresh: 3,
       newToday: 0,
+      newCap: 3,
       seen: 25,
       total: 60,
     });
@@ -430,24 +496,24 @@ describe('preview', () => {
       [pool[1]]: record([2], NOON - 3_600_000),
     };
 
-    expect(scheduler().preview({ pool, memory, scope: 'all', now: NOON }).newLeft).toBe(1);
+    expect(scheduler().preview({ pool, memory, scope: 'all', now: NOON }).fresh).toBe(1);
     expect(
       scheduler().preview({ pool, memory, scope: { side: 'left', direction: 'close' }, now: NOON })
-        .newLeft,
+        .fresh,
     ).toBe(1);
   });
 
-  it('counts items introduced today, over the cap when a sweep went past it', () => {
+  it('counts items introduced today, over the cap when a fixed run went past it', () => {
     const introduced = (keys: string[]) =>
       Object.fromEntries(keys.map((key) => [key, record([2], NOON - 3_600_000)]));
 
     expect(
       scheduler().preview({ pool, memory: introduced(pool.slice(0, 2)), scope: 'all', now: NOON }),
-    ).toMatchObject({ newToday: 2, newLeft: 1 });
-    // A sweep ignores the daily budget, so the count outruns the cap.
+    ).toMatchObject({ newToday: 2, fresh: 1 });
+    // A fixed run ignores the daily budget, so the count outruns the cap.
     expect(
       scheduler().preview({ pool, memory: introduced(pool.slice(0, 30)), scope: 'all', now: NOON }),
-    ).toMatchObject({ newToday: 30, newLeft: 0 });
+    ).toMatchObject({ newToday: 30, fresh: 0 });
     // Yesterday's introductions are not today's.
     expect(
       scheduler().preview({
@@ -456,7 +522,7 @@ describe('preview', () => {
         scope: 'all',
         now: NOON,
       }),
-    ).toMatchObject({ newToday: 0, newLeft: 3 });
+    ).toMatchObject({ newToday: 0, fresh: 3 });
   });
 
   it('narrows the seen and pool counts to the chosen layout', () => {
@@ -466,6 +532,110 @@ describe('preview', () => {
 
     expect(
       scheduler().preview({ pool, memory, scope: { side: 'left', direction: 'close' }, now: NOON }),
-    ).toEqual({ prompts: 10, newLeft: 3, newToday: 0, seen: 7, total: 30 });
+    ).toEqual({ prompts: 10, fresh: 3, newToday: 0, newCap: 3, seen: 7, total: 30 });
+  });
+
+  it('reports the session size and daily cap the run would use', () => {
+    const memory = seenBeforeToday(pool.slice(5));
+
+    expect(
+      scheduler().preview({
+        pool,
+        memory,
+        scope: 'all',
+        now: NOON,
+        sessionSize: 8,
+        dailyNewItems: 5,
+      }),
+    ).toEqual({ prompts: 8, fresh: 5, newToday: 0, newCap: 5, seen: 55, total: 60 });
+  });
+
+  it('caps prompts at the session size, whatever the cap allows', () => {
+    const preview = scheduler().preview({
+      pool,
+      memory: {},
+      scope: 'all',
+      now: NOON,
+      sessionSize: 4,
+      dailyNewItems: 10,
+    });
+
+    expect(preview.prompts).toBeLessThanOrEqual(4);
+    expect(preview).toMatchObject({ prompts: 4, fresh: 4, newCap: 10, seen: 0 });
+  });
+});
+
+// A fixed run: the first N items of the scoped pool, in introduction order,
+// under no daily cap — the sweep is the fixed run over a whole layout.
+describe('fixed runs', () => {
+  const rightOpen = { side: 'right', direction: 'open' } as const;
+  const leftClose = { side: 'left', direction: 'close' } as const;
+  const pool = [...layoutKeys('right', 'open', 10), ...layoutKeys('left', 'close', 10)];
+
+  describe('scopedPool', () => {
+    it('keeps the whole pool in order when the scope is the whole game', () => {
+      expect(scopedPool({ pool, scope: 'all' })).toEqual(pool);
+    });
+
+    it('keeps only the chosen layout, in introduction order', () => {
+      expect(scopedPool({ pool, scope: leftClose })).toEqual(pool.slice(10));
+      expect(scopedPool({ pool, scope: rightOpen })).toEqual(pool.slice(0, 10));
+    });
+  });
+
+  describe('fixedRunKeys', () => {
+    const input = { pool, memory: {}, scope: leftClose, now: NOON };
+
+    it('takes the first N of the scoped pool, unshuffled', () => {
+      expect(fixedRunKeys({ ...input, count: 4 })).toEqual(pool.slice(10, 14));
+    });
+
+    it('takes the whole scoped pool when N outruns it', () => {
+      expect(fixedRunKeys({ ...input, count: 99 })).toEqual(pool.slice(10));
+    });
+
+    it('takes nothing for N of 0', () => {
+      expect(fixedRunKeys({ ...input, count: 0 })).toEqual([]);
+    });
+
+    it('ignores the daily cap and the memory: today’s introductions do not shrink it', () => {
+      const memory = Object.fromEntries(pool.map((key) => [key, record([2], NOON - 3_600_000)]));
+
+      expect(fixedRunKeys({ ...input, memory, count: 6 })).toEqual(pool.slice(10, 16));
+    });
+  });
+
+  describe('previewFixedRun', () => {
+    // Three items introduced today, two of them inside the run below.
+    const memory = {
+      [pool[0]]: record([2], NOON - 3_600_000),
+      [pool[10]]: record([2], NOON - 3_600_000),
+      [pool[11]]: record([2], NOON - 3_600_000),
+    };
+
+    it('counts seen and fresh among exactly the run’s own keys, under no cap', () => {
+      expect(previewFixedRun({ pool, memory, scope: leftClose, now: NOON, count: 4 })).toEqual({
+        prompts: 4,
+        fresh: 2,
+        newToday: 3,
+        newCap: null,
+        seen: 2,
+        total: 4,
+      });
+    });
+
+    it('sizes prompts and total to the keys it would run, not to the pool', () => {
+      const preview = previewFixedRun({ pool, memory, scope: leftClose, now: NOON, count: 99 });
+
+      expect(preview.prompts).toBe(10);
+      expect(preview.total).toBe(10);
+      expect(preview).toMatchObject({ fresh: 8, seen: 2 });
+    });
+
+    it('counts introductions today over the whole pool, not over the run', () => {
+      expect(
+        previewFixedRun({ pool, memory, scope: rightOpen, now: NOON, count: 2 }),
+      ).toMatchObject({ newToday: 3, seen: 1, fresh: 1, prompts: 2 });
+    });
   });
 });

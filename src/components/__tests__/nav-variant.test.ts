@@ -21,7 +21,7 @@ const buttons = (container: HTMLElement) => [...container.querySelectorAll('butt
 describe('NavVariant', () => {
   it('renders enabled buttons that switch side and direction', () => {
     const { container, store } = mount();
-    const [left, right, close, open] = buttons(container);
+    const [left, right, open, close] = buttons(container);
 
     for (const button of buttons(container)) {
       expect(button.disabled).toBe(false);

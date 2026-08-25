@@ -8,7 +8,7 @@ import { createMemoryHistory, createRouter } from 'vue-router';
 import App from '../../App.vue';
 import { useStore } from '../../stores/main';
 import { usePracticeStore } from '../../stores/practice';
-import { useSettingsStore } from '../../stores/settings';
+import { defaultPracticeSetup, useSettingsStore } from '../../stores/settings';
 
 let cleanup: (() => void) | null = null;
 
@@ -78,6 +78,36 @@ describe('app boot persistence', () => {
     expect(usePracticeStore().items).toEqual({});
     expect(localStorage.getItem('practice.backup')).toBe('{corrupt');
     expect(JSON.parse(localStorage.getItem('practice')!)).toEqual({ version: 1, items: {} });
+  });
+
+  it('falls back field by field when the stored practice setup is garbage', async () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        version: 2,
+        instrument: 'rheinische142',
+        practiceSetup: { game: 'nope', fixedCount: -3, spelling: 'both', layout: 5 },
+      }),
+    );
+
+    await mountApp();
+
+    // Every unusable field falls back on its own; the one good value stands.
+    expect(useSettingsStore().practiceSetup).toEqual({
+      ...defaultPracticeSetup(),
+      spelling: 'both',
+    });
+  });
+
+  it('gives a blob with no practice setup the defaults, and persists them', async () => {
+    localStorage.setItem('settings', JSON.stringify({ version: 2, instrument: 'rheinische142' }));
+
+    await mountApp();
+
+    expect(useSettingsStore().practiceSetup).toEqual(defaultPracticeSetup());
+    expect(JSON.parse(localStorage.getItem('settings')!).practiceSetup).toEqual(
+      defaultPracticeSetup(),
+    );
   });
 
   it('falls back to the default instrument when the stored one no longer exists', async () => {
