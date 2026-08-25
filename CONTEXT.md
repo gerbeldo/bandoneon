@@ -95,7 +95,7 @@ The notes a run draws from, chosen on the practice setup: Chromatic (every note)
 _Avoid_: note filter, tonality
 
 **Key**:
-A scale kind on one of the twelve tonics — F major, E♭ minor — named the conventional way, so the six-accidental keys go by F♯ major and E♭ minor. A key's accidentals are all sharps or all flats, and that is the spelling its runs use.
+A scale kind on one of the twelve tonics — F major, D♯ minor — named the conventional way, so the six-accidental keys go by F♯ major and D♯ minor (E♭ minor would need C♭, whose written octave is not its sounding one). A key's accidentals are all sharps or all flats, and its seven names fill the spelling its runs use — so F♯ major names E♯, never F.
 _Avoid_: tonic (alone — that is the chroma the key sits on), root
 
 **Practice setup**:
@@ -115,7 +115,7 @@ The fixed run over every item of one layout — the items slider at its far end 
 _Avoid_: full-keyboard round
 
 **Spelling**:
-Which name an accidental goes by in a run: under Chromatic, sharps or flats as chosen on the practice setup; under a key, the key's own. Under Both, each accidental item is named as a sharp or a flat, drawn at random when the run starts and kept however often the run comes back to it. Every prompt carries its spelling, and a button answered in a run keeps the name it was asked under; Explore's ♯/♭ toggle is not touched.
+A table of twelve names, one per pitch class, that a run names its notes by: under Chromatic, the sharps or the flats as chosen on the practice setup; under a key, the key's own seven names, with sharps or flats by its signature for the other five — so a key may rename a natural, as F♯ major names F E♯. Under Both, each accidental item is named from the sharps or the flats, drawn at random when the run starts and kept however often the run comes back to it. Every prompt carries its spelling, and a button answered in a run keeps the name it was asked under; Explore's ♯/♭ toggle is not touched.
 _Avoid_: enharmonics toggle (that is Explore's ♯/♭ button), notation (that is pitch notation)
 
 **Direction badge**:
