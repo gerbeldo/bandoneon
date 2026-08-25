@@ -40,8 +40,25 @@ describe('loadBlob', () => {
     const migrated = loadBlob('settings', settingsStorage.version, settingsStorage.migrations);
 
     const { difficulty: _difficulty, locale: _locale, ...kept } = legacySettings;
-    expect(migrated).toEqual({ ...kept, version: 2 });
+    expect(migrated).toEqual({ ...kept, version: 3 });
     expect(localStorage.getItem('settings.backup')).toBeNull();
+  });
+
+  it('migrates a v2 practice setup: "one" plus its layout becomes that layout, "all" both axes', () => {
+    const migrate = (practiceSetup: object) => {
+      localStorage.setItem('settings', JSON.stringify({ version: 2, practiceSetup }));
+      return loadBlob('settings', settingsStorage.version, settingsStorage.migrations);
+    };
+    const layout = { side: 'left', direction: 'close' };
+
+    expect(migrate({ scope: 'one', layout, spelling: 'flat' })).toEqual({
+      version: 3,
+      practiceSetup: { scope: layout, spelling: 'flat' },
+    });
+    expect(migrate({ scope: 'all', layout })).toEqual({
+      version: 3,
+      practiceSetup: { scope: { side: 'both', direction: 'both' } },
+    });
   });
 
   it('runs migrations stepwise, oldest first', () => {
@@ -207,7 +224,7 @@ describe('persistStore', () => {
     expect('difficulty' in settings.$state).toBe(false);
     expect('locale' in settings.$state).toBe(false);
     const persisted = JSON.parse(localStorage.getItem('settings')!);
-    expect(persisted.version).toBe(2);
+    expect(persisted.version).toBe(3);
     expect('difficulty' in persisted).toBe(false);
     expect('locale' in persisted).toBe(false);
   });

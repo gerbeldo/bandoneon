@@ -9,6 +9,7 @@ import {
   cardNamed,
   click,
   dialog,
+  GROUPS,
   inGroup,
   LABELS,
   mountPractice,
@@ -24,11 +25,13 @@ import {
 
 const RIGHT_OPEN: Layout = { side: 'right', direction: 'open' };
 const RIGHT_OPEN_SIZE = 38;
+// One side in both directions, and both sides in one direction.
+const RIGHT_SIZE = runKeys('forward', { side: 'right', direction: 'both' }).length;
+const CLOSE_SIZE = runKeys('forward', { side: 'both', direction: 'close' }).length;
 
 const noteRun = (extra: Partial<PracticeSetup> = {}): Partial<PracticeSetup> => ({
   game: 'note',
-  scope: 'one',
-  layout: RIGHT_OPEN,
+  scope: RIGHT_OPEN,
   pool: 'fixed',
   fixedCount: 999,
   ...extra,
@@ -91,23 +94,32 @@ describe('practice setup', () => {
     expect(grandStaff(container)).toBeUndefined();
   });
 
-  it('reveals the side and direction pickers under one layout, and writes them', async () => {
+  it('opens on all four layouts, and narrows them one axis at a time', async () => {
     const { container, settings } = mountPractice();
-    expect(buttonNamed(container, LABELS.sideLeft)).toBeUndefined();
-
-    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
-    expect(settings.practiceSetup.scope).toBe('one');
-    // Prefilled with the stored layout.
-    expect(buttonNamed(container, LABELS.sideRight)?.getAttribute('aria-pressed')).toBe('true');
-    expect(buttonNamed(container, LABELS.pickOpen)?.getAttribute('aria-pressed')).toBe('true');
+    const pressed = (group: string) =>
+      inGroup(container, group, LABELS.both)?.getAttribute('aria-pressed');
+    expect(pressed(GROUPS.side)).toBe('true');
+    expect(pressed(GROUPS.direction)).toBe('true');
+    expect(text(container)).toContain('4 layouts · 142 items');
 
-    click(buttonNamed(container, LABELS.sideLeft));
+    // A side alone keeps both of its directions.
+    click(buttonNamed(container, LABELS.sideRight));
     await nextTick();
-    click(buttonNamed(container, LABELS.pickClose));
-    await nextTick();
+    expect(settings.practiceSetup.scope).toEqual({ side: 'right', direction: 'both' });
+    expect(text(container)).toContain(`2 layouts · ${RIGHT_SIZE} items`);
 
-    expect(settings.practiceSetup.layout).toEqual({ side: 'left', direction: 'close' });
+    // A side and a direction is one layout.
+    click(buttonNamed(container, LABELS.pickOpen));
+    await nextTick();
+    expect(settings.practiceSetup.scope).toEqual(RIGHT_OPEN);
+    expect(text(container)).toContain(`1 layout · ${RIGHT_OPEN_SIZE} items`);
+
+    // Either axis widens again on its own.
+    click(inGroup(container, GROUPS.side, LABELS.both));
+    await nextTick();
+    expect(settings.practiceSetup.scope).toEqual({ side: 'both', direction: 'open' });
+    expect(text(container)).toContain('2 layouts');
   });
 });
 
@@ -129,18 +141,27 @@ describe('practice setup, fixed runs', () => {
     await nextTick();
     expect(range(container)?.max).toBe('142');
 
-    click(buttonNamed(container, LABELS.oneLayout));
+    click(buttonNamed(container, LABELS.pickClose));
     await nextTick();
-    expect(range(container)?.max).toBe(String(RIGHT_OPEN_SIZE));
+    expect(range(container)?.max).toBe(String(CLOSE_SIZE));
+
+    click(buttonNamed(container, LABELS.sideRight));
+    await nextTick();
+    expect(range(container)?.max).toBe(
+      String(runKeys('forward', { side: 'right', direction: 'close' }).length),
+    );
   });
 
-  it('sets the count to the whole pool on the All quick pick', async () => {
+  it('sweeps the whole layout with the slider at its far end, with no quick picks', async () => {
     const { container, settings } = mountPractice({
-      setup: { pool: 'fixed', scope: 'one', layout: RIGHT_OPEN },
+      setup: { pool: 'fixed', scope: RIGHT_OPEN },
     });
     await nextTick();
+    expect(buttonNamed(container, 'All')).toBeUndefined();
 
-    click(buttonNamed(container, LABELS.all));
+    const slider = range(container)!;
+    slider.value = slider.max;
+    slider.dispatchEvent(new Event('input', { bubbles: true }));
     await nextTick();
 
     expect(settings.practiceSetup.fixedCount).toBe(RIGHT_OPEN_SIZE);
@@ -187,7 +208,7 @@ describe('practice setup, accidentals', () => {
   it('asks each item once under Both, whichever way it is named', async () => {
     const { container, settings } = mountPractice();
     await setupRun(settings, noteRun());
-    click(buttonNamed(container, LABELS.both));
+    click(inGroup(container, GROUPS.accidentals, LABELS.both));
     await nextTick();
 
     expect(settings.practiceSetup.spelling).toBe('both');
@@ -230,7 +251,7 @@ describe('practice setup, starting', () => {
   it('starts on Enter after the player has touched a control', async () => {
     const { container } = mountPractice();
     await nextTick();
-    const scopeButton = buttonNamed(container, LABELS.oneLayout);
+    const scopeButton = buttonNamed(container, LABELS.sideLeft);
     click(scopeButton);
     await nextTick();
 

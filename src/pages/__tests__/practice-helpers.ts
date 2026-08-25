@@ -13,8 +13,9 @@ import { usePracticeStore } from '../../stores/practice';
 import type { PracticeSetup } from '../../stores/settings';
 import { useSettingsStore } from '../../stores/settings';
 import { introductionOrder } from '../../utils/introduction';
+import type { SessionScope } from '../../utils/scheduler';
 import { scopedPool } from '../../utils/scheduler';
-import type { Direction, Layout, QuizDirection, Side } from '../../utils/session';
+import type { Direction, QuizDirection, Side } from '../../utils/session';
 import { flattenGrid, layoutGrid, parseItemKey } from '../../utils/session';
 import Practice from '../practice.vue';
 
@@ -24,15 +25,12 @@ export const LABELS = {
   // Game cards carry a description too, so these match on `includes`.
   noteGame: 'Note game',
   staffGame: 'Staff game',
-  allLayouts: 'All four layouts',
-  oneLayout: 'One layout',
-  // The layout picker capitalizes; the direction badge prints the bare word.
+  // The scope rows capitalize; the direction badge prints the bare word.
   sideLeft: 'Left',
   sideRight: 'Right',
   pickOpen: 'Open',
   pickClose: 'Close',
   scheduled: 'Scheduled',
-  all: 'All',
   sharps: '♯ Sharps',
   flats: '♭ Flats',
   both: 'Both',
@@ -64,6 +62,10 @@ export const inGroup = (container: HTMLElement, label: string, text: string) =>
   [...container.querySelectorAll<HTMLElement>(`[role="group"][aria-label="${label}"] button`)].find(
     (b) => b.textContent?.trim() === text,
   );
+
+// "Both" heads the Side row, the Direction row, and Accidentals alike, so those
+// three are told apart by their group.
+export const GROUPS = { side: 'Side', direction: 'Bellows direction', accidentals: 'Accidentals' };
 
 export const range = (container: HTMLElement) =>
   container.querySelector<HTMLInputElement>('input[type="range"][aria-label="Number of items"]');
@@ -114,10 +116,10 @@ export const pool = (quizDirection: QuizDirection) =>
     quizDirection,
   });
 
-// The item keys a fixed run over one layout prompts, in order: the pool is in
+// The item keys a fixed run over a scope prompts, in order: the pool is in
 // introduction order, and the constant-random shuffle keeps it.
-export const runKeys = (quizDirection: QuizDirection, layout: Layout) =>
-  scopedPool({ pool: pool(quizDirection), scope: layout });
+export const runKeys = (quizDirection: QuizDirection, scope: SessionScope) =>
+  scopedPool({ pool: pool(quizDirection), scope });
 
 const grid = (side: Side, direction: Direction) =>
   layoutGrid(instruments.rheinische142, side, direction);
@@ -139,12 +141,20 @@ export function pitchOf(key: string): string {
   return grid(side, direction)[row][column];
 }
 
-// Patches the stored setup, the way the setup screen's controls do.
+// Patches the stored setup, the way the setup screen's controls do. The scope
+// is copied in, so a later tap on a row never edits a test's shared constant.
+function patchSetup(
+  settings: ReturnType<typeof useSettingsStore>,
+  partial: Partial<PracticeSetup>,
+) {
+  Object.assign(settings.practiceSetup, partial, partial.scope && { scope: { ...partial.scope } });
+}
+
 export async function setupRun(
   settings: ReturnType<typeof useSettingsStore>,
   partial: Partial<PracticeSetup>,
 ) {
-  Object.assign(settings.practiceSetup, partial);
+  patchSetup(settings, partial);
   await nextTick();
 }
 
@@ -174,7 +184,7 @@ export function mountPractice(options: MountOptions = {}) {
   const store = useStore();
   const settings = useSettingsStore();
   const practice = usePracticeStore();
-  if (options.setup) Object.assign(settings.practiceSetup, options.setup);
+  if (options.setup) patchSetup(settings, options.setup);
   if (options.store) store.$patch(options.store);
 
   // The page reads no route, so no router is installed.

@@ -33,8 +33,7 @@ const RIGHT_OPEN: Layout = { side: 'right', direction: 'open' };
 // layout is the same thing, and ignores the daily cap.
 const fixedRun = (layout: Layout, fixedCount = 999): Partial<PracticeSetup> => ({
   game: 'note',
-  scope: 'one',
-  layout,
+  scope: layout,
   pool: 'fixed',
   fixedCount,
 });
@@ -244,7 +243,7 @@ describe('note game session strip and direction badge', () => {
     await start(container);
 
     // The setup's controls are gone; only note and octave buttons remain.
-    expect(buttonNamed(container, LABELS.oneLayout)).toBeUndefined();
+    expect(buttonNamed(container, LABELS.sideLeft)).toBeUndefined();
     expect(buttonNamed(container, LABELS.start)).toBeUndefined();
     expect(container.textContent).toContain(strip(1, 20, '0 of 3 new today', 60, 142));
 

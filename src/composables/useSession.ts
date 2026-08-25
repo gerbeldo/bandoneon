@@ -89,7 +89,7 @@ export function useSession() {
   const poolInput = computed<PoolInput>(() => ({
     pool: pool.value,
     memory: practice.items,
-    scope: setup.value.scope === 'all' ? 'all' : setup.value.layout,
+    scope: setup.value.scope,
     now: asOf.value,
   }));
 

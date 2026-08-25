@@ -1,20 +1,32 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
-import { DAILY_NEW_ITEMS, SESSION_SIZE } from '../utils/scheduler';
-import type { Layout } from '../utils/session';
+import type { SessionScope } from '../utils/scheduler';
+import { ALL_LAYOUTS, DAILY_NEW_ITEMS, SESSION_SIZE } from '../utils/scheduler';
 import type { SpellingChoice } from '../utils/spelling';
 import { SPELLINGS } from '../utils/spelling';
 import type { StorageSpec } from '../utils/storage';
 
+const asRecord = (value: unknown): Record<string, unknown> =>
+  typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
+
 export const settingsStorage: StorageSpec = {
   key: 'settings',
-  version: 2,
+  version: 3,
   migrations: {
     // v1: easy mode was removed; drop the orphaned difficulty key.
     1: ({ difficulty: _difficulty, ...rest }) => rest,
     // v2: the app is English-only now; drop the orphaned locale key.
     2: ({ locale: _locale, ...rest }) => rest,
+    // v3: the scope names both axes itself; 'one' + layout becomes that layout.
+    3: ({ practiceSetup, ...rest }) => {
+      if (practiceSetup === undefined) return rest;
+      const { scope, layout, ...setup } = asRecord(practiceSetup);
+      return {
+        ...rest,
+        practiceSetup: { ...setup, scope: scope === 'one' ? layout : { ...ALL_LAYOUTS } },
+      };
+    },
   },
 };
 
@@ -25,9 +37,8 @@ export type PracticePool = 'scheduled' | 'fixed';
 // repeated tomorrow without setting anything again.
 export interface PracticeSetup {
   game: PracticeGame;
-  // All four layouts of the game, or the one named by `layout`.
-  scope: 'all' | 'one';
-  layout: Layout;
+  // The layouts a run draws from: a side or both, a direction or both.
+  scope: SessionScope;
   // Scheduled: the scheduler draws under the daily cap. Fixed: the first
   // `fixedCount` items of the introduction order, each asked once, no cap.
   pool: PracticePool;
@@ -44,8 +55,7 @@ export const DAILY_NEW_CHOICES = [0, 3, 5, 10];
 export function defaultPracticeSetup(): PracticeSetup {
   return {
     game: 'note',
-    scope: 'all',
-    layout: { side: 'right', direction: 'open' },
+    scope: { ...ALL_LAYOUTS },
     pool: 'scheduled',
     fixedCount: 20,
     sessionSize: SESSION_SIZE,
@@ -57,22 +67,18 @@ export function defaultPracticeSetup(): PracticeSetup {
 const oneOf = <T>(candidate: unknown, allowed: readonly T[], otherwise: T): T =>
   allowed.includes(candidate as T) ? (candidate as T) : otherwise;
 
-const asRecord = (value: unknown): Record<string, unknown> =>
-  typeof value === 'object' && value !== null ? (value as Record<string, unknown>) : {};
-
 // A stored setup falls back field by field, so one value the app no longer
 // offers never resets the rest of it.
 export function sanitizePracticeSetup(value: unknown): PracticeSetup {
   const fallback = defaultPracticeSetup();
   const stored = asRecord(value);
-  const layout = asRecord(stored.layout);
+  const scope = asRecord(stored.scope);
   const count = stored.fixedCount;
   return {
     game: oneOf(stored.game, ['note', 'staff'], fallback.game),
-    scope: oneOf(stored.scope, ['all', 'one'], fallback.scope),
-    layout: {
-      side: oneOf(layout.side, ['right', 'left'], fallback.layout.side),
-      direction: oneOf(layout.direction, ['open', 'close'], fallback.layout.direction),
+    scope: {
+      side: oneOf(scope.side, ['both', 'right', 'left'], fallback.scope.side),
+      direction: oneOf(scope.direction, ['both', 'open', 'close'], fallback.scope.direction),
     },
     pool: oneOf(stored.pool, ['scheduled', 'fixed'], fallback.pool),
     fixedCount:
