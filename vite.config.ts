@@ -2,12 +2,17 @@ import tailwindcss from '@tailwindcss/vite';
 import vue from '@vitejs/plugin-vue';
 import { defineConfig } from 'vite';
 import { VitePWA } from 'vite-plugin-pwa';
+import { configDefaults } from 'vitest/config';
 import VueRouter from 'vue-router/vite';
 
 /** @type {import('vite').UserConfig} */
 export default defineConfig({
   // Served from https://gerbeldo.github.io/bandoneon/, not a domain root.
   base: '/bandoneon/',
+  test: {
+    // Agent worktrees under .claude/ carry their own copies of the tests.
+    exclude: [...configDefaults.exclude, '.claude/**'],
+  },
   plugins: [
     tailwindcss(),
     VueRouter(),

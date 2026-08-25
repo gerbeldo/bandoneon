@@ -1,6 +1,21 @@
 <template>
-  <g :class="{ selected }" @click.prevent="emit('click')">
-    <circle :cx="x + 29" :cy="y + 29" r="28" :fill="fill" :stroke="stroke" stroke-width="1.5" />
+  <g
+    :class="{ selected }"
+    :role="interactive ? 'button' : undefined"
+    :tabindex="interactive ? 0 : undefined"
+    @click.prevent="emit('click')"
+    @keydown.enter.space.prevent="interactive && emit('click')"
+  >
+    <title v-if="title">{{ title }}</title>
+    <circle
+      :cx="x + 29"
+      :cy="y + 29"
+      r="28"
+      :fill="fill"
+      :stroke="stroke"
+      stroke-width="1.5"
+      :style="outline && !selected ? { stroke: outline } : undefined"
+    />
     <StaffLabel
       v-if="label === null && settings.pitchNotation === 'staff'"
       class="staff-label"
@@ -49,11 +64,20 @@ const props = withDefaults(
     selected?: boolean;
     label?: string | null;
     color?: string;
+    // Focusable and operable from the keyboard, with `title` as its name —
+    // for pages where the button itself is the thing to inspect.
+    interactive?: boolean;
+    title?: string;
+    // Ring color when not selected; the stylesheet's neutral ring otherwise.
+    outline?: string;
   }>(),
   {
     selected: false,
     label: null,
     color: undefined,
+    interactive: false,
+    title: undefined,
+    outline: undefined,
   },
 );
 

@@ -8,6 +8,8 @@ import { Note } from 'tonal';
 import type { Instrument } from '../data/index';
 import type { AnswerEvent, Grade } from '../stores/practice';
 import { scoreTap } from './game';
+import type { Spelling, SpellingChoice } from './spelling';
+import { isAccidental } from './spelling';
 
 export type Side = 'right' | 'left';
 export type Direction = 'open' | 'close';
@@ -86,6 +88,18 @@ export function flattenGrid(grid: string[][]): GridButton[] {
   return buttons;
 }
 
+// Every item key of one layout, in the keyboard's render order.
+export function layoutItemKeys(
+  instrument: string,
+  layouts: Instrument,
+  layout: Layout,
+  quizDirection: QuizDirection,
+): string[] {
+  return flattenGrid(layoutGrid(layouts, layout.side, layout.direction)).map((button) =>
+    itemKey(instrument, layout.side, layout.direction, button.row, button.column, quizDirection),
+  );
+}
+
 // Buttons of one layout sounding the same pitch (midi-equal, spelling aside),
 // as groups of button indices in render order. Real layouts carry pairs at most.
 export function twinGroups(buttons: GridButton[]): number[][] {
@@ -110,20 +124,18 @@ export function shuffled<T>(items: T[], random: () => number = Math.random): T[]
     .map((index) => items[index]);
 }
 
-// Random prompt order for a sweep.
-export function shuffledOrder(count: number): number[] {
-  return shuffled([...Array(count).keys()]);
-}
-
 export interface Prompt {
   index: number;
   total: number;
-  // A sweep never leaves its layout; a scheduler-drawn session crosses all
-  // four layouts of the game.
+  // A fixed run over one layout never leaves it; a scheduler-drawn session
+  // crosses all four layouts of the game.
   layout: Layout;
   buttonIndex: number;
-  // The prompted button's pitch — what the staff game draws.
+  // The prompted button's pitch as the layout data spells it (sharps).
   pitch: string;
+  // How this prompt names accidentals; what the staff draws and the palette
+  // offers.
+  spelling: Spelling;
   // Duplicate-pitch marker (ADR 0004), only in pitch-prompted modes: 'expected'
   // when the pitch also sounds on another button of this layout, 'follow-up' on
   // the prompt the engine inserts for the remaining button.
@@ -151,41 +163,63 @@ export interface SessionEngine {
   answer(input: AnswerInput): AnswerOutcome;
 }
 
-interface RunOptions {
+export interface SessionOptions {
+  layouts: Instrument;
   instrument: string;
   quizDirection: QuizDirection;
   mode: string;
+  // The item keys to prompt, in prompt order (already shuffled by the caller).
+  draw: string[];
+  // Sharps unless set; 'both' names each accidental item as a sharp or a flat,
+  // drawn at random for this run.
+  spelling?: SpellingChoice;
+  // Only the 'both' spelling draw uses it; injectable so runs are repeatable.
+  random?: () => number;
   record: (key: string, event: AnswerEvent) => void;
   now: () => number;
-}
-
-export interface SweepOptions extends RunOptions {
-  grid: string[][];
-  layout: Layout;
-  // Permutation of button indices to prompt in; identity when omitted.
-  order?: (count: number) => number[];
-}
-
-export interface SessionOptions extends RunOptions {
-  layouts: Instrument;
-  // The scheduler's draw: item keys, already shuffled, in prompt order.
-  draw: string[];
 }
 
 interface DrawnPrompt {
   layout: Layout;
   buttonIndex: number;
+  spelling: Spelling;
   // Set on a follow-up: the twin already credited, which this prompt must not accept again.
   followUpOf?: number;
 }
 
-interface EngineCore extends RunOptions {
-  buttonsFor: (layout: Layout) => GridButton[];
-  draw: DrawnPrompt[];
-}
+// A run over the drawn items: a scheduler's session or a fixed run, both
+// naming items by key, so the keyboard may change between prompts.
+export function createSession(options: SessionOptions): SessionEngine {
+  const buttonsByLayout = new Map<string, GridButton[]>();
+  const buttonsFor = (layout: Layout) => {
+    let buttons = buttonsByLayout.get(layoutKey(layout));
+    if (!buttons) {
+      buttons = flattenGrid(layoutGrid(options.layouts, layout.side, layout.direction));
+      buttonsByLayout.set(layoutKey(layout), buttons);
+    }
+    return buttons;
+  };
 
-function createEngine(core: EngineCore): SessionEngine {
-  const { draw } = core;
+  // The draw comes from a pool built off these same grids (ADR 0002 keeps keys
+  // and grids in step), so every key names a button that is there.
+  const items = options.draw.map((key) => {
+    const { side, direction, row, column } = parseItemKey(key);
+    const layout = { side, direction };
+    const buttonIndex = buttonsFor(layout).findIndex(
+      (button) => button.row === row && button.column === column,
+    );
+    return { layout, buttonIndex };
+  });
+
+  const spelling = options.spelling ?? 'sharp';
+  const random = options.random ?? Math.random;
+  const spellingFor = (item: { layout: Layout; buttonIndex: number }): Spelling => {
+    if (spelling !== 'both') return spelling;
+    if (!isAccidental(buttonsFor(item.layout)[item.buttonIndex].pitch)) return 'sharp';
+    return random() < 0.5 ? 'sharp' : 'flat';
+  };
+  const draw: DrawnPrompt[] = items.map((item) => ({ ...item, spelling: spellingFor(item) }));
+
   let index = 0;
 
   // Only a pitch-prompted mode can be ambiguous; the note game prompts by button.
@@ -194,8 +228,8 @@ function createEngine(core: EngineCore): SessionEngine {
     let twins = twinsByLayout.get(layoutKey(layout));
     if (!twins) {
       twins = new Map();
-      if (core.quizDirection === 'reverse') {
-        for (const group of twinGroups(core.buttonsFor(layout))) {
+      if (options.quizDirection === 'reverse') {
+        for (const group of twinGroups(buttonsFor(layout))) {
           for (const i of group) twins.set(i, group);
         }
       }
@@ -206,12 +240,12 @@ function createEngine(core: EngineCore): SessionEngine {
 
   const key = (layout: Layout, button: GridButton) =>
     itemKey(
-      core.instrument,
+      options.instrument,
       layout.side,
       layout.direction,
       button.row,
       button.column,
-      core.quizDirection,
+      options.quizDirection,
     );
 
   return {
@@ -222,13 +256,14 @@ function createEngine(core: EngineCore): SessionEngine {
     prompt() {
       const drawn = draw[index];
       if (!drawn) return null;
-      const buttons = core.buttonsFor(drawn.layout);
+      const buttons = buttonsFor(drawn.layout);
       const prompt: Prompt = {
         index,
         total: draw.length,
         layout: drawn.layout,
         buttonIndex: drawn.buttonIndex,
         pitch: buttons[drawn.buttonIndex].pitch,
+        spelling: drawn.spelling,
       };
       if (drawn.followUpOf !== undefined) prompt.twin = 'follow-up';
       else if (twinsFor(drawn.layout).has(drawn.buttonIndex)) prompt.twin = 'expected';
@@ -238,7 +273,7 @@ function createEngine(core: EngineCore): SessionEngine {
     answer(input) {
       const drawn = draw[index];
       if (!drawn) throw new Error('the run is done');
-      const buttons = core.buttonsFor(drawn.layout);
+      const buttons = buttonsFor(drawn.layout);
       const target = buttons[drawn.buttonIndex];
       const group = twinsFor(drawn.layout).get(drawn.buttonIndex);
       let credited = drawn.buttonIndex;
@@ -258,20 +293,22 @@ function createEngine(core: EngineCore): SessionEngine {
         if (grade === 2 && group) credited = input.tappedIndex;
       }
 
-      core.record(key(drawn.layout, buttons[credited]), {
+      options.record(key(drawn.layout, buttons[credited]), {
         grade,
-        timestamp: core.now(),
+        timestamp: options.now(),
         responseMs: Math.min(Math.max(input.elapsedMs, 0), RESPONSE_MS_CAP),
-        mode: core.mode,
+        mode: options.mode,
       });
 
-      // A correct first answer on a twin pitch asks for the other button next.
+      // A correct first answer on a twin pitch asks for the other button next,
+      // in the same spelling.
       if (grade === 2 && group && drawn.followUpOf === undefined) {
         const other = group.find((i) => i !== credited);
         if (other !== undefined) {
           draw.splice(index + 1, 0, {
             layout: drawn.layout,
             buttonIndex: other,
+            spelling: drawn.spelling,
             followUpOf: credited,
           });
         }
@@ -281,43 +318,4 @@ function createEngine(core: EngineCore): SessionEngine {
       return { grade, buttonIndex: credited };
     },
   };
-}
-
-// The on-demand run through every button of one layout.
-export function createSweep(options: SweepOptions): SessionEngine {
-  const buttons = flattenGrid(options.grid);
-  const order = options.order?.(buttons.length) ?? buttons.map((_, i) => i);
-
-  return createEngine({
-    ...options,
-    buttonsFor: () => buttons,
-    draw: order.map((buttonIndex) => ({ layout: options.layout, buttonIndex })),
-  });
-}
-
-// A scheduler-drawn session: the draw names items across the game's layouts,
-// so the keyboard changes between prompts.
-export function createSession(options: SessionOptions): SessionEngine {
-  const buttonsByLayout = new Map<string, GridButton[]>();
-  const buttonsFor = (layout: Layout) => {
-    let buttons = buttonsByLayout.get(layoutKey(layout));
-    if (!buttons) {
-      buttons = flattenGrid(layoutGrid(options.layouts, layout.side, layout.direction));
-      buttonsByLayout.set(layoutKey(layout), buttons);
-    }
-    return buttons;
-  };
-
-  // The draw comes from a pool built off these same grids (ADR 0002 keeps keys
-  // and grids in step), so every key names a button that is there.
-  const draw = options.draw.map((key): DrawnPrompt => {
-    const { side, direction, row, column } = parseItemKey(key);
-    const layout = { side, direction };
-    const buttonIndex = buttonsFor(layout).findIndex(
-      (button) => button.row === row && button.column === column,
-    );
-    return { layout, buttonIndex };
-  });
-
-  return createEngine({ ...options, buttonsFor, draw });
 }

@@ -4,7 +4,7 @@
     <div class="mx-auto max-w-(--breakpoint-md) p-6">
       <div class="mb-4">
         <label class="block text-xs font-medium text-neutral-500 dark:text-neutral-400">
-          {{ t('pitch_notation') }}
+          Pitch notation
         </label>
         <div class="mt-1 flex w-full flex-row gap-2">
           <Button
@@ -14,24 +14,7 @@
             :aria-pressed="value === pitchNotation"
             @click="pitchNotation = value"
           >
-            {{ t(value) }}
-          </Button>
-        </div>
-      </div>
-
-      <div class="mb-4">
-        <label class="block text-xs font-medium text-neutral-500 dark:text-neutral-400">
-          {{ t('language') }}
-        </label>
-        <div class="mt-1 flex w-full flex-row gap-2">
-          <Button
-            v-for="value in availableLocales"
-            :key="value"
-            class="w-full bg-white dark:bg-neutral-900"
-            :aria-pressed="value === locale"
-            @click="locale = value"
-          >
-            {{ t('language-' + value) }}
+            {{ notationLabels[value] }}
           </Button>
         </div>
       </div>
@@ -46,7 +29,6 @@
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'petite-vue-i18n';
 import { storeToRefs } from 'pinia';
 
 import { pitchNotations } from '../data/index';
@@ -54,9 +36,15 @@ import { useSettingsStore } from '../stores/settings';
 import Button from './Button.vue';
 import IconGitHub from './icons/IconGitHub.vue';
 
+// Each button shows the same note spelled in its own notation.
+const notationLabels: Record<(typeof pitchNotations)[number], string> = {
+  scientific: 'C♯5',
+  helmholtz: 'c♯’’',
+  solfege: 'Do♯5',
+  staff: 'Staff',
+};
+
 const settings = useSettingsStore();
 
-const { pitchNotation, locale } = storeToRefs(settings);
-
-const { availableLocales, t } = useI18n({ useScope: 'global' });
+const { pitchNotation } = storeToRefs(settings);
 </script>

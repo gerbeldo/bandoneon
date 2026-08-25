@@ -1,18 +1,13 @@
 <template>
-  <StartCard
-    v-if="phase === 'start-card'"
-    v-model="scope"
-    :preview="preview"
-    @start="start"
-    @sweep="sweep"
-  />
   <div
-    v-else
-    class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-2 px-2 pt-2 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:flex-row md:items-center md:gap-8"
+    class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-2 px-2 pt-2 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:landscape:flex-row md:landscape:items-center md:landscape:gap-8"
   >
-    <!-- Phone: staff beside the progress/hint to keep the page one screen tall.
-         md+: everything stacked in a wider column so the staff can fill it. -->
-    <div class="mx-auto flex w-full max-w-md shrink-0 flex-wrap items-center gap-x-4 md:w-80">
+    <!-- Portrait (phones, tablets held upright): staff beside the progress/hint
+         above a full-width keyboard. Landscape from md up: the staff column
+         stands beside the keyboard. -->
+    <div
+      class="mx-auto flex w-full max-w-md shrink-0 flex-wrap items-center gap-x-4 md:landscape:w-80"
+    >
       <SessionStrip
         class="w-full"
         :prompt-number="promptNumber"
@@ -20,13 +15,13 @@
         :preview="preview"
       />
       <GrandStaff
-        class="w-48 shrink-0 md:w-full"
+        class="w-48 shrink-0 md:landscape:w-full"
         :notes="quizzedSpelled ? [quizzedSpelled] : []"
         :side="side"
         :color="staffColor"
         :feedback="staffFeedback"
       />
-      <div class="min-w-0 flex-1 md:w-full">
+      <div class="min-w-0 flex-1 md:landscape:w-full">
         <Progress
           class="mt-2"
           :values="[
@@ -65,60 +60,36 @@
       </SvgKeyboard>
     </div>
   </div>
-  <SessionSummary
-    :open="phase === 'summary'"
-    :counts="counts"
-    :ran="ran"
-    @again="again"
-    @dismiss="toStartCard"
-  />
 </template>
 
 <script setup lang="ts">
-import { useHead } from '@unhead/vue';
-import { useI18n } from 'petite-vue-i18n';
 import { storeToRefs } from 'pinia';
-import { Note } from 'tonal';
 import { computed, onUnmounted, ref, watch } from 'vue';
 
-import DirectionBadge from '../components/DirectionBadge.vue';
-import GrandStaff from '../components/GrandStaff.vue';
-import Progress from '../components/Progress.vue';
-import SessionStrip from '../components/SessionStrip.vue';
-import SessionSummary from '../components/SessionSummary.vue';
-import StartCard from '../components/StartCard.vue';
-import SvgButton from '../components/SvgButton.vue';
-import SvgKeyboard from '../components/SvgKeyboard.vue';
-import { useSession } from '../composables/useSession';
-import { useStore } from '../stores/main';
-import type { Grade } from '../stores/practice';
+import type { PracticeSession } from '../../composables/useSession';
+import { useStore } from '../../stores/main';
+import type { Grade } from '../../stores/practice';
+import { SCORE_COLORS } from '../../utils/game';
+import { spellPitch } from '../../utils/spelling';
+import DirectionBadge from '../DirectionBadge.vue';
+import GrandStaff from '../GrandStaff.vue';
+import Progress from '../Progress.vue';
+import SessionStrip from '../SessionStrip.vue';
+import SvgButton from '../SvgButton.vue';
+import SvgKeyboard from '../SvgKeyboard.vue';
 
-useHead({ title: 'Staff game – Bandoneon.app' });
-
-const SCORE_COLORS = ['#ef4444', '#eab308', '#22c55e'] as const; // red-500, yellow-500, green-500
 const FLASH_MS = 700;
 const PAUSE_MS = 900;
+const STAFF_HINT =
+  'Tap the button that sounds this note. Right note in the wrong octave counts as partial credit.';
 
-// The session engine draws each prompt (the pitch this page puts on the staff),
+// The session engine draws each prompt (the pitch this view puts on the staff),
 // resolves the tapped position to a pitch, grades, and records (ADR 0004); this
-// page only renders prompts and captures taps.
-const {
-  phase,
-  scope,
-  preview,
-  prompt,
-  promptNumber,
-  total,
-  counts,
-  gradeOf,
-  ran,
-  start,
-  sweep,
-  again,
-  next,
-  answer,
-  toStartCard,
-} = useSession({ quizDirection: 'reverse', mode: 'staff-game' });
+// view only renders prompts and captures taps.
+const props = defineProps<{ session: PracticeSession }>();
+
+const { phase, preview, prompt, promptNumber, total, counts, gradeOf, next, answer } =
+  props.session;
 
 // The last tap's result, kept while the feedback pause runs; taps are ignored meanwhile.
 const tapResult = ref<{ note: string; score: Grade } | null>(null);
@@ -126,20 +97,19 @@ const flash = ref<{ idx: number; score: Grade } | null>(null);
 let pauseTimer: ReturnType<typeof setTimeout> | null = null;
 let flashTimer: ReturnType<typeof setTimeout> | null = null;
 
-const { t } = useI18n();
-
 const store = useStore();
-const { side, keyPositions, showEnharmonics } = storeToRefs(store);
+const { side, keyPositions } = storeToRefs(store);
 
-const spell = (tonal: string) => (showEnharmonics.value ? Note.enharmonic(tonal) : tonal);
+// Everything on the staff follows the prompt's spelling.
+const spell = (tonal: string) => (prompt.value ? spellPitch(tonal, prompt.value.spelling) : tonal);
 
 const quizzedSpelled = computed(() => (prompt.value ? spell(prompt.value.pitch) : ''));
 
 // The twin-expected marker takes the hint's place, adding no height on phones.
 const hint = computed(() => {
-  if (prompt.value?.twin === 'follow-up') return t('twin_follow_up');
-  if (prompt.value?.twin === 'expected') return t('twin_expected');
-  return t('hint_staff_game');
+  if (prompt.value?.twin === 'follow-up') return 'Now tap the other button that sounds this note.';
+  if (prompt.value?.twin === 'expected') return 'Two buttons sound this note — tap either one.';
+  return STAFF_HINT;
 });
 
 // A correct tap recolors the quizzed note green; wrong and partial taps keep it

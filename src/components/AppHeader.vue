@@ -1,10 +1,13 @@
 <template>
   <nav class="mx-auto flex min-h-14 w-full shrink-0 items-center px-2 py-1">
+    <!-- Phones have no room for the wordmark beside three links: the icon stands in. -->
     <RouterLink
       class="inline-flex min-h-12 items-center justify-center rounded-lg px-2 text-lg font-semibold select-none sm:px-4 sm:text-xl"
       to="/"
+      aria-label="Bandoneon.app"
     >
-      Bandoneon.app
+      <IconBandoneon class="h-8 w-8 sm:hidden" />
+      <span class="hidden sm:inline">Bandoneon.app</span>
     </RouterLink>
     <div class="flex flex-1 items-center text-sm">
       <RouterLink
@@ -16,17 +19,17 @@
       </RouterLink>
       <RouterLink
         class="inline-flex min-h-12 items-center justify-center rounded-lg px-1 select-none sm:px-3"
-        :class="linkClass('/game')"
-        to="/game"
+        :class="linkClass('/practice')"
+        to="/practice"
       >
-        Game
+        Practice
       </RouterLink>
       <RouterLink
         class="inline-flex min-h-12 items-center justify-center rounded-lg px-1 select-none sm:px-3"
-        :class="linkClass('/staff-game')"
-        to="/staff-game"
+        :class="linkClass('/progress')"
+        to="/progress"
       >
-        <span>Staff<span class="hidden sm:inline">&nbsp;game</span></span>
+        Progress
       </RouterLink>
     </div>
     <div class="flex-none">
@@ -57,6 +60,7 @@ import { useRoute } from 'vue-router';
 
 import { useDark } from '../composables/useDark';
 import AppSettings from './AppSettings.vue';
+import IconBandoneon from './icons/IconBandoneon.vue';
 import IconBars3 from './icons/IconBars3.vue';
 import IconMoon from './icons/IconMoon.vue';
 import IconSun from './icons/IconSun.vue';
@@ -72,6 +76,7 @@ watch(
 );
 
 function linkClass(path: string): string {
-  return route.path === path ? 'font-semibold' : 'text-neutral-500 dark:text-neutral-400';
+  const active = path === '/' ? route.path === '/' : route.path.startsWith(path);
+  return active ? 'font-semibold' : 'text-neutral-500 dark:text-neutral-400';
 }
 </script>

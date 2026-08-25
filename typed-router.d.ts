@@ -45,16 +45,16 @@ declare module 'vue-router/auto-routes' {
       { path: ParamValue<false> },
       | never
     >,
-    '/game': RouteRecordInfo<
-      '/game',
-      '/game',
+    '/practice': RouteRecordInfo<
+      '/practice',
+      '/practice',
       Record<never, never>,
       Record<never, never>,
       | never
     >,
-    '/staff-game': RouteRecordInfo<
-      '/staff-game',
-      '/staff-game',
+    '/progress': RouteRecordInfo<
+      '/progress',
+      '/progress',
       Record<never, never>,
       Record<never, never>,
       | never
@@ -88,17 +88,17 @@ declare module 'vue-router/auto-routes' {
       pathParamNames:
         | 'path'
     }
-    'src/pages/game.vue': {
+    'src/pages/practice.vue': {
       routes:
-        | '/game'
+        | '/practice'
       views:
         | never
       pathParamNames:
         | never
     }
-    'src/pages/staff-game.vue': {
+    'src/pages/progress.vue': {
       routes:
-        | '/staff-game'
+        | '/progress'
       views:
         | never
       pathParamNames:

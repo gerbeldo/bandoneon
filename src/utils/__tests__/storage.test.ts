@@ -6,7 +6,7 @@ import { practiceStorage, usePracticeStore } from '../../stores/practice';
 import { settingsStorage, useSettingsStore } from '../../stores/settings';
 import { loadBlob, persistStore, saveBlob } from '../storage';
 
-// A blob persisted by the pre-versioning app: no version field, stale difficulty key.
+// A blob persisted by the pre-versioning app: no version field, stale difficulty and locale keys.
 const legacySettings = {
   instrument: 'rheinische142',
   locale: 'es',
@@ -34,13 +34,13 @@ describe('loadBlob', () => {
     expect(loadBlob('settings', 1, {})).toEqual({ version: 1, locale: 'es' });
   });
 
-  it('migrates a legacy settings blob to v1, losing only difficulty', () => {
+  it('migrates a legacy settings blob, losing difficulty and locale', () => {
     localStorage.setItem('settings', JSON.stringify(legacySettings));
 
     const migrated = loadBlob('settings', settingsStorage.version, settingsStorage.migrations);
 
-    const { difficulty: _difficulty, ...kept } = legacySettings;
-    expect(migrated).toEqual({ ...kept, version: 1 });
+    const { difficulty: _difficulty, locale: _locale, ...kept } = legacySettings;
+    expect(migrated).toEqual({ ...kept, version: 2 });
     expect(localStorage.getItem('settings.backup')).toBeNull();
   });
 
@@ -203,12 +203,13 @@ describe('persistStore', () => {
 
     persistStore(settings, settingsStorage);
 
-    expect(settings.locale).toBe('es');
     expect(settings.pitchNotation).toBe('helmholtz');
     expect('difficulty' in settings.$state).toBe(false);
+    expect('locale' in settings.$state).toBe(false);
     const persisted = JSON.parse(localStorage.getItem('settings')!);
-    expect(persisted.version).toBe(1);
+    expect(persisted.version).toBe(2);
     expect('difficulty' in persisted).toBe(false);
+    expect('locale' in persisted).toBe(false);
   });
 
   it('starts fresh over an unusable blob after backing it up', () => {
@@ -234,6 +235,5 @@ describe('persistStore', () => {
     });
 
     expect(settings.instrument).toBe('rheinische142');
-    expect(settings.locale).toBe('es');
   });
 });

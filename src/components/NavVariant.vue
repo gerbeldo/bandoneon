@@ -8,32 +8,30 @@
         class="w-20 sm:w-28"
         @click="side = value === 'left' ? 'left' : 'right'"
       >
-        {{ t(value) }}
+        {{ value }}
       </Button>
     </ButtonGroup>
     <ButtonGroup>
       <Button
-        v-for="value in ['close', 'open']"
+        v-for="value in ['open', 'close']"
         :key="value"
         :aria-pressed="direction === value"
         class="w-20 sm:w-28"
         @click="direction = value === 'close' ? 'close' : 'open'"
       >
-        {{ t(value) }}
+        {{ value }}
       </Button>
     </ButtonGroup>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'petite-vue-i18n';
 import { storeToRefs } from 'pinia';
 
 import { useStore } from '../stores/main';
 import Button from './Button.vue';
 import ButtonGroup from './ButtonGroup.vue';
 
-const { t } = useI18n();
 const store = useStore();
 const { side, direction } = storeToRefs(store);
 </script>
