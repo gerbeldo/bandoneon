@@ -5,7 +5,6 @@
         v-for="value in ['left', 'right']"
         :key="value"
         :aria-pressed="side === value"
-        :disabled="readonly"
         class="w-20 sm:w-28"
         @click="side = value === 'left' ? 'left' : 'right'"
       >
@@ -17,7 +16,6 @@
         v-for="value in ['close', 'open']"
         :key="value"
         :aria-pressed="direction === value"
-        :disabled="readonly"
         class="w-20 sm:w-28"
         @click="direction = value === 'close' ? 'close' : 'open'"
       >
@@ -34,8 +32,6 @@ import { storeToRefs } from 'pinia';
 import { useStore } from '../stores/main';
 import Button from './Button.vue';
 import ButtonGroup from './ButtonGroup.vue';
-
-defineProps<{ readonly?: boolean }>();
 
 const { t } = useI18n();
 const store = useStore();

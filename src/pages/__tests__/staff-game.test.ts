@@ -11,7 +11,17 @@ import { useStore } from '../../stores/main';
 import { usePracticeStore } from '../../stores/practice';
 import { introductionOrder } from '../../utils/introduction';
 import StaffGame from '../staff-game.vue';
-import { buttonNamed, click, dialog, seed, startSession, startSweep } from './start-card';
+import {
+  badge,
+  buttonNamed,
+  DIRECTION_COLORS,
+  click,
+  dialog,
+  seed,
+  startSession,
+  startSweep,
+  strip,
+} from './start-card';
 
 let cleanup: (() => void) | null = null;
 
@@ -110,20 +120,14 @@ describe('staff game', () => {
     expect(keys(container)).toHaveLength(layoutNotes('right', 'close').length);
   });
 
-  it('shows the run’s layout read-only, so the bellows direction stays visible', async () => {
+  it('drops the picker row during play and names the direction on the badge', async () => {
     vi.useFakeTimers();
     const { container } = mount('right', 'close');
     await startSweep(container);
 
-    expect(buttons(container).map((b) => b.textContent?.trim())).toEqual([
-      'left',
-      'right',
-      'close',
-      'open',
-    ]);
-    const pressed = buttons(container).filter((b) => b.getAttribute('aria-pressed') === 'true');
-    expect(pressed.map((b) => b.textContent?.trim())).toEqual(['right', 'close']);
-    for (const button of buttons(container)) expect(button.disabled).toBe(true);
+    // Side is read off the keyboard; direction is the badge's job.
+    expect(buttons(container)).toHaveLength(0);
+    expect(badge(container)?.textContent).toContain(en.close);
   });
 });
 
@@ -244,12 +248,13 @@ describe('staff game duplicate-pitch follow-up', () => {
     expect(text()).toContain(en.hint_staff_game);
 
     for (let i = 0; i < first; i++) await answerCorrectly(container, i);
-    expect(text()).toContain(`${first + 1} / 38`);
+    expect(text()).toContain(`Prompt ${first + 1} of 38`);
     expect(text()).toContain(en.twin_expected);
 
     await answerCorrectly(container, first);
     expect(circles(container)[first].getAttribute('fill')).toBe(GREEN);
-    expect(text()).toContain(`${first + 2} / 39`);
+    // The follow-up grew the denominator: 38 prompts became 39.
+    expect(text()).toContain(`Prompt ${first + 2} of 39`);
     expect(text()).toContain(en.twin_follow_up);
 
     tap(container, second);
@@ -260,7 +265,7 @@ describe('staff game duplicate-pitch follow-up', () => {
 
     vi.advanceTimersByTime(1_000);
     await nextTick();
-    expect(text()).toContain(`${first + 3} / 39`);
+    expect(text()).toContain(`Prompt ${first + 3} of 39`);
     expect(text()).toContain(en.hint_staff_game);
     expect(text()).not.toContain(en.twin_follow_up);
   });
@@ -277,7 +282,7 @@ describe('staff game duplicate-pitch follow-up', () => {
       if (pitches[i] === 'E5') await answerCorrectly(container, i === first ? second : first);
     }
 
-    expect(container.textContent).toContain('40 / 40');
+    expect(container.textContent).toContain('Prompt 40 of 40');
     expect(document.body.textContent).toContain('40 correct');
   });
 });
@@ -462,7 +467,7 @@ describe('sessions', () => {
     await nextTick();
     await startSession(container);
 
-    expect(text(container)).toContain('1 / 20');
+    expect(text(container)).toContain(strip(1, 20, '0 of 3 new today', 60, 142));
 
     const layouts = new Set<string>();
     await playOut(container, () => layouts.add(`${store.side}/${store.direction}`));
@@ -471,7 +476,7 @@ describe('sessions', () => {
     expect(Object.values(practice.items).flatMap((item) => item.answers)).toHaveLength(80);
   });
 
-  it('shows each prompt’s own layout as a session crosses them', async () => {
+  it('moves the badge onto each prompt’s own direction as a session crosses layouts', async () => {
     vi.useFakeTimers();
     const { container, store, practice } = mount('right', 'open');
     seed(practice, pool().slice(0, 60), 'staff-game');
@@ -480,11 +485,11 @@ describe('sessions', () => {
 
     const shown = new Set<string>();
     await playOut(container, () => {
-      const pressed = buttons(container)
-        .filter((b) => b.getAttribute('aria-pressed') === 'true')
-        .map((b) => b.textContent?.trim());
-      expect(pressed).toEqual([store.side, store.direction]);
-      shown.add(pressed.join('/'));
+      const badged = badge(container);
+      expect(badged?.getAttribute('data-direction')).toBe(store.direction);
+      expect(badged?.textContent).toContain(en[store.direction]);
+      expect(badged?.className).toContain(DIRECTION_COLORS[store.direction]);
+      shown.add(`${store.side}/${store.direction}`);
     });
 
     expect(shown.size).toBeGreaterThan(1);
