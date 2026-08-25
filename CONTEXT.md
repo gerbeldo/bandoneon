@@ -119,7 +119,7 @@ The fixed run over every item of one layout — the items slider at its far end 
 _Avoid_: full-keyboard round
 
 **Spelling**:
-A table of twelve names, one per pitch class, that a run names its notes by: under Chromatic, the sharps or the flats as chosen on the practice setup; under a key, the key's own seven names, with sharps or flats by its signature for the other five — so a key may rename a natural, as F♯ major names F E♯. Under Both, each accidental item is named from the sharps or the flats, drawn at random when the run starts and kept however often the run comes back to it. Every prompt carries its spelling, and a button answered in a run keeps the name it was asked under; Explore's ♯/♭ toggle is not touched.
+A table of twelve names, one per pitch class, that a run names its notes by: under Chromatic, the sharps or the flats as chosen on the practice setup; under a key, the key's own seven names, with sharps or flats by its signature for the other five — so a key may rename a natural: F♯ major names F as E♯. Under Both, each accidental item is named from the sharps or the flats, drawn at random when the run starts and kept however often the run comes back to it. Every prompt carries its spelling, and a button answered in a run keeps the name it was asked under; Explore's ♯/♭ toggle is not touched.
 _Avoid_: enharmonics toggle (that is Explore's ♯/♭ button), notation (that is pitch notation)
 
 **Session strip**:
