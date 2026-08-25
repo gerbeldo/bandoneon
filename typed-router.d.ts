@@ -52,6 +52,13 @@ declare module 'vue-router/auto-routes' {
       Record<never, never>,
       | never
     >,
+    '/progress': RouteRecordInfo<
+      '/progress',
+      '/progress',
+      Record<never, never>,
+      Record<never, never>,
+      | never
+    >,
   }
 
   /**
@@ -84,6 +91,14 @@ declare module 'vue-router/auto-routes' {
     'src/pages/practice.vue': {
       routes:
         | '/practice'
+      views:
+        | never
+      pathParamNames:
+        | never
+    }
+    'src/pages/progress.vue': {
+      routes:
+        | '/progress'
       views:
         | never
       pathParamNames:

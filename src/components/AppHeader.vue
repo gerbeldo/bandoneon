@@ -1,10 +1,13 @@
 <template>
   <nav class="mx-auto flex min-h-14 w-full shrink-0 items-center px-2 py-1">
+    <!-- Phones have no room for the wordmark beside three links: the icon stands in. -->
     <RouterLink
       class="inline-flex min-h-12 items-center justify-center rounded-lg px-2 text-lg font-semibold select-none sm:px-4 sm:text-xl"
       to="/"
+      aria-label="Bandoneon.app"
     >
-      Bandoneon.app
+      <IconBandoneon class="h-8 w-8 sm:hidden" />
+      <span class="hidden sm:inline">Bandoneon.app</span>
     </RouterLink>
     <div class="flex flex-1 items-center text-sm">
       <RouterLink
@@ -20,6 +23,13 @@
         to="/practice"
       >
         Practice
+      </RouterLink>
+      <RouterLink
+        class="inline-flex min-h-12 items-center justify-center rounded-lg px-1 select-none sm:px-3"
+        :class="linkClass('/progress')"
+        to="/progress"
+      >
+        Progress
       </RouterLink>
     </div>
     <div class="flex-none">
@@ -50,6 +60,7 @@ import { useRoute } from 'vue-router';
 
 import { useDark } from '../composables/useDark';
 import AppSettings from './AppSettings.vue';
+import IconBandoneon from './icons/IconBandoneon.vue';
 import IconBars3 from './icons/IconBars3.vue';
 import IconMoon from './icons/IconMoon.vue';
 import IconSun from './icons/IconSun.vue';
