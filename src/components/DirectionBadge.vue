@@ -9,17 +9,13 @@
   >
     <!-- The word carries the meaning; the chevrons only mime the bellows. -->
     <span aria-hidden="true">{{ direction === 'open' ? '«' : '»' }}</span>
-    {{ t(direction) }}
+    {{ direction }}
     <span aria-hidden="true">{{ direction === 'open' ? '»' : '«' }}</span>
   </p>
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'petite-vue-i18n';
-
 import type { Direction } from '../utils/session';
 
 defineProps<{ direction: Direction }>();
-
-const { t } = useI18n();
 </script>

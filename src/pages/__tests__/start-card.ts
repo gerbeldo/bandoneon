@@ -3,8 +3,25 @@
 
 import { nextTick } from 'vue';
 
-import en from '../../locales/en.json';
 import type { AnswerEvent, usePracticeStore } from '../../stores/practice';
+
+// The English strings the components render, shared by the tests that match on them.
+export const LABELS = {
+  start: 'Start',
+  oneLayout: 'One layout',
+  allLayouts: 'All layouts',
+  sweep: 'Sweep this layout',
+  newSession: 'New session',
+  tryAgain: 'Try again',
+  open: 'open',
+  close: 'close',
+  left: 'left',
+  right: 'right',
+  twinExpected: 'Two buttons sound this note — tap either one.',
+  twinFollowUp: 'Now tap the other button that sounds this note.',
+  hintStaffGame:
+    'Tap the button that sounds this note. Right note in the wrong octave counts as partial credit.',
+} as const;
 
 export const buttonNamed = (container: HTMLElement, text: string) =>
   [...container.querySelectorAll('button')].find((b) => b.textContent?.trim() === text);
@@ -16,20 +33,20 @@ export const click = (button?: HTMLElement) =>
 export const dialog = () => document.querySelector('[role="dialog"]');
 
 export async function startSession(container: HTMLElement) {
-  click(buttonNamed(container, en.start_session));
+  click(buttonNamed(container, LABELS.start));
   await nextTick();
 }
 
 // The layout defaults to whatever the store holds; pass a direction to sweep
 // the other one.
 export async function startSweep(container: HTMLElement, direction?: 'open' | 'close') {
-  click(buttonNamed(container, en.one_layout));
+  click(buttonNamed(container, LABELS.oneLayout));
   await nextTick();
   if (direction) {
-    click(buttonNamed(container, en[direction]));
+    click(buttonNamed(container, LABELS[direction]));
     await nextTick();
   }
-  click(buttonNamed(container, en.sweep_layout));
+  click(buttonNamed(container, LABELS.sweep));
   await nextTick();
 }
 

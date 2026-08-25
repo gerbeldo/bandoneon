@@ -1,11 +1,9 @@
 // @vitest-environment jsdom
 import { createHead } from '@unhead/vue/client';
-import { createI18n } from 'petite-vue-i18n';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, describe, expect, it } from 'vitest';
 import { createApp, h, nextTick } from 'vue';
 
-import en from '../../locales/en.json';
 import { usePracticeStore } from '../../stores/practice';
 import Index from '../index.vue';
 
@@ -16,11 +14,9 @@ function mount() {
   setActivePinia(pinia);
   const practice = usePracticeStore();
 
-  const i18n = createI18n({ legacy: false, messages: { en }, locale: 'en', fallbackLocale: 'en' });
   const app = createApp({ render: () => h(Index as never) });
   app.use(pinia);
   app.use(createHead());
-  app.use(i18n);
 
   const container = document.createElement('div');
   document.body.append(container);

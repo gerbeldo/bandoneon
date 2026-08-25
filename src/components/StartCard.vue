@@ -10,7 +10,7 @@
         class="w-32 sm:w-40"
         @click="scope = value"
       >
-        {{ value === 'all' ? t('all_layouts') : t('one_layout') }}
+        {{ value === 'all' ? 'All layouts' : 'One layout' }}
       </Button>
     </ButtonGroup>
 
@@ -18,30 +18,20 @@
     <NavVariant v-if="scope === 'one'" class="w-full" />
 
     <p class="text-center text-sm text-neutral-500 dark:text-neutral-400">
-      {{
-        t('session_info', {
-          prompts: preview.prompts,
-          newLeft: preview.newLeft,
-          seen: preview.seen,
-          total: preview.total,
-        })
-      }}
+      {{ sessionInfo }}
     </p>
 
     <!-- Nothing to draw: the day's new items are spent and this scope holds
          nothing seen yet. The sweep still works. -->
     <Button primary class="w-48" :disabled="preview.prompts === 0" @click="emit('start')">
-      {{ t('start_session') }}
+      Start
     </Button>
-    <Button v-if="scope === 'one'" data-sweep @click="emit('sweep')">
-      {{ t('sweep_layout') }}
-    </Button>
+    <Button v-if="scope === 'one'" data-sweep @click="emit('sweep')"> Sweep this layout </Button>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'petite-vue-i18n';
-import { onMounted, onUnmounted } from 'vue';
+import { computed, onMounted, onUnmounted } from 'vue';
 
 import type { SessionPreview } from '../utils/scheduler';
 import Button from './Button.vue';
@@ -54,7 +44,10 @@ const emit = defineEmits<{ start: []; sweep: [] }>();
 
 const scope = defineModel<'all' | 'one'>({ required: true });
 
-const { t } = useI18n();
+const sessionInfo = computed(() => {
+  const { prompts, newLeft, seen, total } = props.preview;
+  return `${prompts} prompts · ${newLeft} new left today · ${seen} of ${total} seen`;
+});
 
 // Enter means Start anywhere on the card, whichever control the player last
 // touched — only the sweep keeps its own. Space still works the scope buttons.

@@ -2,16 +2,15 @@
   <div
     class="mb-2 flex flex-wrap items-center justify-center gap-x-3 text-sm text-neutral-500 sm:mb-4 dark:text-neutral-400 print:hidden"
   >
-    <span>{{ t('strip_prompt', { index: promptNumber, total }) }}</span>
+    <span>{{ promptText }}</span>
     <span aria-hidden="true">·</span>
     <span>{{ newTodayText }}</span>
     <span aria-hidden="true">·</span>
-    <span>{{ t('strip_seen', { seen: preview.seen, total: preview.total }) }}</span>
+    <span>{{ seenText }}</span>
   </div>
 </template>
 
 <script setup lang="ts">
-import { useI18n } from 'petite-vue-i18n';
 import { computed } from 'vue';
 
 import type { SessionPreview } from '../utils/scheduler';
@@ -27,7 +26,9 @@ const props = defineProps<{
   preview: SessionPreview;
 }>();
 
-const { t } = useI18n();
+const promptText = computed(() => `Prompt ${props.promptNumber} of ${props.total}`);
+
+const seenText = computed(() => `${props.preview.seen} of ${props.preview.total} seen`);
 
 // The cap binds sessions, not sweeps: a sweep of an untouched layout introduces
 // far more than three, and "38 of 3" would be nonsense. Past the cap the strip
@@ -35,7 +36,7 @@ const { t } = useI18n();
 const newTodayText = computed(() => {
   const count = props.preview.newToday;
   return count > DAILY_NEW_ITEMS
-    ? t('strip_new_today_over', { count })
-    : t('strip_new_today', { count, cap: DAILY_NEW_ITEMS });
+    ? `${count} new today`
+    : `${count} of ${DAILY_NEW_ITEMS} new today`;
 });
 </script>

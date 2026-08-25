@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 import { createHead } from '@unhead/vue/client';
-import { createI18n } from 'petite-vue-i18n';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp, h, nextTick } from 'vue';
 
 import { instruments } from '../../data/index';
-import en from '../../locales/en.json';
 import { useStore } from '../../stores/main';
 import { usePracticeStore } from '../../stores/practice';
 import { useSettingsStore } from '../../stores/settings';
@@ -17,6 +15,7 @@ import {
   DIRECTION_COLORS,
   click,
   dialog,
+  LABELS,
   seed,
   startSession,
   startSweep,
@@ -38,11 +37,9 @@ function mount(legacySettings?: Record<string, unknown>) {
   // Mimics App.vue hydrating a persisted blob; stale keys must not change behavior.
   if (legacySettings) settings.$patch(legacySettings as never);
 
-  const i18n = createI18n({ legacy: false, messages: { en }, locale: 'en', fallbackLocale: 'en' });
   const app = createApp({ render: () => h(Game as never) });
   app.use(pinia);
   app.use(createHead());
-  app.use(i18n);
 
   const container = document.createElement('div');
   document.body.append(container);
@@ -215,7 +212,7 @@ describe('note game start card', () => {
     const { container, practice } = mount();
     await nextTick();
 
-    expect(container.textContent).toContain(en.start_session);
+    expect(container.textContent).toContain(LABELS.start);
     expect(circles(container)).toHaveLength(0);
     expect(practice.items).toEqual({});
   });
@@ -235,12 +232,12 @@ describe('note game start card', () => {
 
     expect(layouts.size).toBeGreaterThan(1);
     expect(Object.values(practice.items).flatMap((item) => item.answers)).toHaveLength(80);
-    expect(dialog()?.textContent).toContain(en.new_session);
+    expect(dialog()?.textContent).toContain(LABELS.newSession);
 
     // Dismissing the summary hands the page back to the card.
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await nextTick();
-    expect(container.textContent).toContain(en.start_session);
+    expect(container.textContent).toContain(LABELS.start);
   });
 
   it('labels the sweep’s summary as a repeat, not a new session', async () => {
@@ -249,8 +246,8 @@ describe('note game start card', () => {
 
     for (let i = 0; i < 40 && !dialog(); i++) await answerAnything(container);
 
-    expect(dialog()?.textContent).toContain(en.try_again);
-    expect(dialog()?.textContent).not.toContain(en.new_session);
+    expect(dialog()?.textContent).toContain(LABELS.tryAgain);
+    expect(dialog()?.textContent).not.toContain(LABELS.newSession);
   });
 });
 
@@ -269,7 +266,7 @@ describe('note game session strip and direction badge', () => {
     await startSession(container);
 
     // The side and direction pickers are gone; only note and octave buttons remain.
-    expect(buttons(container).map((b) => b.textContent?.trim())).not.toContain(en.open);
+    expect(buttons(container).map((b) => b.textContent?.trim())).not.toContain(LABELS.open);
     expect(container.textContent).toContain(strip(1, 20, '0 of 3 new today', 60, 142));
 
     // The draw leads with the day's three never-seen items, so the first answer
@@ -294,7 +291,7 @@ describe('note game session strip and direction badge', () => {
     await startSweep(container, 'open');
 
     expect(badge(container)?.getAttribute('data-direction')).toBe('open');
-    expect(badge(container)?.textContent).toContain(en.open);
+    expect(badge(container)?.textContent).toContain(LABELS.open);
     expect(badge(container)?.className).toContain(DIRECTION_COLORS.open);
   });
 
@@ -303,7 +300,7 @@ describe('note game session strip and direction badge', () => {
     await startSweep(container, 'close');
 
     expect(badge(container)?.getAttribute('data-direction')).toBe('close');
-    expect(badge(container)?.textContent).toContain(en.close);
+    expect(badge(container)?.textContent).toContain(LABELS.close);
     expect(badge(container)?.className).toContain(DIRECTION_COLORS.close);
   });
 

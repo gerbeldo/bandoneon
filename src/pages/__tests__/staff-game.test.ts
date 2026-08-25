@@ -1,12 +1,10 @@
 // @vitest-environment jsdom
 import { createHead } from '@unhead/vue/client';
-import { createI18n } from 'petite-vue-i18n';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createApp, h, nextTick } from 'vue';
 
 import { instruments } from '../../data/index';
-import en from '../../locales/en.json';
 import { useStore } from '../../stores/main';
 import { usePracticeStore } from '../../stores/practice';
 import { introductionOrder } from '../../utils/introduction';
@@ -17,6 +15,7 @@ import {
   DIRECTION_COLORS,
   click,
   dialog,
+  LABELS,
   seed,
   startSession,
   startSweep,
@@ -36,11 +35,9 @@ function mount(
   const practice = usePracticeStore();
   store.$patch({ side, direction });
 
-  const i18n = createI18n({ legacy: false, messages: { en }, locale: 'en', fallbackLocale: 'en' });
   const app = createApp({ render: () => h(StaffGame as never) });
   app.use(pinia);
   app.use(createHead());
-  app.use(i18n);
 
   const container = document.createElement('div');
   document.body.append(container);
@@ -78,21 +75,21 @@ describe('staff game', () => {
 
   it('offers the side and direction controls on the card, prefilled with the last layout', async () => {
     const { container } = mount('right', 'open');
-    click(buttonNamed(container, en.one_layout));
+    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
 
     expect(buttons(container).map((b) => b.textContent?.trim())).toEqual([
-      en.all_layouts,
-      en.one_layout,
+      LABELS.allLayouts,
+      LABELS.oneLayout,
       'left',
       'right',
       'close',
       'open',
-      en.start_session,
-      en.sweep_layout,
+      LABELS.start,
+      LABELS.sweep,
     ]);
     const pressed = buttons(container).filter((b) => b.getAttribute('aria-pressed') === 'true');
-    expect(pressed.map((b) => b.textContent?.trim())).toEqual([en.one_layout, 'right', 'open']);
+    expect(pressed.map((b) => b.textContent?.trim())).toEqual([LABELS.oneLayout, 'right', 'open']);
     for (const button of buttons(container)) expect(button.disabled).toBe(false);
   });
 
@@ -109,11 +106,11 @@ describe('staff game', () => {
 
   it('follows a change of side or direction on the card onto the new layout', async () => {
     const { container, store } = mount('left', 'close');
-    click(buttonNamed(container, en.one_layout));
+    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
     click(buttonNamed(container, 'right'));
     await nextTick();
-    click(buttonNamed(container, en.sweep_layout));
+    click(buttonNamed(container, LABELS.sweep));
     await nextTick();
 
     expect(store.side).toBe('right');
@@ -127,7 +124,7 @@ describe('staff game', () => {
 
     // Side is read off the keyboard; direction is the badge's job.
     expect(buttons(container)).toHaveLength(0);
-    expect(badge(container)?.textContent).toContain(en.close);
+    expect(badge(container)?.textContent).toContain(LABELS.close);
   });
 });
 
@@ -245,17 +242,17 @@ describe('staff game duplicate-pitch follow-up', () => {
     await startSweep(container);
     const text = () => container.textContent ?? '';
     const { first, second } = e5Twins(store);
-    expect(text()).toContain(en.hint_staff_game);
+    expect(text()).toContain(LABELS.hintStaffGame);
 
     for (let i = 0; i < first; i++) await answerCorrectly(container, i);
     expect(text()).toContain(`Prompt ${first + 1} of 38`);
-    expect(text()).toContain(en.twin_expected);
+    expect(text()).toContain(LABELS.twinExpected);
 
     await answerCorrectly(container, first);
     expect(circles(container)[first].getAttribute('fill')).toBe(GREEN);
     // The follow-up grew the denominator: 38 prompts became 39.
     expect(text()).toContain(`Prompt ${first + 2} of 39`);
-    expect(text()).toContain(en.twin_follow_up);
+    expect(text()).toContain(LABELS.twinFollowUp);
 
     tap(container, second);
     await nextTick();
@@ -266,8 +263,8 @@ describe('staff game duplicate-pitch follow-up', () => {
     vi.advanceTimersByTime(1_000);
     await nextTick();
     expect(text()).toContain(`Prompt ${first + 3} of 39`);
-    expect(text()).toContain(en.hint_staff_game);
-    expect(text()).not.toContain(en.twin_follow_up);
+    expect(text()).toContain(LABELS.hintStaffGame);
+    expect(text()).not.toContain(LABELS.twinFollowUp);
   });
 
   it('counts every answer in the summary: a correct sweep with both follow-ups is 40', async () => {
@@ -316,7 +313,7 @@ describe('start card', () => {
     const { container, practice } = mount('right', 'open');
     await nextTick();
 
-    expect(text(container)).toContain(en.start_session);
+    expect(text(container)).toContain(LABELS.start);
     expect(keys(container)).toHaveLength(0);
     expect(practice.items).toEqual({});
   });
@@ -339,7 +336,7 @@ describe('start card', () => {
     await nextTick();
     expect(text(container)).toContain('15 prompts · 3 new left today · 12 of 142 seen');
 
-    click(buttonNamed(container, en.one_layout));
+    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
     expect(text(container)).toContain('8 prompts · 3 new left today · 5 of 38 seen');
   });
@@ -347,15 +344,15 @@ describe('start card', () => {
   it('offers the sweep only in the one-layout state', async () => {
     const { container } = mount('right', 'open');
     await nextTick();
-    expect(buttonNamed(container, en.sweep_layout)).toBeUndefined();
+    expect(buttonNamed(container, LABELS.sweep)).toBeUndefined();
 
-    click(buttonNamed(container, en.one_layout));
+    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
-    expect(buttonNamed(container, en.sweep_layout)).toBeDefined();
+    expect(buttonNamed(container, LABELS.sweep)).toBeDefined();
 
-    click(buttonNamed(container, en.all_layouts));
+    click(buttonNamed(container, LABELS.allLayouts));
     await nextTick();
-    expect(buttonNamed(container, en.sweep_layout)).toBeUndefined();
+    expect(buttonNamed(container, LABELS.sweep)).toBeUndefined();
   });
 
   it('cannot start an empty session when the day’s new items are spent', async () => {
@@ -369,21 +366,21 @@ describe('start card', () => {
       };
     }
     await nextTick();
-    click(buttonNamed(container, en.one_layout));
+    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
     click(buttonNamed(container, 'left'));
     click(buttonNamed(container, 'close'));
     await nextTick();
 
     expect(text(container)).toContain('0 prompts · 0 new left today · 0 of 33 seen');
-    expect(buttonNamed(container, en.start_session)?.disabled).toBe(true);
+    expect(buttonNamed(container, LABELS.start)?.disabled).toBe(true);
 
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter' }));
     await nextTick();
     expect(keys(container)).toHaveLength(0);
 
     // The sweep is still open to the player.
-    click(buttonNamed(container, en.sweep_layout));
+    click(buttonNamed(container, LABELS.sweep));
     await nextTick();
     expect(keys(container).length).toBeGreaterThan(0);
   });
@@ -396,13 +393,13 @@ describe('start card', () => {
     await nextTick();
 
     expect(keys(container).length).toBeGreaterThan(0);
-    expect(buttonNamed(container, en.start_session)).toBeUndefined();
+    expect(buttonNamed(container, LABELS.start)).toBeUndefined();
   });
 
   it('starts a session on Enter after the player has touched the scope control', async () => {
     const { container } = mount('right', 'open');
     await nextTick();
-    const scopeButton = buttonNamed(container, en.one_layout);
+    const scopeButton = buttonNamed(container, LABELS.oneLayout);
     click(scopeButton);
     await nextTick();
 
@@ -415,22 +412,22 @@ describe('start card', () => {
   it('leaves Enter on the sweep button to the sweep', async () => {
     const { container, practice } = mount('right', 'open');
     await nextTick();
-    click(buttonNamed(container, en.one_layout));
+    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
 
-    const sweepButton = buttonNamed(container, en.sweep_layout);
+    const sweepButton = buttonNamed(container, LABELS.sweep);
     sweepButton?.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
     await nextTick();
 
     // Nothing started: the button's own Enter would have swept, and jsdom does
     // not synthesize that click, so the card is still up.
-    expect(buttonNamed(container, en.start_session)).toBeDefined();
+    expect(buttonNamed(container, LABELS.start)).toBeDefined();
     expect(practice.items).toEqual({});
   });
 
   it('keeps the scope for this game through the browser session, and resets on a fresh visit', async () => {
     const first = mount('right', 'open');
-    click(buttonNamed(first.container, en.one_layout));
+    click(buttonNamed(first.container, LABELS.oneLayout));
     await nextTick();
     expect(first.store.sessionScope).toEqual({ forward: 'all', reverse: 'one' });
 
@@ -441,14 +438,14 @@ describe('start card', () => {
     const pressed = buttons(again.container).filter(
       (b) => b.getAttribute('aria-pressed') === 'true',
     );
-    expect(pressed.map((b) => b.textContent?.trim())).toContain(en.one_layout);
+    expect(pressed.map((b) => b.textContent?.trim())).toContain(LABELS.oneLayout);
 
     // A fresh visit: a new store, back to all layouts.
     cleanup?.();
     const fresh = mount('right', 'open');
     await nextTick();
     expect(fresh.store.sessionScope.reverse).toBe('all');
-    expect(buttonNamed(fresh.container, en.sweep_layout)).toBeUndefined();
+    expect(buttonNamed(fresh.container, LABELS.sweep)).toBeUndefined();
   });
 });
 
@@ -487,7 +484,7 @@ describe('sessions', () => {
     await playOut(container, () => {
       const badged = badge(container);
       expect(badged?.getAttribute('data-direction')).toBe(store.direction);
-      expect(badged?.textContent).toContain(en[store.direction]);
+      expect(badged?.textContent).toContain(LABELS[store.direction]);
       expect(badged?.className).toContain(DIRECTION_COLORS[store.direction]);
       shown.add(`${store.side}/${store.direction}`);
     });
@@ -500,7 +497,7 @@ describe('sessions', () => {
     const { container, store, practice } = mount('left', 'close');
     seed(practice, layoutKeys('left', 'close'), 'staff-game');
     await nextTick();
-    click(buttonNamed(container, en.one_layout));
+    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
     await startSession(container);
 
@@ -515,16 +512,16 @@ describe('sessions', () => {
     const { container, store, practice } = mount('right', 'open');
     seed(practice, layoutKeys('right', 'open').slice(0, 4), 'staff-game');
     await nextTick();
-    click(buttonNamed(container, en.one_layout));
+    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
     await startSession(container);
     await playOut(container);
 
-    expect(dialog()?.textContent).toContain(en.new_session);
+    expect(dialog()?.textContent).toContain(LABELS.newSession);
     expect(dialog()?.textContent).toMatch(/\d+ correct/);
 
     // One tap starts the next session, same scope.
-    click(buttonNamed(document.body, en.new_session));
+    click(buttonNamed(document.body, LABELS.newSession));
     await nextTick();
     expect(dialog()).toBeNull();
     expect(store.sessionScope.reverse).toBe('one');
@@ -535,7 +532,7 @@ describe('sessions', () => {
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));
     await nextTick();
     expect(dialog()).toBeNull();
-    expect(text(container)).toContain(en.start_session);
+    expect(text(container)).toContain(LABELS.start);
   });
 
   it('keeps the layout the player picked through a chain of all-layout sessions', async () => {
@@ -544,18 +541,18 @@ describe('sessions', () => {
     seed(practice, pool().slice(0, 60), 'staff-game');
     await nextTick();
     // Pick a layout, then hand the scope back to all layouts.
-    click(buttonNamed(container, en.one_layout));
+    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
     click(buttonNamed(container, 'left'));
     click(buttonNamed(container, 'close'));
     await nextTick();
-    click(buttonNamed(container, en.all_layouts));
+    click(buttonNamed(container, LABELS.allLayouts));
     await nextTick();
 
     await startSession(container);
     await playOut(container);
     // Chaining from the summary must not adopt the last prompt's layout.
-    click(buttonNamed(document.body, en.new_session));
+    click(buttonNamed(document.body, LABELS.newSession));
     await nextTick();
     await playOut(container);
     document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape' }));

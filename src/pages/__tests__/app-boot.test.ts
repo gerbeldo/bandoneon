@@ -1,13 +1,11 @@
 // @vitest-environment jsdom
 import { createHead } from '@unhead/vue/client';
-import { createI18n } from 'petite-vue-i18n';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { createApp, defineComponent, h } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
 import App from '../../App.vue';
-import en from '../../locales/en.json';
 import { useStore } from '../../stores/main';
 import { usePracticeStore } from '../../stores/practice';
 import { useSettingsStore } from '../../stores/settings';
@@ -22,13 +20,10 @@ async function mountApp() {
     history: createMemoryHistory(),
     routes: [{ path: '/:path(.*)*', component: defineComponent({ render: () => h('div') }) }],
   });
-  const i18n = createI18n({ legacy: false, messages: { en }, locale: 'en', fallbackLocale: 'en' });
-
   const app = createApp({ render: () => h(App as never) });
   app.use(pinia);
   app.use(router);
   app.use(createHead());
-  app.use(i18n);
   await router.isReady();
 
   const container = document.createElement('div');
@@ -53,11 +48,11 @@ describe('app boot persistence', () => {
   it('persists both versioned blobs on a first visit', async () => {
     await mountApp();
 
-    expect(JSON.parse(localStorage.getItem('settings')!).version).toBe(1);
+    expect(JSON.parse(localStorage.getItem('settings')!).version).toBe(2);
     expect(JSON.parse(localStorage.getItem('practice')!)).toEqual({ version: 1, items: {} });
   });
 
-  it('migrates a legacy settings blob on boot, dropping only difficulty', async () => {
+  it('migrates a legacy settings blob on boot, dropping difficulty and locale', async () => {
     localStorage.setItem(
       'settings',
       JSON.stringify({ instrument: 'rheinische142', locale: 'es', difficulty: 'easy' }),
@@ -66,11 +61,13 @@ describe('app boot persistence', () => {
     await mountApp();
 
     const settings = useSettingsStore();
-    expect(settings.locale).toBe('es');
+    expect(settings.instrument).toBe('rheinische142');
     expect('difficulty' in settings.$state).toBe(false);
+    expect('locale' in settings.$state).toBe(false);
     const persisted = JSON.parse(localStorage.getItem('settings')!);
-    expect(persisted.version).toBe(1);
+    expect(persisted.version).toBe(2);
     expect('difficulty' in persisted).toBe(false);
+    expect('locale' in persisted).toBe(false);
   });
 
   it('backs up a corrupt practice blob and starts fresh on boot', async () => {

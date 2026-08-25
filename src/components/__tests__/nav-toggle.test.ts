@@ -1,10 +1,8 @@
 // @vitest-environment jsdom
-import { createI18n } from 'petite-vue-i18n';
 import { createPinia } from 'pinia';
 import { describe, expect, it } from 'vitest';
 import { createApp, h, nextTick } from 'vue';
 
-import en from '../../locales/en.json';
 import { useStore } from '../../stores/main';
 import NavDisplay from '../NavDisplay.vue';
 import NavTonic from '../NavTonic.vue';
@@ -13,7 +11,6 @@ const mount = (component: unknown, props: Record<string, unknown> = {}) => {
   const pinia = createPinia();
   const app = createApp({ render: () => h(component as never, props) });
   app.use(pinia);
-  app.use(createI18n({ legacy: false, messages: { en }, locale: 'en', fallbackLocale: 'en' }));
   const el = document.createElement('div');
   app.mount(el);
   return { store: useStore(pinia), el };

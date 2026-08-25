@@ -29,10 +29,10 @@
     <div class="mx-auto max-w-(--breakpoint-md) shrink-0 px-6 pb-4 sm:pb-6">
       <SessionStrip :prompt-number="promptNumber" :total="total" :preview="preview" />
       <p class="mb-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
-        {{ t('hint_game') }}
+        Name the highlighted button — pick the note, then the octave.
       </p>
       <p class="mb-2 hidden text-center text-sm text-neutral-500 sm:block dark:text-neutral-400">
-        {{ t('hint_game_keyboard') }}
+        Keyboard: letters for notes, hold Shift for sharps, digits for the octave.
       </p>
       <NavTonic />
       <div class="mb-2 flex flex-wrap justify-center">
@@ -67,7 +67,6 @@
 
 <script setup lang="ts">
 import { useHead } from '@unhead/vue';
-import { useI18n } from 'petite-vue-i18n';
 import { storeToRefs } from 'pinia';
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
@@ -110,8 +109,6 @@ const {
 } = useSession({ quizDirection: 'forward', mode: 'note-game' });
 
 const oct = ref<number | null>(null);
-
-const { t } = useI18n();
 
 const store = useStore();
 const { tonic, keyPositions } = storeToRefs(store);

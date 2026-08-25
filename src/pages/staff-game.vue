@@ -76,7 +76,6 @@
 
 <script setup lang="ts">
 import { useHead } from '@unhead/vue';
-import { useI18n } from 'petite-vue-i18n';
 import { storeToRefs } from 'pinia';
 import { Note } from 'tonal';
 import { computed, onUnmounted, ref, watch } from 'vue';
@@ -98,6 +97,9 @@ useHead({ title: 'Staff game – Bandoneon.app' });
 const SCORE_COLORS = ['#ef4444', '#eab308', '#22c55e'] as const; // red-500, yellow-500, green-500
 const FLASH_MS = 700;
 const PAUSE_MS = 900;
+
+const STAFF_HINT =
+  'Tap the button that sounds this note. Right note in the wrong octave counts as partial credit.';
 
 // The session engine draws each prompt (the pitch this page puts on the staff),
 // resolves the tapped position to a pitch, grades, and records (ADR 0004); this
@@ -126,8 +128,6 @@ const flash = ref<{ idx: number; score: Grade } | null>(null);
 let pauseTimer: ReturnType<typeof setTimeout> | null = null;
 let flashTimer: ReturnType<typeof setTimeout> | null = null;
 
-const { t } = useI18n();
-
 const store = useStore();
 const { side, keyPositions, showEnharmonics } = storeToRefs(store);
 
@@ -137,9 +137,9 @@ const quizzedSpelled = computed(() => (prompt.value ? spell(prompt.value.pitch) 
 
 // The twin-expected marker takes the hint's place, adding no height on phones.
 const hint = computed(() => {
-  if (prompt.value?.twin === 'follow-up') return t('twin_follow_up');
-  if (prompt.value?.twin === 'expected') return t('twin_expected');
-  return t('hint_staff_game');
+  if (prompt.value?.twin === 'follow-up') return 'Now tap the other button that sounds this note.';
+  if (prompt.value?.twin === 'expected') return 'Two buttons sound this note — tap either one.';
+  return STAFF_HINT;
 });
 
 // A correct tap recolors the quizzed note green; wrong and partial taps keep it

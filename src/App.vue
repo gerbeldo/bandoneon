@@ -12,8 +12,6 @@
 
 <script setup lang="ts">
 import { useHead } from '@unhead/vue';
-import { useI18n } from 'petite-vue-i18n';
-import { watchEffect } from 'vue';
 
 import AppFooter from './components/AppFooter.vue';
 import AppHeader from './components/AppHeader.vue';
@@ -25,13 +23,6 @@ import { persistStore } from './utils/storage';
 useHead({ title: 'Bandoneon.app' });
 
 const settings = useSettingsStore();
-const { locale } = useI18n();
-
-watchEffect(() => {
-  const lang = settings.locale;
-  locale.value = lang;
-  window!.document.querySelector('html')!.lang = lang;
-});
 
 // Versioned localStorage persistence (ADR 0003): migrations run before hydration.
 persistStore(settings, settingsStorage, (blob) => {
