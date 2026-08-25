@@ -12,11 +12,13 @@ A little JavaScript application that wants to help learning the bandoneon.
   note labeled, plus chord and scale overlays.
 - **Practice** opens on a setup screen: pick the game (name the highlighted
   button, or find the note shown on the staff), the layouts (a side or both, a
-  bellows direction or both), the items — scheduled by the app under a daily
-  cap of new items, or simply the first N of the learning order — and whether
-  accidentals are spelled as sharps, flats,
-  or a random mix of the two. Every answer is remembered per button, so scheduled sessions come
-  back to what you miss. The setup is remembered between visits.
+  bellows direction or both), the scale (every note, or a major or minor key),
+  the items — scheduled by the app under a daily cap of new items, the first N
+  of the learning order, or every note up and back down in pitch order, one
+  layout at a time — and whether accidentals are spelled as sharps, flats, or a
+  random mix of the two (a key spells its own). Every answer is remembered per
+  button, so scheduled sessions come back to what you miss. The setup is
+  remembered between visits.
 
 ## About this fork
 

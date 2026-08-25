@@ -90,20 +90,32 @@ _Avoid_: round
 The layouts a run draws from, set one axis at a time on the practice setup: a side or both, a direction or both. Both and both is all four layouts (the default); a side alone is its two layouts; a side and a direction is one layout. Persisted with the setup.
 _Avoid_: filter, layout selection
 
+**Scale**:
+The notes a run draws from, chosen on the practice setup: Chromatic (every note), or Major or Minor in one key. Narrows the pool beside the session scope, so it works with scheduled sessions, fixed runs, and walks alike; membership is by sound, so spelling never matters. Persisted with the setup (ADR 0006).
+_Avoid_: note filter, tonality
+
+**Key**:
+A scale kind on one of the twelve tonics — F major, E♭ minor — named the conventional way, so the six-accidental keys go by F♯ major and E♭ minor. A key's accidentals are all sharps or all flats, and that is the spelling its runs use.
+_Avoid_: tonic (alone — that is the chroma the key sits on), root
+
 **Practice setup**:
-The screen the practice page opens on: the game, the session scope, the items (scheduled, or the first N), the spelling, a summary line, and Start. Play never begins without it; dismissing the summary returns to it; every choice on it is persisted (ADR 0005).
+The screen the practice page opens on: the game, the session scope, the scale, the items (scheduled, the first N, or the walk), the spelling, a summary line, and Start. Play never begins without it; dismissing the summary returns to it; every choice on it is persisted (ADR 0005).
 _Avoid_: start card, start screen, lobby, config screen
 
 **Fixed run**:
-A run over the first N items of the introduction order inside the session scope, shuffled, each asked once, with no daily cap. What "First N" on the practice setup starts. "Run" alone means a session or a fixed run.
+A run over the first N items of the introduction order inside the session scope and scale, shuffled, each asked once, with no daily cap. What "First N" on the practice setup starts. "Run" alone means a session, a fixed run, or a walk.
 _Avoid_: drill, ordered run, custom session
+
+**Walk**:
+A run over every item of the session scope and scale in pitch order — up from the lowest note to the highest, then back down without repeating the top — one layout at a time, right hand before left, open before close. What "Up and down" on the practice setup starts; no daily cap; records through the same seam as sessions. A pitch-prompted walk lists a twin pitch once per pass and lets the follow-up ask for the other button. The chromatic walk is the walk under Chromatic.
+_Avoid_: scale run, ladder, sweep (that is the fixed run over a whole layout)
 
 **Sweep**:
 The fixed run over every item of one layout — the items slider at its far end with one layout chosen. Records through the same seam as sessions.
 _Avoid_: full-keyboard round
 
 **Spelling**:
-Which name an accidental goes by in a run: sharps or flats, chosen on the practice setup. Under Both, each accidental item is named as a sharp or a flat, drawn at random when the run starts. Every prompt carries its spelling, and a button answered in a run keeps the name it was asked under; Explore's ♯/♭ toggle is not touched.
+Which name an accidental goes by in a run: under Chromatic, sharps or flats as chosen on the practice setup; under a key, the key's own. Under Both, each accidental item is named as a sharp or a flat, drawn at random when the run starts and kept however often the run comes back to it. Every prompt carries its spelling, and a button answered in a run keeps the name it was asked under; Explore's ♯/♭ toggle is not touched.
 _Avoid_: enharmonics toggle (that is Explore's ♯/♭ button), notation (that is pitch notation)
 
 **Direction badge**:

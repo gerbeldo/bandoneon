@@ -32,8 +32,12 @@ export function accidentalGlyphs(name: string): string {
   return name.replace('#', '♯').replace('b', '♭');
 }
 
+// A pitch class as written — no respelling — in letters or solfège.
+export function formatPitchClass(pc: string, notation: string): string {
+  return accidentalGlyphs(notation === 'solfege' ? scientificToSolfegeNotation(pc) : pc);
+}
+
 // A pitch class as the palette prints it: respelled, in letters or solfège.
 export function displayPitchClass(pc: string, spelling: Spelling, notation: string): string {
-  const spelled = spellPitch(pc, spelling);
-  return accidentalGlyphs(notation === 'solfege' ? scientificToSolfegeNotation(spelled) : spelled);
+  return formatPitchClass(spellPitch(pc, spelling), notation);
 }

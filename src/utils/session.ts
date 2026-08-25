@@ -68,6 +68,13 @@ export function layoutGrid(instrument: Instrument, side: Side, direction: Direct
   return instrument[side]?.[direction] ?? [];
 }
 
+// The pitch an item key names, read off the grid it was keyed from (ADR 0002);
+// '' for a key naming an empty cell.
+export function pitchOfKey(layouts: Instrument, key: string): string {
+  const { side, direction, row, column } = parseItemKey(key);
+  return layoutGrid(layouts, side, direction)[row]?.[column] ?? '';
+}
+
 export interface GridButton {
   row: number;
   column: number;
@@ -168,7 +175,8 @@ export interface SessionOptions {
   instrument: string;
   quizDirection: QuizDirection;
   mode: string;
-  // The item keys to prompt, in prompt order (already shuffled by the caller).
+  // The item keys to prompt, in prompt order (already shuffled by the caller);
+  // a key may repeat — a walk asks each item on the way up and on the way down.
   draw: string[];
   // Sharps unless set; 'both' names each accidental item as a sharp or a flat,
   // drawn at random for this run.
@@ -213,10 +221,18 @@ export function createSession(options: SessionOptions): SessionEngine {
 
   const spelling = options.spelling ?? 'sharp';
   const random = options.random ?? Math.random;
+  // One name per item for the whole run, however often a walk comes back to it.
+  const drawnSpellings = new Map<string, Spelling>();
   const spellingFor = (item: { layout: Layout; buttonIndex: number }): Spelling => {
     if (spelling !== 'both') return spelling;
     if (!isAccidental(buttonsFor(item.layout)[item.buttonIndex].pitch)) return 'sharp';
-    return random() < 0.5 ? 'sharp' : 'flat';
+    const id = `${layoutKey(item.layout)}/${item.buttonIndex}`;
+    let drawn = drawnSpellings.get(id);
+    if (!drawn) {
+      drawn = random() < 0.5 ? 'sharp' : 'flat';
+      drawnSpellings.set(id, drawn);
+    }
+    return drawn;
   };
   const draw: DrawnPrompt[] = items.map((item) => ({ ...item, spelling: spellingFor(item) }));
 

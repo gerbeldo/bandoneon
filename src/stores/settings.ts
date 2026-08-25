@@ -1,6 +1,8 @@
 import { defineStore } from 'pinia';
 import { ref } from 'vue';
 
+import type { ScaleChoice } from '../utils/scale';
+import { CHROMA_COUNT, CHROMATIC, SCALE_KINDS } from '../utils/scale';
 import type { SessionScope } from '../utils/scheduler';
 import { ALL_LAYOUTS, DAILY_NEW_ITEMS, SESSION_SIZE } from '../utils/scheduler';
 import type { SpellingChoice } from '../utils/spelling';
@@ -31,7 +33,11 @@ export const settingsStorage: StorageSpec = {
 };
 
 export type PracticeGame = 'note' | 'staff';
-export type PracticePool = 'scheduled' | 'fixed';
+// Scheduled: the scheduler draws under the daily cap. Fixed: the first N items
+// of the introduction order, shuffled. Walk: every item in pitch order, up and
+// back down, one layout at a time. Neither of the last two has a cap.
+export type PracticePool = 'scheduled' | 'fixed' | 'walk';
+export const PRACTICE_POOLS: PracticePool[] = ['scheduled', 'fixed', 'walk'];
 
 // Everything the practice setup screen chooses; persisted so a run can be
 // repeated tomorrow without setting anything again.
@@ -39,9 +45,10 @@ export interface PracticeSetup {
   game: PracticeGame;
   // The layouts a run draws from: a side or both, a direction or both.
   scope: SessionScope;
-  // Scheduled: the scheduler draws under the daily cap. Fixed: the first
-  // `fixedCount` items of the introduction order, each asked once, no cap.
+  // The notes a run draws from: every note, or one key's major or minor scale.
+  scale: ScaleChoice;
   pool: PracticePool;
+  // The N of a fixed run.
   fixedCount: number;
   sessionSize: number;
   dailyNewItems: number;
@@ -56,6 +63,7 @@ export function defaultPracticeSetup(): PracticeSetup {
   return {
     game: 'note',
     scope: { ...ALL_LAYOUTS },
+    scale: { ...CHROMATIC },
     pool: 'scheduled',
     fixedCount: 20,
     sessionSize: SESSION_SIZE,
@@ -73,6 +81,8 @@ export function sanitizePracticeSetup(value: unknown): PracticeSetup {
   const fallback = defaultPracticeSetup();
   const stored = asRecord(value);
   const scope = asRecord(stored.scope);
+  const scale = asRecord(stored.scale);
+  const tonic = scale.tonic;
   const count = stored.fixedCount;
   return {
     game: oneOf(stored.game, ['note', 'staff'], fallback.game),
@@ -80,7 +90,14 @@ export function sanitizePracticeSetup(value: unknown): PracticeSetup {
       side: oneOf(scope.side, ['both', 'right', 'left'], fallback.scope.side),
       direction: oneOf(scope.direction, ['both', 'open', 'close'], fallback.scope.direction),
     },
-    pool: oneOf(stored.pool, ['scheduled', 'fixed'], fallback.pool),
+    scale: {
+      kind: oneOf(scale.kind, SCALE_KINDS, fallback.scale.kind),
+      tonic:
+        typeof tonic === 'number' && Number.isInteger(tonic) && tonic >= 0 && tonic < CHROMA_COUNT
+          ? tonic
+          : fallback.scale.tonic,
+    },
+    pool: oneOf(stored.pool, PRACTICE_POOLS, fallback.pool),
     fixedCount:
       typeof count === 'number' && Number.isInteger(count) && count >= 1
         ? count

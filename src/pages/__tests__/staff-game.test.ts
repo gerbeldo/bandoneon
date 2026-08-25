@@ -25,6 +25,7 @@ import {
   start,
   strip,
   unmountPractice,
+  walkOrder,
 } from './practice-helpers';
 
 const RIGHT_OPEN: Layout = { side: 'right', direction: 'open' };
@@ -322,6 +323,56 @@ describe('staff game duplicate-pitch follow-up', () => {
 
     expect(text(container)).toContain('Prompt 40 of 40');
     expect(document.body.textContent).toContain('40 correct');
+  });
+});
+
+// A walk lists a twin pitch once per pass in a pitch-prompted mode, so the E5
+// the engine asks for arrives mid-climb with its follow-up behind it.
+describe('staff game walk', () => {
+  const CLOSE: Layout = { side: 'right', direction: 'close' };
+  const ORDER = walkOrder('reverse', CLOSE);
+  const PITCHES = ORDER.map(pitchOf);
+  const E5 = PITCHES.indexOf('E5');
+  const buttonAt = (position: number) => buttonIndexOf(ORDER[position]);
+  // The twin the walk left out, which the follow-up asks for.
+  const OTHER_E5 = layoutButtons(CLOSE.side, CLOSE.direction).findIndex(
+    (button, index) => button.pitch === 'E5' && index !== buttonAt(E5),
+  );
+
+  async function answerCorrectly(container: HTMLElement, idx: number) {
+    tap(container, idx);
+    vi.advanceTimersByTime(1_000);
+    await nextTick();
+  }
+
+  it('asks for the other E5 mid-climb, then goes on with F5', async () => {
+    vi.useFakeTimers();
+    const { container, settings, practice } = mountPractice();
+    await setupRun(settings, { game: 'staff', scope: CLOSE, pool: 'walk' });
+
+    // 37 pitches once each on the way up, 36 on the way back down.
+    expect(text(container)).toContain('73 prompts');
+
+    await start(container);
+    for (let i = 0; i < E5; i++) await answerCorrectly(container, buttonAt(i));
+    expect(text(container)).toContain(`Prompt ${E5 + 1} of 73`);
+    expect(text(container)).toContain(LABELS.twinExpected);
+
+    await answerCorrectly(container, buttonAt(E5));
+    // The follow-up grew the walk by one.
+    expect(text(container)).toContain(`Prompt ${E5 + 2} of 74`);
+    expect(text(container)).toContain(LABELS.twinFollowUp);
+
+    await answerCorrectly(container, OTHER_E5);
+    expect(text(container)).toContain(`Prompt ${E5 + 3} of 74`);
+    expect(text(container)).not.toContain(LABELS.twinFollowUp);
+
+    // The climb resumes where it left off.
+    expect(pitchOf(ORDER[E5 + 1])).toBe('F5');
+    tap(container, buttonAt(E5 + 1));
+    await nextTick();
+    expect(circles(container)[buttonAt(E5 + 1)].getAttribute('fill')).toBe(GREEN);
+    expect(practice.items[ORDER[E5 + 1]].answers.map((a) => a.grade)).toEqual([2]);
   });
 });
 

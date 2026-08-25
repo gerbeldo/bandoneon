@@ -1,11 +1,15 @@
 // Scheduler: picks which items a session draws. Games and the engine see only
 // `Scheduler`, so the sampling behind it can be replaced by a spaced-repetition
 // model without touching them. Fixed runs — the first N items of the
-// introduction order, no cap — share the pool and preview vocabulary.
+// introduction order, no cap — share the pool and preview vocabulary, as does
+// the walk (walk.ts).
 
+import type { Instrument } from '../data/index';
 import type { Grade, ItemRecord } from '../stores/practice';
+import type { ScaleChoice } from './scale';
+import { chromaOf, isKeyed, scaleChromas } from './scale';
 import type { Direction, Side } from './session';
-import { parseItemKey, shuffled } from './session';
+import { parseItemKey, pitchOfKey, shuffled } from './session';
 
 // Defaults for the two run parameters the player can change: prompts per
 // session and never-seen items per local calendar day per game.
@@ -82,6 +86,10 @@ export interface PoolInput {
   // Practice memory: the per-item answer records.
   memory: Record<string, ItemRecord>;
   scope: SessionScope;
+  // Which notes the run draws from; every note when unset. A keyed scale
+  // reads each item's pitch off `layouts`.
+  scale?: ScaleChoice;
+  layouts?: Instrument;
   now: number;
 }
 
@@ -134,8 +142,19 @@ function inScope(key: string, scope: SessionScope): boolean {
   );
 }
 
-export function scopedPool({ pool, scope }: Pick<PoolInput, 'pool' | 'scope'>): string[] {
-  return pool.filter((key) => inScope(key, scope));
+// The pool narrowed to the scope's layouts and, under a keyed scale, to the
+// items sounding one of its notes.
+export function scopedPool({
+  pool,
+  scope,
+  scale,
+  layouts,
+}: Pick<PoolInput, 'pool' | 'scope' | 'scale' | 'layouts'>): string[] {
+  const inLayouts = pool.filter((key) => inScope(key, scope));
+  if (!scale || !isKeyed(scale)) return inLayouts;
+  if (!layouts) throw new Error('a keyed scale needs the layouts to read pitches');
+  const chromas = scaleChromas(scale);
+  return inLayouts.filter((key) => chromas.has(chromaOf(pitchOfKey(layouts, key))));
 }
 
 // Items introduced today are those first seen on the local calendar day of
@@ -225,14 +244,24 @@ export function fixedRunKeys(input: FixedRunInput): string[] {
 }
 
 export function previewFixedRun(input: FixedRunInput): SessionPreview {
-  const keys = fixedRunKeys(input);
-  const seenCount = keys.filter((key) => seen(input.memory[key])).length;
+  return previewRun(fixedRunKeys(input), input);
+}
+
+// What a run over `keys` comes to, under no cap. Prompts is the list's length;
+// coverage counts `items` — the distinct keys, unless the run covers more than
+// it lists (a walk asks each item twice, and reaches a twin through the follow-up).
+export function previewRun(
+  keys: string[],
+  input: PoolInput,
+  items: string[] = [...new Set(keys)],
+): SessionPreview {
+  const seenCount = items.filter((key) => seen(input.memory[key])).length;
   return {
     prompts: keys.length,
-    fresh: keys.length - seenCount,
+    fresh: items.length - seenCount,
     newToday: introducedToday(input),
     newCap: null,
     seen: seenCount,
-    total: keys.length,
+    total: items.length,
   };
 }
