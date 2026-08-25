@@ -1,6 +1,21 @@
+import { Note } from 'tonal';
 import { describe, expect, it } from 'vitest';
 
-import { accidentalGlyphs, isAccidental, SPELLINGS, spellPitch } from '../spelling';
+import type { Spelling } from '../spelling';
+import {
+  accidentalGlyphs,
+  displayPitchClass,
+  FLATS,
+  isAccidental,
+  runSpelling,
+  SHARPS,
+  SPELLINGS,
+  spellingTable,
+  spellPitch,
+} from '../spelling';
+
+// F♯ major's names over the sharps: the seventh degree is E♯, not F.
+const F_SHARP_MAJOR: Spelling = SHARPS.map((name, chroma) => (chroma === 5 ? 'E#' : name));
 
 describe('isAccidental', () => {
   it('is true for a sharp or a flat, whatever octave', () => {
@@ -26,38 +41,89 @@ describe('isAccidental', () => {
   });
 });
 
+describe('SHARPS and FLATS', () => {
+  it('name each of the twelve chromas, in chroma order', () => {
+    for (const table of [SHARPS, FLATS]) {
+      expect(table).toHaveLength(12);
+      expect(table.map((name) => Note.get(name).chroma)).toEqual([...Array(12).keys()]);
+    }
+  });
+
+  it('name the naturals alike and the five accidentals as sharps or as flats', () => {
+    expect(SHARPS).toEqual(['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B']);
+    expect(FLATS).toEqual(['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B']);
+  });
+});
+
+describe('spellingTable', () => {
+  it('maps the setup’s one-way choices to their tables', () => {
+    expect(spellingTable('sharp')).toBe(SHARPS);
+    expect(spellingTable('flat')).toBe(FLATS);
+  });
+});
+
+describe('runSpelling', () => {
+  it('hands a run the table of a one-way choice, or both', () => {
+    expect(runSpelling('sharp')).toBe(SHARPS);
+    expect(runSpelling('flat')).toBe(FLATS);
+    expect(runSpelling('both')).toBe('both');
+  });
+});
+
 describe('spellPitch', () => {
   it('respells a sharp as a flat and back', () => {
-    expect(spellPitch('C#4', 'flat')).toBe('Db4');
-    expect(spellPitch('Db4', 'sharp')).toBe('C#4');
+    expect(spellPitch('C#4', FLATS)).toBe('Db4');
+    expect(spellPitch('Db4', SHARPS)).toBe('C#4');
   });
 
   it('leaves a pitch already in the asked spelling alone', () => {
-    expect(spellPitch('C#4', 'sharp')).toBe('C#4');
-    expect(spellPitch('Db4', 'flat')).toBe('Db4');
+    expect(spellPitch('C#4', SHARPS)).toBe('C#4');
+    expect(spellPitch('Db4', FLATS)).toBe('Db4');
   });
 
   it('passes naturals through in either spelling', () => {
-    expect(spellPitch('C4', 'flat')).toBe('C4');
-    expect(spellPitch('C4', 'sharp')).toBe('C4');
-    expect(spellPitch('B3', 'flat')).toBe('B3');
+    expect(spellPitch('C4', FLATS)).toBe('C4');
+    expect(spellPitch('C4', SHARPS)).toBe('C4');
+    expect(spellPitch('B3', FLATS)).toBe('B3');
   });
 
   it('works on a bare pitch class, keeping it octave-less', () => {
-    expect(spellPitch('C#', 'flat')).toBe('Db');
-    expect(spellPitch('Db', 'sharp')).toBe('C#');
-    expect(spellPitch('C', 'flat')).toBe('C');
+    expect(spellPitch('C#', FLATS)).toBe('Db');
+    expect(spellPitch('Db', SHARPS)).toBe('C#');
+    expect(spellPitch('C', FLATS)).toBe('C');
+    expect(spellPitch('F', F_SHARP_MAJOR)).toBe('E#');
+  });
+
+  it('names a natural by the table where a key asks it to: F is E♯ in F♯ major', () => {
+    expect(spellPitch('F4', F_SHARP_MAJOR)).toBe('E#4');
+    expect(Note.midi('E#4')).toBe(Note.midi('F4'));
+    expect(spellPitch('F#4', F_SHARP_MAJOR)).toBe('F#4');
+    expect(spellPitch('E4', F_SHARP_MAJOR)).toBe('E4');
   });
 
   it('keeps the sounding pitch, crossing letter and octave where it must', () => {
-    expect(spellPitch('E#4', 'flat')).toBe('F4');
-    expect(spellPitch('Cb4', 'sharp')).toBe('B3');
+    expect(spellPitch('E#4', FLATS)).toBe('F4');
+    expect(spellPitch('E#4', SHARPS)).toBe('F4');
+    expect(spellPitch('Cb4', SHARPS)).toBe('B3');
   });
 
   it('passes a name it cannot read through unchanged', () => {
-    expect(spellPitch('nope', 'flat')).toBe('nope');
-    expect(spellPitch('nope', 'sharp')).toBe('nope');
-    expect(spellPitch('', 'flat')).toBe('');
+    expect(spellPitch('nope', FLATS)).toBe('nope');
+    expect(spellPitch('nope', SHARPS)).toBe('nope');
+    expect(spellPitch('', FLATS)).toBe('');
+  });
+});
+
+describe('displayPitchClass', () => {
+  it('prints the respelled pitch class with accidental glyphs', () => {
+    expect(displayPitchClass('C#', FLATS, 'scientific')).toBe('D♭');
+    expect(displayPitchClass('F', F_SHARP_MAJOR, 'scientific')).toBe('E♯');
+    expect(displayPitchClass('F', SHARPS, 'scientific')).toBe('F');
+  });
+
+  it('prints solfège when asked', () => {
+    expect(displayPitchClass('C#', FLATS, 'solfege')).toBe('Re♭');
+    expect(displayPitchClass('F', F_SHARP_MAJOR, 'solfege')).toBe('Mi♯');
   });
 });
 

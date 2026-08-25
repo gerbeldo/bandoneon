@@ -73,7 +73,7 @@ import {
 } from '../utils/progress';
 import { errorTally } from '../utils/scheduler';
 import { layoutItemKeys } from '../utils/session';
-import { accidentalGlyphs, spellPitch } from '../utils/spelling';
+import { accidentalGlyphs, FLATS, SHARPS, spellPitch } from '../utils/spelling';
 
 useHead({ title: 'Progress – Bandoneon.app' });
 
@@ -128,7 +128,7 @@ const statusOf = (idx: number) => itemStatus(practice.items[layoutKeys.value[idx
 // The button's pitch as the keyboard currently spells it.
 const nameOf = (idx: number) =>
   accidentalGlyphs(
-    spellPitch(keyPositions.value[idx]?.[2] ?? '', showEnharmonics.value ? 'flat' : 'sharp'),
+    spellPitch(keyPositions.value[idx]?.[2] ?? '', showEnharmonics.value ? FLATS : SHARPS),
   );
 
 const layoutCounts = computed(() => statusCounts(layoutKeys.value, practice.items));

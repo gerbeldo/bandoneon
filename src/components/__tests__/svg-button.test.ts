@@ -6,6 +6,7 @@ import { renderToString } from 'vue/server-renderer';
 import { staffGlyphs } from '../../assets/staffGlyphs';
 import { useStore } from '../../stores/main';
 import { useSettingsStore } from '../../stores/settings';
+import { FLATS, SHARPS } from '../../utils/spelling';
 import SvgButton from '../SvgButton.vue';
 
 interface State {
@@ -59,15 +60,28 @@ describe('SvgButton', () => {
   });
 
   it('names the note in the given spelling, whatever the toggle says', async () => {
-    const flat = await render({ x: 0, y: 0, tonal: 'A#4', spelling: 'flat' });
+    const flat = await render({ x: 0, y: 0, tonal: 'A#4', spelling: FLATS });
     expect(flat).toContain('B♭');
 
     const sharp = await render(
-      { x: 0, y: 0, tonal: 'A#4', spelling: 'sharp' },
+      { x: 0, y: 0, tonal: 'A#4', spelling: SHARPS },
       { showEnharmonics: true },
     );
     expect(sharp).toContain('A♯');
     expect(sharp).not.toContain('B♭');
+  });
+
+  it('names a natural by the table too: F4 reads E♯4 under F♯ major, in every notation', async () => {
+    const F_SHARP_MAJOR = SHARPS.map((name, chroma) => (chroma === 5 ? 'E#' : name));
+    const props = { x: 0, y: 0, tonal: 'F4', spelling: F_SHARP_MAJOR };
+
+    expect(await render(props)).toContain('E♯');
+    expect(await render(props)).toContain('>4<');
+    expect(await render(props, { pitchNotation: 'helmholtz' })).toContain('e♯’');
+    expect(await render(props, { pitchNotation: 'solfege' })).toContain('Mi♯');
+    expect(await render(props, { pitchNotation: 'staff' })).toContain(
+      staffGlyphs.accidentalSharp.d,
+    );
   });
 
   it('keeps the selected class so the staff label inverts like text', async () => {

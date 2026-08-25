@@ -15,7 +15,8 @@ import {
   parseItemKey,
   twinGroups,
 } from '../session';
-import type { Spelling, SpellingChoice } from '../spelling';
+import type { RunSpelling, Spelling } from '../spelling';
+import { FLATS, SHARPS } from '../spelling';
 
 const RIGHT_OPEN = { side: 'right', direction: 'open' } as const;
 
@@ -46,7 +47,7 @@ interface RunOptions {
   mode: string;
   // Permutation of button indices to draw in; render order when omitted.
   order?: (count: number) => number[];
-  spelling?: SpellingChoice;
+  spelling?: RunSpelling;
   random?: () => number;
   now: () => number;
 }
@@ -109,7 +110,7 @@ describe('fixed run over one layout', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'C4',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
     engine.answer({ pitch: 'C4', elapsedMs: 1_200 });
     expect(recorded).toHaveLength(1);
@@ -122,7 +123,7 @@ describe('fixed run over one layout', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D4',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
     engine.answer({ pitch: 'D5', elapsedMs: 800 });
     expect(recorded).toHaveLength(2);
@@ -135,7 +136,7 @@ describe('fixed run over one layout', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 2,
       pitch: 'E4',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
     engine.answer({ pitch: 'C4', elapsedMs: 500 });
     expect(recorded).toHaveLength(3);
@@ -185,7 +186,7 @@ describe('fixed run over one layout', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 2,
       pitch: 'E4',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
     const outcome = engine.answer({ pitch: 'E4', elapsedMs: 1 });
 
@@ -197,7 +198,7 @@ describe('fixed run over one layout', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'C4',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
   });
 
@@ -237,7 +238,7 @@ describe('fixed run with tapped-position answers', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'C4',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
     expect(engine.answer({ tappedIndex: 0, elapsedMs: 700 })).toEqual({
       grade: 2,
@@ -330,7 +331,7 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'E5',
-      spelling: 'sharp',
+      spelling: SHARPS,
       twin: 'expected',
     });
     expect(engine.answer({ tappedIndex: 0, elapsedMs: 900 })).toEqual({ grade: 2, buttonIndex: 0 });
@@ -344,7 +345,7 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 2,
       pitch: 'E5',
-      spelling: 'sharp',
+      spelling: SHARPS,
       twin: 'follow-up',
     });
     expect(engine.answer({ tappedIndex: 2, elapsedMs: 1_100 })).toEqual({
@@ -363,7 +364,7 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D5',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
   });
 
@@ -406,7 +407,7 @@ describe('duplicate-pitch follow-up', () => {
         layout: RIGHT_OPEN,
         buttonIndex: 1,
         pitch: 'D5',
-        spelling: 'sharp',
+        spelling: SHARPS,
       });
     }
   });
@@ -424,7 +425,7 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D5',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
   });
 
@@ -466,7 +467,7 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 0,
       pitch: 'E5',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
     engine.answer({ pitch: 'E5', elapsedMs: 1 });
 
@@ -477,7 +478,7 @@ describe('duplicate-pitch follow-up', () => {
       layout: RIGHT_OPEN,
       buttonIndex: 1,
       pitch: 'D5',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
     expect(recorded).toHaveLength(1);
     expect(recorded[0].key).toBe('rheinische142/right/open/0/0/forward');
@@ -599,7 +600,7 @@ describe('scheduler-drawn session', () => {
       layout: { side: 'left', direction: 'close' },
       buttonIndex: 0,
       pitch: 'A3',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
 
     engine.answer({ pitch: 'A3', elapsedMs: 500 });
@@ -607,7 +608,7 @@ describe('scheduler-drawn session', () => {
       layout: { side: 'right', direction: 'close' },
       buttonIndex: 1,
       pitch: 'E4',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
 
     engine.answer({ pitch: 'E4', elapsedMs: 500 });
@@ -670,13 +671,13 @@ describe('scheduler-drawn session', () => {
     expect(engine.prompt()).toMatchObject({
       layout: { side: 'left', direction: 'close' },
       pitch: 'A3',
-      spelling: 'sharp',
+      spelling: SHARPS,
     });
   });
 });
 
-// Spelling (ADR 0004): a prompt names its accidental as a sharp or as a flat.
-// The grid keeps its own spelling either way; only the prompt is stamped.
+// Spelling (ADR 0004): a prompt carries the table its notes are named by. The
+// grid keeps its own spelling either way; only the prompt is stamped.
 describe('spelling', () => {
   const ACCIDENTAL_GRID = [['C4', 'C#4', 'D#4']];
   // C#5 sounds on two buttons, so a correct tap inserts a follow-up.
@@ -695,32 +696,45 @@ describe('spelling', () => {
     return prompts;
   }
 
+  // Which way a drawn table names C♯: 'sharp' or 'flat'.
+  const sign = (spelling: Spelling) => (spelling[1] === 'Db' ? 'flat' : 'sharp');
   const named = (prompts: Prompt[], pitch: string) =>
-    prompts.filter((prompt) => prompt.pitch === pitch).map((prompt) => prompt.spelling);
+    prompts.filter((prompt) => prompt.pitch === pitch).map((prompt) => sign(prompt.spelling));
 
   it('spells every prompt with sharps by default', () => {
     const { engine } = testRun({ grid: ACCIDENTAL_GRID });
 
     expect(allPrompts(engine).map((prompt) => [prompt.pitch, prompt.spelling])).toEqual([
-      ['C4', 'sharp'],
-      ['C#4', 'sharp'],
-      ['D#4', 'sharp'],
+      ['C4', SHARPS],
+      ['C#4', SHARPS],
+      ['D#4', SHARPS],
     ]);
   });
 
   it('stamps a flat run flat, leaving the grid’s own spelling on the pitch', () => {
-    const { engine } = testRun({ grid: ACCIDENTAL_GRID, spelling: 'flat' });
+    const { engine } = testRun({ grid: ACCIDENTAL_GRID, spelling: FLATS });
 
     expect(allPrompts(engine).map((prompt) => [prompt.pitch, prompt.spelling])).toEqual([
-      ['C4', 'flat'],
-      ['C#4', 'flat'],
-      ['D#4', 'flat'],
+      ['C4', FLATS],
+      ['C#4', FLATS],
+      ['D#4', FLATS],
+    ]);
+  });
+
+  it('stamps a key’s table on every prompt, naturals included', () => {
+    // F♯ major names F as E♯.
+    const F_SHARP_MAJOR = SHARPS.map((name, chroma) => (chroma === 5 ? 'E#' : name));
+    const { engine } = testRun({ grid: [['F4', 'F#4']], spelling: F_SHARP_MAJOR });
+
+    expect(allPrompts(engine).map((prompt) => [prompt.pitch, prompt.spelling])).toEqual([
+      ['F4', F_SHARP_MAJOR],
+      ['F#4', F_SHARP_MAJOR],
     ]);
   });
 
   it('grades a flat run by sounding pitch, so either name of the prompt is right', () => {
-    const answeredFlat = testRun({ grid: [['C#4']], spelling: 'flat' });
-    const answeredSharp = testRun({ grid: [['C#4']], spelling: 'flat' });
+    const answeredFlat = testRun({ grid: [['C#4']], spelling: FLATS });
+    const answeredSharp = testRun({ grid: [['C#4']], spelling: FLATS });
 
     expect(answeredFlat.engine.answer({ pitch: 'Db4', elapsedMs: 1 }).grade).toBe(2);
     expect(answeredSharp.engine.answer({ pitch: 'C#4', elapsedMs: 1 }).grade).toBe(2);
@@ -735,7 +749,7 @@ describe('spelling', () => {
     expect(named(prompts, 'C4')).toEqual(['sharp']);
     expect(named(prompts, 'C#4')).toHaveLength(1);
     expect(named(prompts, 'D#4')).toHaveLength(1);
-    for (const prompt of prompts) expect(['sharp', 'flat']).toContain(prompt.spelling);
+    for (const prompt of prompts) expect([SHARPS, FLATS]).toContain(prompt.spelling);
   });
 
   // Counts the draws, so an item asked twice is seen to be named once.
@@ -783,7 +797,7 @@ describe('spelling', () => {
   });
 
   it('gives a twin follow-up the spelling of the prompt that triggered it', () => {
-    const covered = new Set<Spelling>();
+    const covered = new Set<string>();
     for (let seed = 1; seed <= 20; seed++) {
       const { engine } = testRun({
         grid: TWIN_ACCIDENTAL_GRID,
@@ -808,7 +822,7 @@ describe('spelling', () => {
       expect(triggered, `seed ${seed}`).not.toBeNull();
       const spelling = (triggered as Prompt).spelling;
       expect(engine.prompt()).toMatchObject({ pitch: 'C#5', spelling, twin: 'follow-up' });
-      covered.add(spelling);
+      covered.add(sign(spelling));
     }
     // Across these seeds the twin was named both ways, so both were inherited.
     expect([...covered].sort()).toEqual(['flat', 'sharp']);

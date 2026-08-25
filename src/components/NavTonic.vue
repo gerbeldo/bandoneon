@@ -22,10 +22,12 @@ import { notes } from '../data/index';
 import { useStore } from '../stores/main';
 import { useSettingsStore } from '../stores/settings';
 import type { Spelling } from '../utils/spelling';
-import { displayPitchClass } from '../utils/spelling';
+import { displayPitchClass, FLATS, SHARPS } from '../utils/spelling';
 import Button from './Button.vue';
 
-// A run names the palette by its prompt; Explore by its ♯/♭ toggle.
+// A run names the palette by its prompt; Explore by its ♯/♭ toggle. The button
+// values stay the layout data's sharp names, so an answer submits as F4 even
+// when the palette prints E♯.
 const props = defineProps<{ disabled?: boolean; spelling?: Spelling }>();
 
 const store = useStore();
@@ -36,7 +38,7 @@ const settings = useSettingsStore();
 const format = (noteName: string): string =>
   displayPitchClass(
     noteName,
-    props.spelling ?? (showEnharmonics.value ? 'flat' : 'sharp'),
+    props.spelling ?? (showEnharmonics.value ? FLATS : SHARPS),
     settings.pitchNotation,
   );
 </script>

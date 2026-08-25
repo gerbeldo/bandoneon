@@ -8,8 +8,8 @@ import { Note } from 'tonal';
 import type { Instrument } from '../data/index';
 import type { AnswerEvent, Grade } from '../stores/practice';
 import { scoreTap } from './game';
-import type { Spelling, SpellingChoice } from './spelling';
-import { isAccidental } from './spelling';
+import type { RunSpelling, Spelling } from './spelling';
+import { FLATS, isAccidental, SHARPS } from './spelling';
 
 export type Side = 'right' | 'left';
 export type Direction = 'open' | 'close';
@@ -140,8 +140,8 @@ export interface Prompt {
   buttonIndex: number;
   // The prompted button's pitch as the layout data spells it (sharps).
   pitch: string;
-  // How this prompt names accidentals; what the staff draws and the palette
-  // offers.
+  // How this prompt names the twelve notes; what the staff draws and the
+  // palette offers.
   spelling: Spelling;
   // Duplicate-pitch marker (ADR 0004), only in pitch-prompted modes: 'expected'
   // when the pitch also sounds on another button of this layout, 'follow-up' on
@@ -178,9 +178,8 @@ export interface SessionOptions {
   // The item keys to prompt, in prompt order (already shuffled by the caller);
   // a key may repeat — a walk asks each item on the way up and on the way down.
   draw: string[];
-  // Sharps unless set; 'both' names each accidental item as a sharp or a flat,
-  // drawn at random for this run.
-  spelling?: SpellingChoice;
+  // Sharps unless set.
+  spelling?: RunSpelling;
   // Only the 'both' spelling draw uses it; injectable so runs are repeatable.
   random?: () => number;
   record: (key: string, event: AnswerEvent) => void;
@@ -219,17 +218,17 @@ export function createSession(options: SessionOptions): SessionEngine {
     return { layout, buttonIndex };
   });
 
-  const spelling = options.spelling ?? 'sharp';
+  const spelling = options.spelling ?? SHARPS;
   const random = options.random ?? Math.random;
   // One name per item for the whole run, however often a walk comes back to it.
   const drawnSpellings = new Map<string, Spelling>();
   const spellingFor = (item: { layout: Layout; buttonIndex: number }): Spelling => {
     if (spelling !== 'both') return spelling;
-    if (!isAccidental(buttonsFor(item.layout)[item.buttonIndex].pitch)) return 'sharp';
+    if (!isAccidental(buttonsFor(item.layout)[item.buttonIndex].pitch)) return SHARPS;
     const id = `${layoutKey(item.layout)}/${item.buttonIndex}`;
     let drawn = drawnSpellings.get(id);
     if (!drawn) {
-      drawn = random() < 0.5 ? 'sharp' : 'flat';
+      drawn = random() < 0.5 ? SHARPS : FLATS;
       drawnSpellings.set(id, drawn);
     }
     return drawn;

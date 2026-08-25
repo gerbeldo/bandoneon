@@ -3,7 +3,9 @@ import { Note } from 'tonal';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 
+import { staffGlyphs } from '../../assets/staffGlyphs';
 import type { PracticeSetup } from '../../stores/settings';
+import type { ScaleChoice } from '../../utils/scale';
 import { ALL_LAYOUTS } from '../../utils/scheduler';
 import type { Layout } from '../../utils/session';
 import {
@@ -373,6 +375,56 @@ describe('staff game walk', () => {
     await nextTick();
     expect(circles(container)[buttonAt(E5 + 1)].getAttribute('fill')).toBe(GREEN);
     expect(practice.items[ORDER[E5 + 1]].answers.map((a) => a.grade)).toEqual([2]);
+  });
+});
+
+// A key names the staff: F4 under F♯ major is E♯4, an E on the bottom treble
+// line with a sharp, not an F in the space above.
+describe('staff game key spelling', () => {
+  const F_SHARP_MAJOR: ScaleChoice = { kind: 'major', tonic: 6 };
+  // jsdom lowercases attribute names in selectors, so the grand staff is found
+  // by reading the attribute instead.
+  const grandStaff = (container: HTMLElement) =>
+    [...container.querySelectorAll('svg')].find(
+      (svg) => svg.getAttribute('viewBox') === '0 0 240 260',
+    );
+  const glyphsAt = (container: HTMLElement, d: string) =>
+    [...(grandStaff(container)?.querySelectorAll('path') ?? [])]
+      .filter((path) => path.getAttribute('d') === d)
+      .map((path) => path.getAttribute('transform'));
+  // The treble staff's bottom line, E4, is at y 110; the F4 space above it at 105.
+  const E4_LINE = / 110\)/;
+
+  it('draws F4 as E♯4: the E line with a sharp', async () => {
+    vi.useFakeTimers();
+    // The walk climbs right/open's F♯ major pitches: A♯3 B3 C♯4 D♯4, then F4.
+    const order = walkOrder('reverse', RIGHT_OPEN, F_SHARP_MAJOR);
+    expect(pitchOf(order[4])).toBe('F4');
+    const { container, settings } = mountPractice();
+    await setupRun(settings, {
+      game: 'staff',
+      scope: RIGHT_OPEN,
+      pool: 'walk',
+      scale: { ...F_SHARP_MAJOR },
+    });
+    await start(container);
+
+    for (let i = 0; i < 4; i++) {
+      // Any tap moves the walk on; right/open has no twins to insert a follow-up.
+      tap(container, 0);
+      vi.advanceTimersByTime(1_000);
+      await nextTick();
+    }
+
+    expect(glyphsAt(container, staffGlyphs.noteheadWhole.d)).toHaveLength(1);
+    expect(glyphsAt(container, staffGlyphs.noteheadWhole.d)[0]).toMatch(E4_LINE);
+    expect(glyphsAt(container, staffGlyphs.accidentalSharp.d)).toHaveLength(1);
+    expect(glyphsAt(container, staffGlyphs.accidentalSharp.d)[0]).toMatch(E4_LINE);
+
+    // The tapped button reveals the same name.
+    tap(container, buttonIndexOf(order[4]));
+    await nextTick();
+    expect(keys(container)[buttonIndexOf(order[4])].textContent?.replace(/\s+/g, '')).toBe('E♯4');
   });
 });
 

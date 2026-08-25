@@ -26,6 +26,7 @@ import {
   start,
   strip,
   unmountPractice,
+  walkOrder,
 } from './practice-helpers';
 
 const RIGHT_OPEN: Layout = { side: 'right', direction: 'open' };
@@ -191,6 +192,8 @@ describe('practice setup, scales', () => {
   const C_MAJOR: ScaleChoice = { kind: 'major', tonic: 0 };
   const F_MAJOR: ScaleChoice = { kind: 'major', tonic: 5 };
   const D_MAJOR: ScaleChoice = { kind: 'major', tonic: 2 };
+  const F_SHARP_MAJOR: ScaleChoice = { kind: 'major', tonic: 6 };
+  const D_SHARP_MINOR: ScaleChoice = { kind: 'minor', tonic: 3 };
 
   it('opens on every note, with no key to pick', async () => {
     const { container } = mountPractice();
@@ -257,14 +260,27 @@ describe('practice setup, scales', () => {
     expect(keyLabels(container)).toContain('A♭');
     expect(keyLabels(container)).not.toContain('C♯');
 
-    // The minor keys on those chromas go by C♯ and G♯; F stays pressed.
+    // The minor keys on those chromas go by C♯, D♯ and G♯; F stays pressed.
     click(buttonNamed(container, LABELS.minor));
     await nextTick();
     expect(keyLabels(container)).toContain('C♯');
+    expect(keyLabels(container)).toContain('D♯');
     expect(keyLabels(container)).toContain('G♯');
     expect(keyLabels(container)).not.toContain('D♭');
-    expect(keyLabels(container)).toContain('E♭');
+    expect(keyLabels(container)).not.toContain('E♭');
     expect(inGroup(container, GROUPS.key, 'F')?.getAttribute('aria-pressed')).toBe('true');
+  });
+
+  it('spells the six-sharp keys with E♯ on the setup', async () => {
+    const { container, settings } = mountPractice({ setup: { scale: { ...F_SHARP_MAJOR } } });
+    await nextTick();
+    expect(text(container)).toContain('F♯ major: F♯ G♯ A♯ B C♯ D♯ E♯');
+    expect(text(container)).toContain(
+      'Set by the key: F♯ major spells them as sharps (F♯, G♯, A♯, C♯, D♯, E♯).',
+    );
+
+    await setupRun(settings, { scale: { ...D_SHARP_MINOR } });
+    expect(text(container)).toContain('D♯ minor: D♯ E♯ F♯ G♯ A♯ B C♯');
   });
 
   it('spells the accidentals by the key instead of offering the choice', async () => {
@@ -316,6 +332,37 @@ describe('practice setup, scales', () => {
 
     expect(buttonNamed(container, 'C♯')).toBeDefined();
     expect(buttonNamed(container, 'D♭')).toBeUndefined();
+  });
+
+  it('offers E♯ and no F on the palette under F♯ major, and takes E♯4 for F4', async () => {
+    // The walk climbs right/open's F♯ major pitches: A♯3 B3 C♯4 D♯4, then F4.
+    const order = walkOrder('forward', RIGHT_OPEN, F_SHARP_MAJOR);
+    expect(pitchOf(order[4])).toBe('F4');
+    const { container, store, settings, practice } = mountPractice();
+    await setupRun(settings, {
+      game: 'note',
+      scope: RIGHT_OPEN,
+      pool: 'walk',
+      scale: { ...F_SHARP_MAJOR },
+    });
+    await start(container);
+
+    expect(buttonNamed(container, 'E♯')).toBeDefined();
+    expect(buttonNamed(container, 'F')).toBeUndefined();
+    expect(buttonNamed(container, 'F♯')).toBeDefined();
+
+    for (let i = 0; i < 4; i++) await answerNote(container, 'C', 0);
+    expect(promptedPitch(container, store)).toBe('F4');
+
+    // The picked note shows on the prompted button in the key's spelling.
+    click(buttonNamed(container, 'E♯'));
+    await nextTick();
+    const prompted = keys(container).find((key) => key.classList.contains('selected'));
+    expect(prompted?.textContent?.replace(/\s+/g, '')).toBe('E♯');
+
+    click(octaveButtons(container).find((b) => b.textContent?.trim() === '4'));
+    await nextTick();
+    expect(practice.items[order[4]].answers.map((a) => a.grade)).toEqual([2]);
   });
 });
 
