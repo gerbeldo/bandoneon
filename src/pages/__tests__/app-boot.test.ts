@@ -110,6 +110,19 @@ describe('app boot persistence', () => {
     );
   });
 
+  it('persists a nested setup change the moment it is made', async () => {
+    await mountApp();
+
+    const settings = useSettingsStore();
+    settings.practiceSetup.scope = 'one';
+    settings.practiceSetup.layout.side = 'left';
+
+    expect(JSON.parse(localStorage.getItem('settings')!).practiceSetup).toMatchObject({
+      scope: 'one',
+      layout: { side: 'left', direction: 'open' },
+    });
+  });
+
   it('falls back to the default instrument when the stored one no longer exists', async () => {
     // A stored blob naming an instrument the app no longer has.
     localStorage.setItem('settings', JSON.stringify({ version: 1, instrument: 'rheinische152' }));

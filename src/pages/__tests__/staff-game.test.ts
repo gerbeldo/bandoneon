@@ -350,8 +350,6 @@ describe('staff game setup', () => {
     click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
     click(buttonNamed(container, LABELS.sideLeft));
-    // A tick apart: the picker reads its model off the props it was last
-    // rendered with, so two clicks in one tick would drop the first.
     await nextTick();
     click(buttonNamed(container, LABELS.pickClose));
     await nextTick();
@@ -486,8 +484,6 @@ describe('staff game sessions', () => {
     click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
     click(buttonNamed(container, LABELS.sideLeft));
-    // A tick apart: the picker reads its model off the props it was last
-    // rendered with, so two clicks in one tick would drop the first.
     await nextTick();
     click(buttonNamed(container, LABELS.pickClose));
     await nextTick();
