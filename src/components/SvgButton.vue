@@ -54,6 +54,8 @@ import { useStore } from '../stores/main';
 import { useSettingsStore } from '../stores/settings';
 import { scientificToHelmholtzNotation } from '../utils/helmholtz';
 import { scientificToSolfegeNotation } from '../utils/solfege';
+import type { Spelling } from '../utils/spelling';
+import { spellPitch } from '../utils/spelling';
 import StaffLabel from './StaffLabel.vue';
 
 const props = withDefaults(
@@ -70,6 +72,9 @@ const props = withDefaults(
     title?: string;
     // Ring color when not selected; the stylesheet's neutral ring otherwise.
     outline?: string;
+    // Names the note this way whatever Explore's ♯/♭ toggle says: a button
+    // answered in a run keeps the name it was asked under.
+    spelling?: Spelling;
   }>(),
   {
     selected: false,
@@ -78,6 +83,7 @@ const props = withDefaults(
     interactive: false,
     title: undefined,
     outline: undefined,
+    spelling: undefined,
   },
 );
 
@@ -87,7 +93,7 @@ const store = useStore();
 const settings = useSettingsStore();
 
 const spelled = computed(() =>
-  store.showEnharmonics ? Note.enharmonic(props.tonal) : props.tonal,
+  spellPitch(props.tonal, props.spelling ?? (store.showEnharmonics ? 'flat' : 'sharp')),
 );
 
 const format = computed(() => {

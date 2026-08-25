@@ -60,13 +60,13 @@ export function useSession() {
   const counts = ref<[number, number, number]>([0, 0, 0]);
   // Graded buttons of the run so far, keyed by layout: a session moves the
   // keyboard between prompts, so a button index alone would carry colors across.
-  const grades = ref<Record<string, Grade>>({});
+  // Each keeps the spelling it was asked under, so a revealed name holds still
+  // while later prompts are spelled the other way.
+  const results = ref<Record<string, { grade: Grade; spelling: Spelling }>>({});
   // Every answer of the run, in order, for the summary.
   const answers = ref<AnsweredPrompt[]>([]);
   // Which kind of run is on: what the summary's primary action repeats.
   const kind = ref<'scheduled' | 'fixed'>('scheduled');
-  // Explore's ♯/♭ display state, put back once the run hands the page back.
-  let enharmonicsBefore = store.showEnharmonics;
   let armedAt = 0;
 
   const layouts = computed(() => instruments[settings.instrument]);
@@ -116,14 +116,8 @@ export function useSession() {
   // What the strip shows: 1-based, and clamped once the draw is spent.
   const promptNumber = computed(() => Math.min(answeredCount.value + 1, total.value));
 
-  const gradeOf = (buttonIndex: number): Grade | undefined =>
-    grades.value[`${store.side}/${store.direction}/${buttonIndex}`];
-
-  // Navigating away mid-run skips toSetup, so the display state goes back
-  // with the page.
-  onScopeDispose(() => {
-    store.showEnharmonics = enharmonicsBefore;
-  });
+  const graded = (buttonIndex: number) =>
+    results.value[`${store.side}/${store.direction}/${buttonIndex}`];
 
   // A setup left open across midnight would keep yesterday's numbers (and a
   // spent cap) until the page reloads; coming back to the tab re-stamps it.
@@ -146,7 +140,6 @@ export function useSession() {
             sessionSize: setup.value.sessionSize,
             dailyNewItems: setup.value.dailyNewItems,
           });
-    if (phase.value === 'setup') enharmonicsBefore = store.showEnharmonics;
     engine.value = createSession({
       layouts: layouts.value,
       instrument: settings.instrument,
@@ -160,7 +153,7 @@ export function useSession() {
     kind.value = setup.value.pool;
     asOf.value = Date.now();
     counts.value = [0, 0, 0];
-    grades.value = {};
+    results.value = {};
     answers.value = [];
     total.value = engine.value.total;
     phase.value = 'playing';
@@ -175,11 +168,10 @@ export function useSession() {
       phase.value = 'summary';
       return;
     }
-    // The keyboard follows the prompt: a session draws across layouts, and the
-    // palette and labels follow its spelling.
+    // The keyboard follows the prompt across layouts. Spelling travels with the
+    // prompt and with each graded button, not with Explore's ♯/♭ toggle.
     store.side = prompt.value.layout.side;
     store.direction = prompt.value.layout.direction;
-    store.showEnharmonics = prompt.value.spelling === 'flat';
     // The response clock starts once the prompt is rendered and accepting input.
     void nextTick(() => {
       armedAt = Date.now();
@@ -192,13 +184,15 @@ export function useSession() {
     const outcome = engine.value.answer({ ...raw, elapsedMs: Date.now() - armedAt });
     counts.value[outcome.grade] += 1;
     total.value = engine.value.total;
-    grades.value[`${layoutKey(layout)}/${outcome.buttonIndex}`] = outcome.grade;
+    results.value[`${layoutKey(layout)}/${outcome.buttonIndex}`] = {
+      grade: outcome.grade,
+      spelling,
+    };
     answers.value.push({ pitch, spelling, layout, grade: outcome.grade });
     return outcome;
   }
 
   function toSetup() {
-    store.showEnharmonics = enharmonicsBefore;
     engine.value = null;
     prompt.value = null;
     asOf.value = Date.now();
@@ -214,7 +208,7 @@ export function useSession() {
     counts,
     answers,
     promptNumber,
-    gradeOf,
+    graded,
     kind,
     start,
     next,

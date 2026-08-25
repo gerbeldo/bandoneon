@@ -21,10 +21,12 @@ import { storeToRefs } from 'pinia';
 import { notes } from '../data/index';
 import { useStore } from '../stores/main';
 import { useSettingsStore } from '../stores/settings';
+import type { Spelling } from '../utils/spelling';
 import { displayPitchClass } from '../utils/spelling';
 import Button from './Button.vue';
 
-defineProps<{ disabled?: boolean }>();
+// A run names the palette by its prompt; Explore by its ♯/♭ toggle.
+const props = defineProps<{ disabled?: boolean; spelling?: Spelling }>();
 
 const store = useStore();
 const { tonic, showEnharmonics } = storeToRefs(store);
@@ -32,5 +34,9 @@ const { tonic, showEnharmonics } = storeToRefs(store);
 const settings = useSettingsStore();
 
 const format = (noteName: string): string =>
-  displayPitchClass(noteName, showEnharmonics.value ? 'flat' : 'sharp', settings.pitchNotation);
+  displayPitchClass(
+    noteName,
+    props.spelling ?? (showEnharmonics.value ? 'flat' : 'sharp'),
+    settings.pitchNotation,
+  );
 </script>

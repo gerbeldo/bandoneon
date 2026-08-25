@@ -54,6 +54,7 @@
           :y="y"
           :tonal="tonal"
           :label="label(idx)"
+          :spelling="graded(idx)?.spelling"
           :color="fillColor(idx)"
           @click="tap(idx)"
         />
@@ -88,8 +89,7 @@ const STAFF_HINT =
 // view only renders prompts and captures taps.
 const props = defineProps<{ session: PracticeSession }>();
 
-const { phase, preview, prompt, promptNumber, total, counts, gradeOf, next, answer } =
-  props.session;
+const { phase, preview, prompt, promptNumber, total, counts, graded, next, answer } = props.session;
 
 // The last tap's result, kept while the feedback pause runs; taps are ignored meanwhile.
 const tapResult = ref<{ note: string; score: Grade } | null>(null);
@@ -124,16 +124,14 @@ const staffFeedback = computed(() =>
 
 const fillColor = (idx: number) => {
   if (flash.value?.idx === idx) return SCORE_COLORS[flash.value.score] + '88';
-  const grade = gradeOf(idx);
-  if (typeof grade === 'number') return SCORE_COLORS[grade] + '88';
+  const result = graded(idx);
+  if (result) return SCORE_COLORS[result.grade] + '88';
   return 'transparent';
 };
 
-// Buttons stay blank during play; a quizzed button reveals its note name once scored.
-const label = (idx: number) => {
-  if (typeof gradeOf(idx) === 'number') return null;
-  return '';
-};
+// Buttons stay blank during play; a quizzed button reveals its note name once
+// scored, spelled as it was asked.
+const label = (idx: number) => (graded(idx) ? null : '');
 
 function clearTimers() {
   if (pauseTimer) clearTimeout(pauseTimer);

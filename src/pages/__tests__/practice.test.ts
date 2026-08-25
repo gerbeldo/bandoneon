@@ -174,7 +174,7 @@ describe('practice setup, scheduled runs', () => {
 
 describe('practice setup, accidentals', () => {
   it('names accidentals as flats through the run', async () => {
-    const { container, store, settings } = mountPractice();
+    const { container, settings } = mountPractice();
     await setupRun(settings, noteRun({ spelling: 'flat' }));
     click(buttonNamed(container, LABELS.flats));
     await nextTick();
@@ -182,7 +182,6 @@ describe('practice setup, accidentals', () => {
 
     expect(buttonNamed(container, 'D♭')).toBeDefined();
     expect(buttonNamed(container, 'C♯')).toBeUndefined();
-    expect(store.showEnharmonics).toBe(true);
   });
 
   it('asks each item once under Both, whichever way it is named', async () => {
@@ -198,32 +197,20 @@ describe('practice setup, accidentals', () => {
     expect(text(container)).toContain(`of ${RIGHT_OPEN_SIZE}`);
   });
 
-  it('puts the explore screen’s ♯/♭ choice back when the run hands the page over', async () => {
+  it('leaves the explore screen’s ♯/♭ toggle alone: a sharp run names sharps regardless', async () => {
     const { container, store, settings } = mountPractice();
     store.showEnharmonics = true;
     await setupRun(settings, noteRun({ fixedCount: 1 }));
     await start(container);
 
-    // The run's own spelling wins while it is on.
-    expect(store.showEnharmonics).toBe(false);
+    expect(buttonNamed(container, 'C♯')).toBeDefined();
+    expect(store.showEnharmonics).toBe(true);
 
     await answerNote(container, 'C', 0);
     press('Escape');
     await nextTick();
 
     expect(text(container)).toContain(LABELS.start);
-    expect(store.showEnharmonics).toBe(true);
-  });
-
-  it('puts the ♯/♭ choice back when the player leaves mid-run', async () => {
-    const { container, store, settings } = mountPractice();
-    store.showEnharmonics = true;
-    await setupRun(settings, noteRun({ fixedCount: 3 }));
-    await start(container);
-    expect(store.showEnharmonics).toBe(false);
-
-    unmountPractice();
-
     expect(store.showEnharmonics).toBe(true);
   });
 });

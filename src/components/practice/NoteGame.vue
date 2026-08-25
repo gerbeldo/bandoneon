@@ -13,6 +13,7 @@
         :y="y"
         :tonal="tonal"
         :label="label(idx)"
+        :spelling="graded(idx)?.spelling"
         :selected="idx === currentButton"
         :color="fillColor(idx)"
       />
@@ -26,7 +27,7 @@
     <p class="mb-2 hidden text-center text-sm text-neutral-500 sm:block dark:text-neutral-400">
       Keyboard: letters for notes, hold Shift for sharps, digits for the octave.
     </p>
-    <NavTonic />
+    <NavTonic :spelling="prompt?.spelling" />
     <div class="mb-2 flex flex-wrap justify-center">
       <Button
         v-for="octave in octaves"
@@ -71,8 +72,7 @@ import SvgKeyboard from '../SvgKeyboard.vue';
 // only renders the prompt and captures the named pitch.
 const props = defineProps<{ session: PracticeSession }>();
 
-const { phase, preview, prompt, promptNumber, total, counts, gradeOf, next, answer } =
-  props.session;
+const { phase, preview, prompt, promptNumber, total, counts, graded, next, answer } = props.session;
 
 useKeyboard({ keys: 'tonic' });
 
@@ -99,8 +99,8 @@ const formatOctave = (octave: number) => {
 };
 
 const fillColor = (idx: number) => {
-  const grade = gradeOf(idx);
-  return typeof grade === 'number' ? SCORE_COLORS[grade] + '88' : 'transparent';
+  const result = graded(idx);
+  return result ? SCORE_COLORS[result.grade] + '88' : 'transparent';
 };
 
 // The prompted button shows the note picked so far, in the prompt's spelling.
@@ -110,7 +110,7 @@ const label = (idx: number) => {
       ? displayPitchClass(tonic.value, prompt.value.spelling, pitchNotation.value)
       : '?';
   }
-  if (typeof gradeOf(idx) === 'number') return;
+  if (graded(idx)) return;
   return '?';
 };
 

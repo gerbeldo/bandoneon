@@ -103,7 +103,7 @@ The fixed run over every item of one layout — "All" on the practice setup with
 _Avoid_: full-keyboard round
 
 **Spelling**:
-Which name an accidental goes by in a run: sharps or flats, chosen on the practice setup. Under Both, each accidental item is named as a sharp or a flat, drawn at random when the run starts. Every prompt carries its spelling, and the keyboard's ♯/♭ display follows the prompt.
+Which name an accidental goes by in a run: sharps or flats, chosen on the practice setup. Under Both, each accidental item is named as a sharp or a flat, drawn at random when the run starts. Every prompt carries its spelling, and a button answered in a run keeps the name it was asked under; Explore's ♯/♭ toggle is not touched.
 _Avoid_: enharmonics toggle (that is Explore's ♯/♭ button), notation (that is pitch notation)
 
 **Direction badge**:

@@ -58,6 +58,18 @@ describe('SvgButton', () => {
     expect(flat).toContain(staffGlyphs.accidentalFlat.d);
   });
 
+  it('names the note in the given spelling, whatever the toggle says', async () => {
+    const flat = await render({ x: 0, y: 0, tonal: 'A#4', spelling: 'flat' });
+    expect(flat).toContain('B♭');
+
+    const sharp = await render(
+      { x: 0, y: 0, tonal: 'A#4', spelling: 'sharp' },
+      { showEnharmonics: true },
+    );
+    expect(sharp).toContain('A♯');
+    expect(sharp).not.toContain('B♭');
+  });
+
   it('keeps the selected class so the staff label inverts like text', async () => {
     const html = await render(
       { x: 0, y: 0, tonal: 'B4', selected: true },

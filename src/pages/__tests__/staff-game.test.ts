@@ -196,6 +196,38 @@ describe('staff game recording', () => {
     expect(circles(container)[SECOND_BUTTON].getAttribute('fill')).toBe(RED);
   });
 
+  it('keeps a revealed name as it was asked when the next prompt is spelled the other way', async () => {
+    vi.useFakeTimers();
+    // A run up to its second accidental: the first is asked as a sharp, the second as a flat.
+    const accidentals = RUN.filter((key) => Note.get(pitchOf(key)).acc !== '');
+    const count = RUN.indexOf(accidentals[1]) + 1;
+    const { container, settings } = mountPractice();
+    await setupRun(settings, { ...fixedRun(RIGHT_OPEN, count), spelling: 'both' });
+    // The shuffle draws `count` numbers (constant, so the order holds), then one
+    // per accidental in draw order: below .5 names it sharp, above names it flat.
+    let calls = 0;
+    vi.spyOn(Math, 'random').mockImplementation(() => (++calls <= count + 1 ? 0.1 : 0.9));
+    await start(container);
+
+    const name = (idx: number) => keys(container)[idx].textContent?.replace(/\s+/g, '') ?? '';
+    const first = buttonIndexOf(accidentals[0]);
+    const second = buttonIndexOf(accidentals[1]);
+    for (let i = 0; i < count - 1; i++) {
+      tap(container, buttonIndexOf(RUN[i]));
+      await nextTick();
+      vi.advanceTimersByTime(1_000);
+      await nextTick();
+    }
+
+    // The second accidental is now prompted as a flat; the first keeps its sharp.
+    expect(name(first)).toContain('♯');
+    expect(name(second)).toBe('');
+    tap(container, second);
+    await nextTick();
+    expect(name(second)).toContain('♭');
+    expect(name(first)).toContain('♯');
+  });
+
   it('starts the response clock when the prompt accepts input, after the pause', async () => {
     vi.useFakeTimers();
     const { container, settings, practice } = mountPractice();
