@@ -8,9 +8,10 @@ import { instruments } from '../data/index';
 import { useStore } from '../stores/main';
 import type { Grade } from '../stores/practice';
 import { usePracticeStore } from '../stores/practice';
-import type { PracticeGame } from '../stores/settings';
+import type { PracticeGame, PracticePool } from '../stores/settings';
 import { useSettingsStore } from '../stores/settings';
 import { introductionOrder } from '../utils/introduction';
+import { keySpelling } from '../utils/scale';
 import type { PoolInput, SessionPreview } from '../utils/scheduler';
 import {
   createWeightedScheduler,
@@ -21,6 +22,8 @@ import {
 import type { AnswerOutcome, Layout, Prompt, QuizDirection, RawAnswer } from '../utils/session';
 import { createSession, layoutKey, shuffled } from '../utils/session';
 import type { Spelling } from '../utils/spelling';
+import type { WalkInput } from '../utils/walk';
+import { previewWalk, walkKeys } from '../utils/walk';
 
 // The setup screen gates play: nothing runs without a tap or Enter, and
 // dismissing the summary comes back to it.
@@ -41,6 +44,16 @@ export interface AnsweredPrompt {
 }
 
 export type PracticeSession = ReturnType<typeof useSession>;
+
+// What the summary line shows with no instrument to draw from.
+const EMPTY_PREVIEW: SessionPreview = {
+  prompts: 0,
+  fresh: 0,
+  newToday: 0,
+  newCap: null,
+  seen: 0,
+  total: 0,
+};
 
 export function useSession() {
   const store = useStore();
@@ -66,7 +79,7 @@ export function useSession() {
   // Every answer of the run, in order, for the summary.
   const answers = ref<AnsweredPrompt[]>([]);
   // Which kind of run is on: what the summary's primary action repeats.
-  const kind = ref<'scheduled' | 'fixed'>('scheduled');
+  const kind = ref<PracticePool>('scheduled');
   let armedAt = 0;
 
   const layouts = computed(() => instruments[settings.instrument]);
@@ -90,24 +103,35 @@ export function useSession() {
     pool: pool.value,
     memory: practice.items,
     scope: setup.value.scope,
+    scale: setup.value.scale,
+    layouts: layouts.value,
     now: asOf.value,
   }));
 
-  // How many items the chosen layouts hold — the fixed-run slider's range.
+  // How many items the chosen layouts and scale hold — the fixed-run slider's range.
   const poolSize = computed(() => scopedPool(poolInput.value).length);
+
+  const walkInput = (now: number): WalkInput | null =>
+    layouts.value
+      ? { ...poolInput.value, now, layouts: layouts.value, quizDirection: game.value.quizDirection }
+      : null;
 
   // The setup screen's summary line and, during play, the session strip.
   // Practice memory is reactive, so an answer that introduces an item moves
   // the strip at once.
-  const preview = computed<SessionPreview>(() =>
-    setup.value.pool === 'fixed'
+  const preview = computed<SessionPreview>(() => {
+    if (setup.value.pool === 'walk') {
+      const input = walkInput(asOf.value);
+      return input ? previewWalk(input) : EMPTY_PREVIEW;
+    }
+    return setup.value.pool === 'fixed'
       ? previewFixedRun({ ...poolInput.value, count: setup.value.fixedCount })
       : scheduler.preview({
           ...poolInput.value,
           sessionSize: setup.value.sessionSize,
           dailyNewItems: setup.value.dailyNewItems,
-        }),
-  );
+        });
+  });
 
   // The prompt stays on the answered one while a page runs its feedback pause,
   // so the count advances only when the next prompt appears.
@@ -129,24 +153,32 @@ export function useSession() {
   document.addEventListener('visibilitychange', refreshDay);
   onScopeDispose(() => document.removeEventListener('visibilitychange', refreshDay));
 
+  function draw(now: number): string[] {
+    const input = { ...poolInput.value, now };
+    switch (setup.value.pool) {
+      case 'walk':
+        return walkKeys(walkInput(now)!);
+      case 'fixed':
+        return shuffled(fixedRunKeys({ ...input, count: setup.value.fixedCount }));
+      default:
+        return scheduler.draw({
+          ...input,
+          sessionSize: setup.value.sessionSize,
+          dailyNewItems: setup.value.dailyNewItems,
+        });
+    }
+  }
+
   function start() {
     if (!layouts.value) return;
-    const input = { ...poolInput.value, now: Date.now() };
-    const draw =
-      setup.value.pool === 'fixed'
-        ? shuffled(fixedRunKeys({ ...input, count: setup.value.fixedCount }))
-        : scheduler.draw({
-            ...input,
-            sessionSize: setup.value.sessionSize,
-            dailyNewItems: setup.value.dailyNewItems,
-          });
     engine.value = createSession({
       layouts: layouts.value,
       instrument: settings.instrument,
       quizDirection: game.value.quizDirection,
       mode: game.value.mode,
-      draw,
-      spelling: setup.value.spelling,
+      draw: draw(Date.now()),
+      // A keyed scale spells its own accidentals; the setup's choice applies otherwise.
+      spelling: keySpelling(setup.value.scale) ?? setup.value.spelling,
       record: practice.recordAnswer,
       now: Date.now,
     });

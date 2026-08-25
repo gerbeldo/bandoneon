@@ -86,17 +86,24 @@ describe('app boot persistence', () => {
       JSON.stringify({
         version: 3,
         instrument: 'rheinische142',
-        practiceSetup: { game: 'nope', fixedCount: -3, spelling: 'both', scope: { side: 'up' } },
+        practiceSetup: {
+          game: 'nope',
+          fixedCount: -3,
+          spelling: 'both',
+          scope: { side: 'up' },
+          scale: { kind: 'nope', tonic: 12 },
+          pool: 'walk',
+        },
       }),
     );
 
     await mountApp();
 
-    // Every unusable field falls back on its own; the one good value stands.
-    expect(useSettingsStore().practiceSetup).toEqual({
-      ...defaultPracticeSetup(),
-      spelling: 'both',
-    });
+    // Every unusable field falls back on its own; the good values stand. Spread
+    // from the default, so a field added to the setup flows through by itself.
+    const expected = { ...defaultPracticeSetup(), spelling: 'both', pool: 'walk' };
+    expect(useSettingsStore().practiceSetup).toEqual(expected);
+    expect(JSON.parse(localStorage.getItem('settings')!).practiceSetup).toEqual(expected);
   });
 
   it('gives a blob with no practice setup the defaults, and persists them', async () => {

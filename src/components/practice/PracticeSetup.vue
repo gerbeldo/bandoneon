@@ -88,6 +88,30 @@
       </section>
 
       <section>
+        <h2 :class="HEADING">Scale</h2>
+        <ChoiceGroup v-model="setup.scale.kind" label="Scale" :options="SCALE_CHOICES" />
+        <!-- One button per key, named as the kind names it (D♭ major, C♯ minor). -->
+        <div
+          v-if="keyed"
+          class="mt-3 grid grid-cols-6 gap-2 md:grid-cols-12"
+          role="group"
+          aria-label="Key"
+        >
+          <Button
+            v-for="(name, chroma) in tonics"
+            :key="chroma"
+            type="button"
+            class="min-w-0"
+            :aria-pressed="setup.scale.tonic === chroma"
+            @click="setup.scale.tonic = chroma"
+          >
+            {{ name }}
+          </Button>
+        </div>
+        <p :class="HINT">{{ scaleHint }}</p>
+      </section>
+
+      <section>
         <h2 :class="HEADING">Items</h2>
         <ChoiceGroup v-model="setup.pool" label="Items" :options="poolOptions" />
         <p :class="HINT">{{ POOL_HINTS[setup.pool] }}</p>
@@ -104,7 +128,7 @@
             :options="dailyOptions"
           />
         </div>
-        <div v-else class="mt-4">
+        <div v-else-if="setup.pool === 'fixed'" class="mt-4">
           <div class="flex items-baseline gap-2">
             <span class="text-3xl font-semibold tabular-nums">{{ shownCount }}</span>
             <span class="text-sm text-neutral-500 dark:text-neutral-400">
@@ -125,8 +149,12 @@
 
       <section>
         <h2 :class="HEADING">Accidentals</h2>
-        <ChoiceGroup v-model="setup.spelling" label="Accidentals" :options="SPELLING_CHOICES" />
-        <p :class="HINT">{{ SPELLING_HINTS[setup.spelling] }}</p>
+        <template v-if="!keyed">
+          <ChoiceGroup v-model="setup.spelling" label="Accidentals" :options="SPELLING_CHOICES" />
+          <p :class="HINT">{{ SPELLING_HINTS[setup.spelling] }}</p>
+        </template>
+        <!-- A key spells its own accidentals, so the choice steps aside. -->
+        <p v-else class="text-sm text-neutral-500 dark:text-neutral-400">{{ keyedSpellingHint }}</p>
       </section>
     </div>
 
@@ -160,9 +188,12 @@ import { computed, nextTick, onMounted, onUnmounted } from 'vue';
 
 import type { PracticeGame, PracticePool } from '../../stores/settings';
 import { DAILY_NEW_CHOICES, SESSION_SIZES, useSettingsStore } from '../../stores/settings';
+import type { ScaleKind } from '../../utils/scale';
+import { isKeyed, keyName, keySpelling, scaleNoteNames, tonicNames } from '../../utils/scale';
 import type { SessionPreview, SessionScope } from '../../utils/scheduler';
 import { scopeLayoutCount } from '../../utils/scheduler';
 import type { SpellingChoice } from '../../utils/spelling';
+import { formatPitchClass } from '../../utils/spelling';
 import Button from '../Button.vue';
 import type { Choice } from '../ChoiceGroup.vue';
 import ChoiceGroup from '../ChoiceGroup.vue';
@@ -170,13 +201,14 @@ import ChoiceGroup from '../ChoiceGroup.vue';
 const props = defineProps<{
   // What starting right now would run: the summary line reads it.
   preview: SessionPreview;
-  // How many items the chosen layouts hold — the range of "First N".
+  // How many items the chosen layouts and scale hold — the range of "First N".
   poolSize: number;
 }>();
 
 const emit = defineEmits<{ start: [] }>();
 
-const { practiceSetup: setup } = storeToRefs(useSettingsStore());
+const settings = useSettingsStore();
+const { practiceSetup: setup, pitchNotation } = storeToRefs(settings);
 
 const HEADING =
   'mb-2 text-xs font-semibold tracking-wide text-neutral-500 uppercase dark:text-neutral-400';
@@ -207,10 +239,17 @@ const DIRECTION_CHOICES: Choice<SessionScope['direction']>[] = [
   { value: 'close', label: 'Close' },
 ];
 
+const SCALE_CHOICES: Choice<ScaleKind>[] = [
+  { value: 'chromatic', label: 'Chromatic' },
+  { value: 'major', label: 'Major' },
+  { value: 'minor', label: 'Minor' },
+];
+
 const POOL_HINTS: Record<PracticePool, string> = {
   scheduled:
     'The scheduler picks: recent mistakes and long-unseen items first, plus a few new ones each day.',
   fixed: 'The first items of the learning order, each asked once. The daily cap does not apply.',
+  walk: 'Every item in pitch order — up, then back down — one layout at a time. The daily cap does not apply.',
 };
 
 const SPELLING_CHOICES: Choice<SpellingChoice>[] = [
@@ -235,12 +274,41 @@ const shownCount = computed(() => Math.min(setup.value.fixedCount, Math.max(1, p
 const poolOptions = computed<Choice<PracticePool>[]>(() => [
   { value: 'scheduled', label: 'Scheduled' },
   { value: 'fixed', label: `First ${shownCount.value}` },
+  { value: 'walk', label: 'Up and down' },
 ]);
 
-// What the two axes come to, so "layout" explains itself as the counts move.
+// What the two axes come to, so "layout" explains itself as the rows change.
 const scopeHint = computed(() => {
   const layouts = scopeLayoutCount(setup.value.scope);
-  return `${layouts} ${layouts === 1 ? 'layout' : 'layouts'} · ${props.poolSize} items`;
+  return `${layouts} ${layouts === 1 ? 'layout' : 'layouts'}`;
+});
+
+const keyed = computed(() => isKeyed(setup.value.scale));
+
+// Key names and scale notes come already spelled by their key; only the
+// notation (letters or solfège) is the player's.
+const format = (name: string) => formatPitchClass(name, pitchNotation.value);
+
+const tonics = computed(() => {
+  const scale = setup.value.scale;
+  return isKeyed(scale) ? tonicNames(scale.kind).map(format) : [];
+});
+
+// The scale's notes as the key spells them, and how many items sound them.
+const scaleHint = computed(() => {
+  const items = `${props.poolSize} ${props.poolSize === 1 ? 'item' : 'items'}`;
+  const scale = setup.value.scale;
+  if (!isKeyed(scale)) return `All twelve notes · ${items}`;
+  return `${keyName(scale)}: ${scaleNoteNames(scale).map(format).join(' ')} · ${items}`;
+});
+
+const keyedSpellingHint = computed(() => {
+  const scale = setup.value.scale;
+  const name = keyName(scale);
+  const accidentals = scaleNoteNames(scale).filter((note) => note.length > 1);
+  if (accidentals.length === 0) return `Set by the key: ${name} has none.`;
+  const how = keySpelling(scale) === 'flat' ? 'flats' : 'sharps';
+  return `Set by the key: ${name} spells them as ${how} (${accidentals.map(format).join(', ')}).`;
 });
 
 const headline = computed(() => {

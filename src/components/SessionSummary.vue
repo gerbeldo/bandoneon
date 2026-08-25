@@ -2,7 +2,7 @@
   <Modal :model-value="open" @update:model-value="emit('dismiss')">
     <div class="px-6 py-8">
       <h2 class="text-center text-lg font-semibold">
-        {{ kind === 'fixed' ? 'Run complete' : 'Session complete' }}
+        {{ kind === 'scheduled' ? 'Session complete' : 'Run complete' }}
       </h2>
       <p class="mt-3 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm">
         <span
@@ -50,7 +50,7 @@
       <div class="mt-8 flex flex-col-reverse gap-3 sm:flex-row sm:justify-center">
         <Button type="button" @click.prevent="emit('dismiss')">Change setup</Button>
         <Button primary type="button" @click.prevent="emit('again')">
-          {{ kind === 'fixed' ? 'Run again' : 'New session' }}
+          {{ kind === 'scheduled' ? 'New session' : 'Run again' }}
         </Button>
       </div>
     </div>
@@ -62,6 +62,7 @@ import { computed } from 'vue';
 
 import type { AnsweredPrompt } from '../composables/useSession';
 import type { Grade } from '../stores/practice';
+import type { PracticePool } from '../stores/settings';
 import { SCORE_COLORS } from '../utils/game';
 import { layoutKey } from '../utils/session';
 import { accidentalGlyphs, spellPitch } from '../utils/spelling';
@@ -75,7 +76,7 @@ const GRADE_NAMES: Record<Grade, string> = { 2: 'correct', 1: 'partial credit', 
 const props = defineProps<{
   open: boolean;
   counts: [number, number, number];
-  kind: 'scheduled' | 'fixed';
+  kind: PracticePool;
   answers: AnsweredPrompt[];
 }>();
 

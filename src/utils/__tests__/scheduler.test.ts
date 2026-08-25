@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
+import type { Instrument } from '../../data/index';
 import type { AnswerEvent, Grade, ItemRecord } from '../../stores/practice';
+import { CHROMATIC } from '../scale';
 import type { SchedulerInput } from '../scheduler';
 import {
   ALL_LAYOUTS,
@@ -10,6 +12,7 @@ import {
   isRetired,
   itemWeight,
   previewFixedRun,
+  previewRun,
   scopedPool,
   scopeLayoutCount,
 } from '../scheduler';
@@ -692,6 +695,92 @@ describe('fixed runs', () => {
       expect(
         previewFixedRun({ pool, memory, scope: rightOpen, now: NOON, count: 2 }),
       ).toMatchObject({ newToday: 3, seen: 1, fresh: 1, prompts: 2 });
+    });
+  });
+});
+
+// A scale narrows the pool by sound, beside the scope (ADR 0006).
+describe('scoped pool under a scale', () => {
+  // Lined up with layoutKeys: one button per row, all in column 0.
+  const layouts: Instrument = {
+    right: { open: [['C4'], ['C#4'], ['D4'], ['A#4'], ['E4']], close: [] },
+    left: { open: [], close: [] },
+  };
+  const pool = layoutKeys('right', 'open', 5);
+  const input = { pool, scope: ALL_LAYOUTS, layouts };
+
+  it('keeps only the items sounding one of the key’s notes', () => {
+    expect(scopedPool({ ...input, scale: { kind: 'major', tonic: 0 } })).toEqual([
+      pool[0],
+      pool[2],
+      pool[4],
+    ]);
+  });
+
+  it('judges membership by sound: A♯ is F major’s B♭', () => {
+    expect(scopedPool({ ...input, scale: { kind: 'major', tonic: 5 } })).toEqual([
+      pool[0],
+      pool[2],
+      pool[3],
+      pool[4],
+    ]);
+  });
+
+  it('keeps the whole scope under chromatic, and under no scale at all', () => {
+    expect(scopedPool({ ...input, scale: CHROMATIC })).toEqual(pool);
+    expect(scopedPool(input)).toEqual(pool);
+    expect(
+      scopedPool({ pool, scope: { side: 'right', direction: 'open' }, scale: CHROMATIC }),
+    ).toEqual(pool);
+  });
+
+  it('narrows the scope and the scale together', () => {
+    expect(
+      scopedPool({
+        pool: [...pool, ...layoutKeys('left', 'close', 5)],
+        scope: { side: 'right', direction: 'open' },
+        scale: { kind: 'major', tonic: 0 },
+        layouts,
+      }),
+    ).toEqual([pool[0], pool[2], pool[4]]);
+  });
+
+  it('refuses a keyed scale without the layouts to read pitches from', () => {
+    expect(() => scopedPool({ pool, scope: ALL_LAYOUTS, scale: { kind: 'minor', tonic: 9 } })) //
+      .toThrow(/layouts/);
+  });
+});
+
+// What any capped-free run over a list of keys comes to: fixed runs and walks
+// both preview through this.
+describe('previewRun', () => {
+  const pool = layoutKeys('right', 'open', 4);
+  const input = {
+    pool,
+    memory: { [pool[0]]: record([2], NOON - DAY) },
+    scope: ALL_LAYOUTS,
+    now: NOON,
+  };
+
+  it('counts prompts as the list’s length and coverage over its distinct keys', () => {
+    expect(previewRun([pool[0], pool[1], pool[0]], input)).toEqual({
+      prompts: 3,
+      fresh: 1,
+      newToday: 0,
+      newCap: null,
+      seen: 1,
+      total: 2,
+    });
+  });
+
+  it('counts coverage over the items it is given, when a run covers more than it lists', () => {
+    expect(previewRun([pool[0], pool[1], pool[0]], input, pool)).toEqual({
+      prompts: 3,
+      fresh: 3,
+      newToday: 0,
+      newCap: null,
+      seen: 1,
+      total: 4,
     });
   });
 });

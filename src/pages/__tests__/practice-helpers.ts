@@ -4,6 +4,7 @@
 import { createHead } from '@unhead/vue/client';
 import type { Pinia } from 'pinia';
 import { createPinia, setActivePinia } from 'pinia';
+import { Note } from 'tonal';
 import { createApp, h, nextTick } from 'vue';
 
 import { instruments } from '../../data/index';
@@ -13,10 +14,13 @@ import { usePracticeStore } from '../../stores/practice';
 import type { PracticeSetup } from '../../stores/settings';
 import { useSettingsStore } from '../../stores/settings';
 import { introductionOrder } from '../../utils/introduction';
+import type { ScaleChoice } from '../../utils/scale';
+import { CHROMATIC } from '../../utils/scale';
 import type { SessionScope } from '../../utils/scheduler';
 import { scopedPool } from '../../utils/scheduler';
 import type { Direction, QuizDirection, Side } from '../../utils/session';
 import { flattenGrid, layoutGrid, parseItemKey } from '../../utils/session';
+import { walkKeys } from '../../utils/walk';
 import Practice from '../practice.vue';
 
 // The English strings the components render, shared by the tests that match on them.
@@ -39,6 +43,12 @@ export const LABELS = {
   changeSetup: 'Change setup',
   toWorkOn: 'To work on',
   nothingToDraw: 'Nothing to draw',
+  chromatic: 'Chromatic',
+  major: 'Major',
+  minor: 'Minor',
+  upAndDown: 'Up and down',
+  // The walk's hint runs on; this much tells it from the other two.
+  walkHint: 'Every item in pitch order',
   open: 'open',
   close: 'close',
   twinExpected: 'Two buttons sound this note — tap either one.',
@@ -65,7 +75,14 @@ export const inGroup = (container: HTMLElement, label: string, text: string) =>
 
 // "Both" heads the Side row, the Direction row, and Accidentals alike, so those
 // three are told apart by their group.
-export const GROUPS = { side: 'Side', direction: 'Bellows direction', accidentals: 'Accidentals' };
+export const GROUPS = {
+  side: 'Side',
+  direction: 'Bellows direction',
+  accidentals: 'Accidentals',
+  scale: 'Scale',
+  key: 'Key',
+  items: 'Items',
+};
 
 export const range = (container: HTMLElement) =>
   container.querySelector<HTMLInputElement>('input[type="range"][aria-label="Number of items"]');
@@ -121,6 +138,33 @@ export const pool = (quizDirection: QuizDirection) =>
 export const runKeys = (quizDirection: QuizDirection, scope: SessionScope) =>
   scopedPool({ pool: pool(quizDirection), scope });
 
+// How many items a scope holds under a scale — what the Scale hint counts and
+// what the fixed-run slider ranges over.
+export const scaleItems = (
+  quizDirection: QuizDirection,
+  scope: SessionScope,
+  scale: ScaleChoice = CHROMATIC,
+) =>
+  scopedPool({ pool: pool(quizDirection), scope, scale, layouts: instruments.rheinische142 })
+    .length;
+
+// The item keys a walk prompts, in order: up through the scope's pitches and
+// back down, one layout at a time.
+export const walkOrder = (
+  quizDirection: QuizDirection,
+  scope: SessionScope,
+  scale: ScaleChoice = CHROMATIC,
+) =>
+  walkKeys({
+    pool: pool(quizDirection),
+    memory: {},
+    scope,
+    scale,
+    layouts: instruments.rheinische142,
+    now: 0,
+    quizDirection,
+  });
+
 const grid = (side: Side, direction: Direction) =>
   layoutGrid(instruments.rheinische142, side, direction);
 
@@ -128,6 +172,20 @@ const grid = (side: Side, direction: Direction) =>
 // keyPositions and the rendered `.keyboard > g` nodes share.
 export const layoutButtons = (side: Side, direction: Direction) =>
   flattenGrid(grid(side, direction));
+
+// One layout's pitches lowest first — the order a walk climbs them in.
+export const ascendingPitches = (side: Side, direction: Direction) =>
+  layoutButtons(side, direction)
+    .map((button) => button.pitch)
+    .sort((a, b) => (Note.midi(a) ?? 0) - (Note.midi(b) ?? 0));
+
+// The pitch the note game is asking for: the highlighted button, read off the
+// keyboard the store draws.
+export function promptedPitch(container: HTMLElement, store: ReturnType<typeof useStore>) {
+  const rendered = [...container.querySelectorAll('.keyboard > g')];
+  const index = rendered.findIndex((button) => button.classList.contains('selected'));
+  return index < 0 ? undefined : store.keyPositions[index][2];
+}
 
 // Where on the keyboard an item key's button sits.
 export function buttonIndexOf(key: string): number {

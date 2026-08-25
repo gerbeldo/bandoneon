@@ -738,6 +738,35 @@ describe('spelling', () => {
     for (const prompt of prompts) expect(['sharp', 'flat']).toContain(prompt.spelling);
   });
 
+  // Counts the draws, so an item asked twice is seen to be named once.
+  function countingRandom(source: () => number) {
+    let calls = 0;
+    return {
+      random: () => {
+        calls += 1;
+        return source();
+      },
+      calls: () => calls,
+    };
+  }
+
+  it('keeps one name per item under “both”, however often a walk comes back to it', () => {
+    const draws = countingRandom(seeded(3));
+    const { engine } = testRun({
+      grid: [['A#4', 'C4']],
+      order: () => [0, 1, 0],
+      spelling: 'both',
+      random: draws.random,
+    });
+
+    const prompts = allPrompts(engine);
+
+    expect(prompts.map((prompt) => prompt.pitch)).toEqual(['A#4', 'C4', 'A#4']);
+    const [first, second] = named(prompts, 'A#4');
+    expect(second).toBe(first);
+    expect(draws.calls()).toBe(1);
+  });
+
   it('draws the spelling per accidental and per run, so both names come up', () => {
     const drawn = new Set<string>();
     for (let seed = 1; seed <= 40; seed++) {
