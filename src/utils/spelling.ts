@@ -1,30 +1,36 @@
-// Spelling: which enharmonic name an accidental goes by. Layout data spells
-// every accidental as a sharp; the flat spelling is derived.
+// Spelling: the name each of the twelve pitch classes goes by — a table of
+// twelve names indexed by chroma (0 = C … 11 = B). Layout data spells every
+// accidental as a sharp; any other spelling is derived by respelling into the
+// table's name, so a key may name a natural too (E♯ in F♯ major).
 
 import { Note } from 'tonal';
 
 import { scientificToSolfegeNotation } from './solfege';
 
-export type Spelling = 'sharp' | 'flat';
+export type Spelling = readonly string[];
 
-// What a run is set to: one spelling, or both — each accidental item named
-// one way or the other, drawn at random per run.
-export type SpellingChoice = Spelling | 'both';
+export const SHARPS: Spelling = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+export const FLATS: Spelling = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+// What the practice setup stores: one spelling, or both — each accidental item
+// named one way or the other, drawn at random per run.
+export type SpellingChoice = 'sharp' | 'flat' | 'both';
 
 export const SPELLINGS: SpellingChoice[] = ['sharp', 'flat', 'both'];
+
+export function spellingTable(choice: Exclude<SpellingChoice, 'both'>): Spelling {
+  return choice === 'flat' ? FLATS : SHARPS;
+}
 
 export function isAccidental(pitch: string): boolean {
   return Note.get(pitch).acc !== '';
 }
 
-// Respells a pitch (or pitch class) into the given spelling; naturals and an
-// unreadable name pass through unchanged.
+// Respells a pitch (or pitch class) by the table, keeping the sounding pitch
+// (C♭4 is B3); an unreadable name passes through unchanged.
 export function spellPitch(pitch: string, spelling: Spelling): string {
-  const acc = Note.get(pitch).acc;
-  if ((spelling === 'flat' && acc === '#') || (spelling === 'sharp' && acc === 'b')) {
-    return Note.enharmonic(pitch);
-  }
-  return pitch;
+  const note = Note.get(pitch);
+  return note.empty ? pitch : Note.enharmonic(pitch, spelling[note.chroma]);
 }
 
 // Display form: unicode accidentals, as the keyboard and the palette print them.

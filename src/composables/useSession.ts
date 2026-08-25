@@ -22,6 +22,7 @@ import {
 import type { AnswerOutcome, Layout, Prompt, QuizDirection, RawAnswer } from '../utils/session';
 import { createSession, layoutKey, shuffled } from '../utils/session';
 import type { Spelling } from '../utils/spelling';
+import { spellingTable } from '../utils/spelling';
 import type { WalkInput } from '../utils/walk';
 import { previewWalk, walkKeys } from '../utils/walk';
 
@@ -171,14 +172,16 @@ export function useSession() {
 
   function start() {
     if (!layouts.value) return;
+    const chosen = setup.value.spelling;
     engine.value = createSession({
       layouts: layouts.value,
       instrument: settings.instrument,
       quizDirection: game.value.quizDirection,
       mode: game.value.mode,
       draw: draw(Date.now()),
-      // A keyed scale spells its own accidentals; the setup's choice applies otherwise.
-      spelling: keySpelling(setup.value.scale) ?? setup.value.spelling,
+      // A keyed scale spells its own notes; the setup's choice applies otherwise.
+      spelling:
+        keySpelling(setup.value.scale) ?? (chosen === 'both' ? 'both' : spellingTable(chosen)),
       record: practice.recordAnswer,
       now: Date.now,
     });

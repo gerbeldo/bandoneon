@@ -189,7 +189,7 @@ import { computed, nextTick, onMounted, onUnmounted } from 'vue';
 import type { PracticeGame, PracticePool } from '../../stores/settings';
 import { DAILY_NEW_CHOICES, SESSION_SIZES, useSettingsStore } from '../../stores/settings';
 import type { ScaleKind } from '../../utils/scale';
-import { isKeyed, keyName, keySpelling, scaleNoteNames, tonicNames } from '../../utils/scale';
+import { isKeyed, keyName, scaleNoteNames, tonicNames } from '../../utils/scale';
 import type { SessionPreview, SessionScope } from '../../utils/scheduler';
 import { scopeLayoutCount } from '../../utils/scheduler';
 import type { SpellingChoice } from '../../utils/spelling';
@@ -307,7 +307,7 @@ const keyedSpellingHint = computed(() => {
   const name = keyName(scale);
   const accidentals = scaleNoteNames(scale).filter((note) => note.length > 1);
   if (accidentals.length === 0) return `Set by the key: ${name} has none.`;
-  const how = keySpelling(scale) === 'flat' ? 'flats' : 'sharps';
+  const how = accidentals[0].includes('b') ? 'flats' : 'sharps';
   return `Set by the key: ${name} spells them as ${how} (${accidentals.map(format).join(', ')}).`;
 });
 

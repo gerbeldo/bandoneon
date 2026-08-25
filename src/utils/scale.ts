@@ -1,11 +1,11 @@
 // Scale: which notes a run draws from — every note, or one key's major or
-// natural minor scale. A keyed scale also fixes how accidentals are spelled:
-// F major has a B♭, never an A♯.
+// natural minor scale. A keyed scale also fixes how notes are spelled: F major
+// has a B♭, never an A♯, and F♯ major has an E♯, never an F.
 
-import { Note } from 'tonal';
+import { Note, Scale } from 'tonal';
 
 import type { Spelling } from './spelling';
-import { accidentalGlyphs, spellPitch } from './spelling';
+import { accidentalGlyphs, FLATS, SHARPS } from './spelling';
 
 export type ScaleKind = 'chromatic' | 'major' | 'minor';
 export type KeyedScaleKind = Exclude<ScaleKind, 'chromatic'>;
@@ -30,44 +30,12 @@ const DEGREES: Record<KeyedScaleKind, number[]> = {
   minor: [0, 2, 3, 5, 7, 8, 10],
 };
 
-interface KeyName {
-  // The key's conventional tonic name, as the setup labels it.
-  tonic: string;
-  // How the key spells its accidentals; C major and A minor have none.
-  spelling: Spelling;
-}
-
-// One conventional name per tonic chroma. The six-accidental keys go by
-// F♯ major and E♭ minor, so E♭ stays E♭ whichever kind is chosen.
-const KEYS: Record<KeyedScaleKind, KeyName[]> = {
-  major: [
-    { tonic: 'C', spelling: 'sharp' },
-    { tonic: 'Db', spelling: 'flat' },
-    { tonic: 'D', spelling: 'sharp' },
-    { tonic: 'Eb', spelling: 'flat' },
-    { tonic: 'E', spelling: 'sharp' },
-    { tonic: 'F', spelling: 'flat' },
-    { tonic: 'F#', spelling: 'sharp' },
-    { tonic: 'G', spelling: 'sharp' },
-    { tonic: 'Ab', spelling: 'flat' },
-    { tonic: 'A', spelling: 'sharp' },
-    { tonic: 'Bb', spelling: 'flat' },
-    { tonic: 'B', spelling: 'sharp' },
-  ],
-  minor: [
-    { tonic: 'C', spelling: 'flat' },
-    { tonic: 'C#', spelling: 'sharp' },
-    { tonic: 'D', spelling: 'flat' },
-    { tonic: 'Eb', spelling: 'flat' },
-    { tonic: 'E', spelling: 'sharp' },
-    { tonic: 'F', spelling: 'flat' },
-    { tonic: 'F#', spelling: 'sharp' },
-    { tonic: 'G', spelling: 'flat' },
-    { tonic: 'G#', spelling: 'sharp' },
-    { tonic: 'A', spelling: 'sharp' },
-    { tonic: 'Bb', spelling: 'flat' },
-    { tonic: 'B', spelling: 'sharp' },
-  ],
+// One conventional tonic name per chroma. The six-accidental keys go by
+// F♯ major and D♯ minor: E♭ minor would need C♭, whose written octave is not
+// the sounding one (C♭4 sounds B3), while E♯4 sounds F4 and keeps its number.
+const KEYS: Record<KeyedScaleKind, string[]> = {
+  major: ['C', 'Db', 'D', 'Eb', 'E', 'F', 'F#', 'G', 'Ab', 'A', 'Bb', 'B'],
+  minor: ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'Bb', 'B'],
 };
 
 export function isKeyed(scale: ScaleChoice): scale is ScaleChoice & { kind: KeyedScaleKind } {
@@ -76,35 +44,35 @@ export function isKeyed(scale: ScaleChoice): scale is ScaleChoice & { kind: Keye
 
 // The tonic names of one kind, by chroma — the setup's key picker.
 export function tonicNames(kind: KeyedScaleKind): string[] {
-  return KEYS[kind].map((key) => key.tonic);
+  return [...KEYS[kind]];
 }
 
-// How the chosen key spells accidentals; null under chromatic, where the
-// setup's own accidentals choice applies.
-export function keySpelling(scale: ScaleChoice): Spelling | null {
-  return isKeyed(scale) ? KEYS[scale.kind][scale.tonic].spelling : null;
-}
-
-// "F major", "E♭ minor" — as shown to the player.
+// "F major", "D♯ minor" — as shown to the player.
 export function keyName(scale: ScaleChoice): string {
   if (!isKeyed(scale)) return 'Chromatic';
-  return `${accidentalGlyphs(KEYS[scale.kind][scale.tonic].tonic)} ${scale.kind}`;
+  return `${accidentalGlyphs(KEYS[scale.kind][scale.tonic])} ${scale.kind}`;
 }
-
-const SHARP_NAMES = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
 // The scale's pitch classes, tonic first, spelled as the key spells them.
 // Chromatic lists all twelve as sharps.
 export function scaleNoteNames(scale: ScaleChoice): string[] {
-  if (!isKeyed(scale)) return [...SHARP_NAMES];
-  const spelling = KEYS[scale.kind][scale.tonic].spelling;
-  return DEGREES[scale.kind].map((degree) =>
-    spellPitch(SHARP_NAMES[(scale.tonic + degree) % CHROMA_COUNT], spelling),
-  );
+  if (!isKeyed(scale)) return [...SHARPS];
+  return Scale.get(`${KEYS[scale.kind][scale.tonic]} ${scale.kind}`).notes;
+}
+
+// How the chosen key names the twelve chromas: the scale's own names, and
+// sharps or flats by its signature for the rest. Null under chromatic, where
+// the setup's own accidentals choice applies.
+export function keySpelling(scale: ScaleChoice): Spelling | null {
+  if (!isKeyed(scale)) return null;
+  const names = scaleNoteNames(scale);
+  const table = [...(names.some((name) => name.includes('b')) ? FLATS : SHARPS)];
+  for (const name of names) table[chromaOf(name)] = name;
+  return table;
 }
 
 export function scaleChromas(scale: ScaleChoice): Set<number> {
-  if (!isKeyed(scale)) return new Set(SHARP_NAMES.keys());
+  if (!isKeyed(scale)) return new Set(SHARPS.keys());
   return new Set(DEGREES[scale.kind].map((degree) => (scale.tonic + degree) % CHROMA_COUNT));
 }
 

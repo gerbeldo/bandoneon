@@ -13,6 +13,7 @@ import {
   scaleNoteNames,
   tonicNames,
 } from '../scale';
+import { FLATS, SHARPS } from '../spelling';
 
 const KEYED_KINDS: KeyedScaleKind[] = ['major', 'minor'];
 
@@ -21,16 +22,12 @@ const chroma = (pitchClass: string) => Note.get(pitchClass).chroma;
 const major = (tonic: string): ScaleChoice => ({ kind: 'major', tonic: chroma(tonic) });
 const minor = (tonic: string): ScaleChoice => ({ kind: 'minor', tonic: chroma(tonic) });
 
-const isNatural = (name: string) => !name.includes('#') && !name.includes('b');
+const everyKey = KEYED_KINDS.flatMap((kind) =>
+  tonicNames(kind).map((name, tonic) => ({ kind, tonic, label: `${name} ${kind}` })),
+);
 
-// The spelling of every key whose tonic name carries no accidental of its own.
-function naturalSpellings(kind: KeyedScaleKind): Record<string, string | null> {
-  return Object.fromEntries(
-    tonicNames(kind)
-      .map((name, tonic) => [name, keySpelling({ kind, tonic })] as const)
-      .filter(([name]) => isNatural(name)),
-  );
-}
+// Sharps with the seventh degree of F♯ major (and second of D♯ minor) named E♯.
+const SHARPS_WITH_E_SHARP = SHARPS.map((name, chroma) => (chroma === 5 ? 'E#' : name));
 
 describe('isKeyed', () => {
   it('tells the chromatic run from a keyed one', () => {
@@ -49,41 +46,88 @@ describe('tonicNames', () => {
       expect(names.map(chroma), kind).toEqual([...Array(12).keys()]);
     }
   });
+
+  it('names the keys the conventional way; the six-accidental keys go by F♯ major and D♯ minor', () => {
+    expect(tonicNames('major')).toEqual([
+      'C',
+      'Db',
+      'D',
+      'Eb',
+      'E',
+      'F',
+      'F#',
+      'G',
+      'Ab',
+      'A',
+      'Bb',
+      'B',
+    ]);
+    expect(tonicNames('minor')).toEqual([
+      'C',
+      'C#',
+      'D',
+      'D#',
+      'E',
+      'F',
+      'F#',
+      'G',
+      'G#',
+      'A',
+      'Bb',
+      'B',
+    ]);
+  });
 });
 
 describe('keySpelling', () => {
-  it('follows the accidental in the key’s own tonic name', () => {
-    for (const kind of KEYED_KINDS) {
-      tonicNames(kind).forEach((name, tonic) => {
-        if (isNatural(name)) return;
-        const expected = name.includes('#') ? 'sharp' : 'flat';
-        expect(keySpelling({ kind, tonic }), `${name} ${kind}`).toBe(expected);
+  it('names every chroma, each by a name that sounds it', () => {
+    for (const { kind, tonic, label } of everyKey) {
+      const table = keySpelling({ kind, tonic })!;
+
+      expect(table, label).toHaveLength(12);
+      expect(table.map(chroma), label).toEqual([...Array(12).keys()]);
+    }
+  });
+
+  it('lays the scale’s own names over its chromas', () => {
+    for (const { kind, tonic, label } of everyKey) {
+      const table = keySpelling({ kind, tonic })!;
+
+      for (const name of scaleNoteNames({ kind, tonic })) {
+        expect(table[chroma(name)], label).toBe(name);
+      }
+    }
+  });
+
+  it('names the notes outside the scale as sharps or flats, the way the key’s signature goes', () => {
+    for (const { kind, tonic, label } of everyKey) {
+      const table = keySpelling({ kind, tonic })!;
+      const names = scaleNoteNames({ kind, tonic });
+      const base = names.some((name) => name.includes('b')) ? FLATS : SHARPS;
+
+      table.forEach((name, i) => {
+        if (!names.includes(name)) expect(name, `${label} at ${i}`).toBe(base[i]);
       });
     }
   });
 
-  it('spells each natural major key by its signature; C major, having none, goes sharp', () => {
-    expect(naturalSpellings('major')).toEqual({
-      C: 'sharp',
-      D: 'sharp',
-      E: 'sharp',
-      F: 'flat',
-      G: 'sharp',
-      A: 'sharp',
-      B: 'sharp',
-    });
+  it('is the flats table for a flat key and the sharps table for a sharp or an open key', () => {
+    expect(keySpelling(major('F'))).toEqual(FLATS);
+    expect(keySpelling(minor('C'))).toEqual(FLATS);
+    expect(keySpelling(major('D'))).toEqual(SHARPS);
+    expect(keySpelling(major('C'))).toEqual(SHARPS);
+    expect(keySpelling(minor('A'))).toEqual(SHARPS);
   });
 
-  it('spells each natural minor key by its signature; A minor, having none, goes sharp', () => {
-    expect(naturalSpellings('minor')).toEqual({
-      C: 'flat',
-      D: 'flat',
-      E: 'sharp',
-      F: 'flat',
-      G: 'flat',
-      A: 'sharp',
-      B: 'sharp',
-    });
+  it('names F as E♯ in F♯ major and in D♯ minor, the only unusual name in any key', () => {
+    expect(keySpelling(major('F#'))).toEqual(SHARPS_WITH_E_SHARP);
+    expect(keySpelling(minor('D#'))).toEqual(SHARPS_WITH_E_SHARP);
+
+    const usual = new Set([...SHARPS, ...FLATS]);
+    const unusual = everyKey.flatMap(({ kind, tonic }) =>
+      keySpelling({ kind, tonic })!.filter((name) => !usual.has(name)),
+    );
+    expect(unusual).toEqual(['E#', 'E#']);
   });
 
   it('leaves the spelling to the setup under chromatic', () => {
@@ -94,7 +138,8 @@ describe('keySpelling', () => {
 describe('keyName', () => {
   it('names the key as the player reads it, with accidental glyphs', () => {
     expect(keyName(major('F'))).toBe('F major');
-    expect(keyName(minor('Eb'))).toBe('E♭ minor');
+    expect(keyName(minor('D#'))).toBe('D♯ minor');
+    expect(keyName(major('Eb'))).toBe('E♭ major');
     expect(keyName(major('F#'))).toBe('F♯ major');
   });
 
@@ -112,6 +157,20 @@ describe('scaleNoteNames', () => {
   it('lists a natural minor scale, flat keys with their flats', () => {
     expect(scaleNoteNames(minor('A'))).toEqual(['A', 'B', 'C', 'D', 'E', 'F', 'G']);
     expect(scaleNoteNames(minor('C'))).toEqual(['C', 'D', 'Eb', 'F', 'G', 'Ab', 'Bb']);
+  });
+
+  it('spells the six-sharp keys with E♯, never F', () => {
+    expect(scaleNoteNames(major('F#'))).toEqual(['F#', 'G#', 'A#', 'B', 'C#', 'D#', 'E#']);
+    expect(scaleNoteNames(minor('D#'))).toEqual(['D#', 'E#', 'F#', 'G#', 'A#', 'B', 'C#']);
+  });
+
+  it('names each key’s seven chromas, one letter each', () => {
+    for (const { kind, tonic, label } of everyKey) {
+      const names = scaleNoteNames({ kind, tonic });
+
+      expect(new Set(names.map(chroma)), label).toEqual(scaleChromas({ kind, tonic }));
+      expect(new Set(names.map((name) => name[0])).size, label).toBe(7);
+    }
   });
 
   it('lists all twelve as sharps under chromatic', () => {

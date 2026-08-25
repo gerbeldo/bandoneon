@@ -55,7 +55,7 @@ import { useSettingsStore } from '../stores/settings';
 import { scientificToHelmholtzNotation } from '../utils/helmholtz';
 import { scientificToSolfegeNotation } from '../utils/solfege';
 import type { Spelling } from '../utils/spelling';
-import { spellPitch } from '../utils/spelling';
+import { FLATS, SHARPS, spellPitch } from '../utils/spelling';
 import StaffLabel from './StaffLabel.vue';
 
 const props = withDefaults(
@@ -93,7 +93,7 @@ const store = useStore();
 const settings = useSettingsStore();
 
 const spelled = computed(() =>
-  spellPitch(props.tonal, props.spelling ?? (store.showEnharmonics ? 'flat' : 'sharp')),
+  spellPitch(props.tonal, props.spelling ?? (store.showEnharmonics ? FLATS : SHARPS)),
 );
 
 const format = computed(() => {
