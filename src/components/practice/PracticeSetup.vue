@@ -74,13 +74,17 @@
 
       <section>
         <h2 :class="HEADING">Layouts</h2>
-        <ChoiceGroup v-model="setup.scope" label="Layouts" :options="SCOPES" />
-        <LayoutPicker
-          v-if="setup.scope === 'one'"
-          v-model:side="setup.layout.side"
-          v-model:direction="setup.layout.direction"
-          class="mt-3"
-        />
+        <div class="grid grid-cols-[auto_1fr] items-center gap-x-4 gap-y-3 text-sm">
+          <span>Side</span>
+          <ChoiceGroup v-model="setup.scope.side" label="Side" :options="SIDE_CHOICES" />
+          <span>Direction</span>
+          <ChoiceGroup
+            v-model="setup.scope.direction"
+            label="Bellows direction"
+            :options="DIRECTION_CHOICES"
+          />
+        </div>
+        <p :class="HINT">{{ scopeHint }}</p>
       </section>
 
       <section>
@@ -116,18 +120,6 @@
             aria-label="Number of items"
             @input="setup.fixedCount = Number(($event.target as HTMLInputElement).value)"
           />
-          <div class="mt-1 flex flex-wrap gap-2">
-            <Button
-              v-for="pick in quickPicks"
-              :key="pick.label"
-              type="button"
-              class="min-w-12"
-              :aria-pressed="shownCount === pick.value"
-              @click="setup.fixedCount = pick.value"
-            >
-              {{ pick.label }}
-            </Button>
-          </div>
         </div>
       </section>
 
@@ -168,12 +160,12 @@ import { computed, nextTick, onMounted, onUnmounted } from 'vue';
 
 import type { PracticeGame, PracticePool } from '../../stores/settings';
 import { DAILY_NEW_CHOICES, SESSION_SIZES, useSettingsStore } from '../../stores/settings';
-import type { SessionPreview } from '../../utils/scheduler';
+import type { SessionPreview, SessionScope } from '../../utils/scheduler';
+import { scopeLayoutCount } from '../../utils/scheduler';
 import type { SpellingChoice } from '../../utils/spelling';
 import Button from '../Button.vue';
 import type { Choice } from '../ChoiceGroup.vue';
 import ChoiceGroup from '../ChoiceGroup.vue';
-import LayoutPicker from './LayoutPicker.vue';
 
 const props = defineProps<{
   // What starting right now would run: the summary line reads it.
@@ -203,9 +195,16 @@ const GAME_CHOICES: { value: PracticeGame; title: string; description: string }[
   },
 ];
 
-const SCOPES: Choice<'all' | 'one'>[] = [
-  { value: 'all', label: 'All four layouts' },
-  { value: 'one', label: 'One layout' },
+// Both on both axes is all four layouts; a side and a direction is one layout.
+const SIDE_CHOICES: Choice<SessionScope['side']>[] = [
+  { value: 'both', label: 'Both' },
+  { value: 'left', label: 'Left' },
+  { value: 'right', label: 'Right' },
+];
+const DIRECTION_CHOICES: Choice<SessionScope['direction']>[] = [
+  { value: 'both', label: 'Both' },
+  { value: 'open', label: 'Open' },
+  { value: 'close', label: 'Close' },
 ];
 
 const POOL_HINTS: Record<PracticePool, string> = {
@@ -238,10 +237,11 @@ const poolOptions = computed<Choice<PracticePool>[]>(() => [
   { value: 'fixed', label: `First ${shownCount.value}` },
 ]);
 
-const quickPicks = computed(() => [
-  ...[5, 10, 20, 50].filter((n) => n < props.poolSize).map((n) => ({ value: n, label: String(n) })),
-  { value: props.poolSize, label: 'All' },
-]);
+// What the two axes come to, so "layout" explains itself as the counts move.
+const scopeHint = computed(() => {
+  const layouts = scopeLayoutCount(setup.value.scope);
+  return `${layouts} ${layouts === 1 ? 'layout' : 'layouts'} · ${props.poolSize} items`;
+});
 
 const headline = computed(() => {
   const { prompts } = props.preview;

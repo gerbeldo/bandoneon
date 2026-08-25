@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { nextTick } from 'vue';
 
 import type { PracticeSetup } from '../../stores/settings';
+import { ALL_LAYOUTS } from '../../utils/scheduler';
 import type { Layout } from '../../utils/session';
 import {
   badge,
@@ -32,8 +33,7 @@ const RIGHT_OPEN: Layout = { side: 'right', direction: 'open' };
 // layout, with no daily cap.
 const fixedRun = (layout: Layout, fixedCount = 999): Partial<PracticeSetup> => ({
   game: 'staff',
-  scope: 'one',
-  layout,
+  scope: layout,
   pool: 'fixed',
   fixedCount,
 });
@@ -70,11 +70,10 @@ describe('staff game', () => {
     expect([store.side, store.direction]).toEqual(['left', 'close']);
   });
 
-  it('offers the side and direction controls on the setup, prefilled with the last layout', async () => {
+  it('offers the side and direction rows on the setup, prefilled with the stored scope', async () => {
     const { container, settings } = mountPractice({
-      setup: { game: 'staff', layout: RIGHT_OPEN },
+      setup: { game: 'staff', scope: RIGHT_OPEN },
     });
-    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
 
     for (const label of [LABELS.sideLeft, LABELS.sideRight, LABELS.pickOpen, LABELS.pickClose]) {
@@ -83,10 +82,9 @@ describe('staff game', () => {
     const pressed = buttons(container)
       .filter((b) => b.getAttribute('aria-pressed') === 'true')
       .map((b) => b.textContent?.trim());
-    expect(pressed).toContain(LABELS.oneLayout);
     expect(pressed).toContain(LABELS.sideRight);
     expect(pressed).toContain(LABELS.pickOpen);
-    expect(settings.practiceSetup.layout).toEqual(RIGHT_OPEN);
+    expect(settings.practiceSetup.scope).toEqual(RIGHT_OPEN);
   });
 
   it('quizzes only buttons of the chosen layout', async () => {
@@ -347,8 +345,8 @@ describe('staff game setup', () => {
     expect(text(container)).toContain('3 new · 5 of 142 seen');
   });
 
-  it('narrows the coverage to the chosen layout, keeping the shared daily cap', async () => {
-    const { container, practice } = mountPractice({ setup: { game: 'staff', layout: RIGHT_OPEN } });
+  it('narrows the coverage by side, then by direction, keeping the shared daily cap', async () => {
+    const { container, practice } = mountPractice({ setup: { game: 'staff' } });
     seed(
       practice,
       [
@@ -361,7 +359,14 @@ describe('staff game setup', () => {
     expect(text(container)).toContain('15 prompts');
     expect(text(container)).toContain('3 new · 12 of 142 seen');
 
-    click(buttonNamed(container, LABELS.oneLayout));
+    // The right side, both directions: its two layouts' items.
+    click(buttonNamed(container, LABELS.sideRight));
+    await nextTick();
+    const rightSize = runKeys('reverse', { side: 'right', direction: 'both' }).length;
+    expect(text(container)).toContain('8 prompts');
+    expect(text(container)).toContain(`3 new · 5 of ${rightSize} seen`);
+
+    click(buttonNamed(container, LABELS.pickOpen));
     await nextTick();
     expect(text(container)).toContain('8 prompts');
     expect(text(container)).toContain('3 new · 5 of 38 seen');
@@ -378,8 +383,6 @@ describe('staff game setup', () => {
         answers: [{ grade: 2, timestamp: today, responseMs: 1_000, mode: 'staff-game' }],
       };
     }
-    await nextTick();
-    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
     click(buttonNamed(container, LABELS.sideLeft));
     await nextTick();
@@ -402,25 +405,25 @@ describe('staff game setup', () => {
 
   it('keeps the setup through the browser session, and resets on a fresh visit', async () => {
     const first = mountPractice({ setup: { game: 'staff' } });
-    click(buttonNamed(first.container, LABELS.oneLayout));
+    click(buttonNamed(first.container, LABELS.sideLeft));
     await nextTick();
-    expect(first.settings.practiceSetup.scope).toBe('one');
+    expect(first.settings.practiceSetup.scope).toEqual({ side: 'left', direction: 'both' });
 
     // Coming back to the page in the same browser session.
     first.unmount();
     const again = mountPractice({ pinia: first.pinia });
     await nextTick();
-    expect(again.settings.practiceSetup.scope).toBe('one');
+    expect(again.settings.practiceSetup.scope).toEqual({ side: 'left', direction: 'both' });
     const pressed = buttons(again.container)
       .filter((b) => b.getAttribute('aria-pressed') === 'true')
       .map((b) => b.textContent?.trim());
-    expect(pressed).toContain(LABELS.oneLayout);
+    expect(pressed).toContain(LABELS.sideLeft);
 
     // A fresh visit: a new pinia, back to all layouts.
     again.unmount();
     const fresh = mountPractice();
     await nextTick();
-    expect(fresh.settings.practiceSetup.scope).toBe('all');
+    expect(fresh.settings.practiceSetup.scope).toEqual(ALL_LAYOUTS);
   });
 });
 
@@ -463,10 +466,10 @@ describe('staff game sessions', () => {
   it('keeps a scoped session inside its layout', async () => {
     vi.useFakeTimers();
     const layout: Layout = { side: 'left', direction: 'close' };
-    const { container, store, practice } = mountPractice({ setup: { game: 'staff', layout } });
+    const { container, store, practice } = mountPractice({
+      setup: { game: 'staff', scope: layout },
+    });
     seed(practice, layoutKeys(layout), 'staff-game');
-    await nextTick();
-    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
     await start(container);
 
@@ -479,11 +482,9 @@ describe('staff game sessions', () => {
   it('ends in a summary that starts another session of the same scope, then returns to the setup', async () => {
     vi.useFakeTimers();
     const { container, settings, practice } = mountPractice({
-      setup: { game: 'staff', layout: RIGHT_OPEN },
+      setup: { game: 'staff', scope: RIGHT_OPEN },
     });
     seed(practice, layoutKeys(RIGHT_OPEN).slice(0, 4), 'staff-game');
-    await nextTick();
-    click(buttonNamed(container, LABELS.oneLayout));
     await nextTick();
     await start(container);
     await playOut(container);
@@ -495,7 +496,7 @@ describe('staff game sessions', () => {
     click(buttonNamed(document.body, LABELS.newSession));
     await nextTick();
     expect(dialog()).toBeNull();
-    expect(settings.practiceSetup.scope).toBe('one');
+    expect(settings.practiceSetup.scope).toEqual(RIGHT_OPEN);
     expect(keys(container).length).toBeGreaterThan(0);
 
     // Dismissing the summary hands the page back to the setup.
@@ -506,32 +507,23 @@ describe('staff game sessions', () => {
     expect(text(container)).toContain(LABELS.start);
   });
 
-  it('keeps the layout the player picked through a chain of all-layout sessions', async () => {
+  it('keeps the scope on all four layouts through a chain of sessions', async () => {
     vi.useFakeTimers();
-    const layout: Layout = { side: 'left', direction: 'close' };
     const { container, settings, practice } = mountPractice({ setup: { game: 'staff' } });
     seed(practice, pool('reverse').slice(0, 60), 'staff-game');
-    await nextTick();
-    // Pick a layout, then hand the scope back to all layouts.
-    click(buttonNamed(container, LABELS.oneLayout));
-    await nextTick();
-    click(buttonNamed(container, LABELS.sideLeft));
-    await nextTick();
-    click(buttonNamed(container, LABELS.pickClose));
-    await nextTick();
-    click(buttonNamed(container, LABELS.allLayouts));
     await nextTick();
 
     await start(container);
     await playOut(container);
-    // Chaining from the summary must not adopt the last prompt's layout.
+    // The keyboard moves between layouts as prompts come; chaining from the
+    // summary must not write the last prompt's layout into the scope.
     click(buttonNamed(document.body, LABELS.newSession));
     await nextTick();
     await playOut(container);
     press('Escape');
     await nextTick();
 
-    expect(settings.practiceSetup.layout).toEqual(layout);
+    expect(settings.practiceSetup.scope).toEqual(ALL_LAYOUTS);
   });
 
   it('abandons silently when the player navigates away, keeping the answers', async () => {

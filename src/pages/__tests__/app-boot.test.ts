@@ -48,7 +48,7 @@ describe('app boot persistence', () => {
   it('persists both versioned blobs on a first visit', async () => {
     await mountApp();
 
-    expect(JSON.parse(localStorage.getItem('settings')!).version).toBe(2);
+    expect(JSON.parse(localStorage.getItem('settings')!).version).toBe(3);
     expect(JSON.parse(localStorage.getItem('practice')!)).toEqual({ version: 1, items: {} });
   });
 
@@ -65,7 +65,7 @@ describe('app boot persistence', () => {
     expect('difficulty' in settings.$state).toBe(false);
     expect('locale' in settings.$state).toBe(false);
     const persisted = JSON.parse(localStorage.getItem('settings')!);
-    expect(persisted.version).toBe(2);
+    expect(persisted.version).toBe(3);
     expect('difficulty' in persisted).toBe(false);
     expect('locale' in persisted).toBe(false);
   });
@@ -84,9 +84,9 @@ describe('app boot persistence', () => {
     localStorage.setItem(
       'settings',
       JSON.stringify({
-        version: 2,
+        version: 3,
         instrument: 'rheinische142',
-        practiceSetup: { game: 'nope', fixedCount: -3, spelling: 'both', layout: 5 },
+        practiceSetup: { game: 'nope', fixedCount: -3, spelling: 'both', scope: { side: 'up' } },
       }),
     );
 
@@ -100,7 +100,7 @@ describe('app boot persistence', () => {
   });
 
   it('gives a blob with no practice setup the defaults, and persists them', async () => {
-    localStorage.setItem('settings', JSON.stringify({ version: 2, instrument: 'rheinische142' }));
+    localStorage.setItem('settings', JSON.stringify({ version: 3, instrument: 'rheinische142' }));
 
     await mountApp();
 
@@ -114,12 +114,10 @@ describe('app boot persistence', () => {
     await mountApp();
 
     const settings = useSettingsStore();
-    settings.practiceSetup.scope = 'one';
-    settings.practiceSetup.layout.side = 'left';
+    settings.practiceSetup.scope.side = 'left';
 
     expect(JSON.parse(localStorage.getItem('settings')!).practiceSetup).toMatchObject({
-      scope: 'one',
-      layout: { side: 'left', direction: 'open' },
+      scope: { side: 'left', direction: 'both' },
     });
   });
 

@@ -4,7 +4,7 @@
 // introduction order, no cap — share the pool and preview vocabulary.
 
 import type { Grade, ItemRecord } from '../stores/practice';
-import type { Layout } from './session';
+import type { Direction, Side } from './session';
 import { parseItemKey, shuffled } from './session';
 
 // Defaults for the two run parameters the player can change: prompts per
@@ -61,8 +61,19 @@ export function itemWeight(record: ItemRecord, now: number): number {
   return isRetired(record) ? weight * TRICKLE_FACTOR : weight;
 }
 
-// Session scope: all four layouts of the game, or one of them.
-export type SessionScope = 'all' | Layout;
+// Session scope: the layouts a run draws from, as one value per axis — a side
+// or both, a direction or both. Both/both is all four layouts; a Layout is one.
+export interface SessionScope {
+  side: Side | 'both';
+  direction: Direction | 'both';
+}
+
+export const ALL_LAYOUTS: Readonly<SessionScope> = { side: 'both', direction: 'both' };
+
+// How many of the four layouts a scope covers.
+export function scopeLayoutCount(scope: SessionScope): number {
+  return (scope.side === 'both' ? 2 : 1) * (scope.direction === 'both' ? 2 : 1);
+}
 
 export interface PoolInput {
   // Every item of one game (instrument × quiz direction), in introduction
@@ -116,9 +127,11 @@ function seen(record: ItemRecord | undefined): record is ItemRecord {
 }
 
 function inScope(key: string, scope: SessionScope): boolean {
-  if (scope === 'all') return true;
   const { side, direction } = parseItemKey(key);
-  return side === scope.side && direction === scope.direction;
+  return (
+    (scope.side === 'both' || side === scope.side) &&
+    (scope.direction === 'both' || direction === scope.direction)
+  );
 }
 
 export function scopedPool({ pool, scope }: Pick<PoolInput, 'pool' | 'scope'>): string[] {
@@ -137,7 +150,7 @@ function introducedToday({ pool, memory, now }: PoolInput): number {
 
 // The scoped pool split into what a draw takes from each half, plus the day's
 // remaining new-item budget. The cap is per game, so it is counted over the
-// whole pool even when the draw is scoped to one layout.
+// whole pool even when the draw is scoped to fewer layouts.
 function candidates(input: SchedulerInput) {
   const cap = input.dailyNewItems ?? DAILY_NEW_ITEMS;
   const newToday = introducedToday(input);

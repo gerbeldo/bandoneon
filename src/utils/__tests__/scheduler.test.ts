@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import type { AnswerEvent, Grade, ItemRecord } from '../../stores/practice';
 import type { SchedulerInput } from '../scheduler';
 import {
+  ALL_LAYOUTS,
   createWeightedScheduler,
   errorTally,
   fixedRunKeys,
@@ -10,6 +11,7 @@ import {
   itemWeight,
   previewFixedRun,
   scopedPool,
+  scopeLayoutCount,
 } from '../scheduler';
 import type { Direction, Side } from '../session';
 import { itemKey } from '../session';
@@ -188,7 +190,7 @@ describe('draw: new items', () => {
   it('introduces at most 3 never-seen items, the first in introduction order', () => {
     const pool = layoutKeys('right', 'open', 10);
 
-    const draw = scheduler().draw({ pool, memory: {}, scope: 'all', now: NOON });
+    const draw = scheduler().draw({ pool, memory: {}, scope: ALL_LAYOUTS, now: NOON });
 
     expect(draw).toHaveLength(3);
     expect([...draw].sort()).toEqual(pool.slice(0, 3).sort());
@@ -202,7 +204,7 @@ describe('draw: new items', () => {
       [pool[2]]: record([0], NOON - 60_000),
     };
 
-    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON });
+    const draw = scheduler().draw({ pool, memory, scope: ALL_LAYOUTS, now: NOON });
 
     expect(draw.filter((key) => !(key in memory))).toEqual([pool[3]]);
   });
@@ -215,7 +217,7 @@ describe('draw: new items', () => {
       [pool[1]]: record([2], new Date(2026, 7, 24, 0, 10).getTime()),
     };
 
-    const draw = scheduler().draw({ pool, memory, scope: 'all', now });
+    const draw = scheduler().draw({ pool, memory, scope: ALL_LAYOUTS, now });
 
     expect(draw.filter((key) => !(key in memory)).sort()).toEqual([pool[2], pool[3]]);
   });
@@ -231,7 +233,7 @@ describe('draw: session size', () => {
     const pool = layoutKeys('right', 'open', 60);
     const memory = seenBeforeToday(pool.slice(3));
 
-    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON });
+    const draw = scheduler().draw({ pool, memory, scope: ALL_LAYOUTS, now: NOON });
 
     expect(draw).toHaveLength(20);
     expect(new Set(draw).size).toBe(20);
@@ -242,7 +244,7 @@ describe('draw: session size', () => {
     const pool = layoutKeys('right', 'open', 8);
     const memory = seenBeforeToday(pool);
 
-    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON });
+    const draw = scheduler().draw({ pool, memory, scope: ALL_LAYOUTS, now: NOON });
 
     expect([...draw].sort()).toEqual([...pool].sort());
   });
@@ -251,7 +253,7 @@ describe('draw: session size', () => {
     const pool = layoutKeys('right', 'open', 60);
     const memory = seenBeforeToday(pool.slice(3));
 
-    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON, sessionSize: 10 });
+    const draw = scheduler().draw({ pool, memory, scope: ALL_LAYOUTS, now: NOON, sessionSize: 10 });
 
     expect(draw).toHaveLength(10);
     expect(new Set(draw).size).toBe(10);
@@ -261,7 +263,7 @@ describe('draw: session size', () => {
     const pool = layoutKeys('right', 'open', 8);
     const memory = seenBeforeToday(pool);
 
-    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON, sessionSize: 50 });
+    const draw = scheduler().draw({ pool, memory, scope: ALL_LAYOUTS, now: NOON, sessionSize: 50 });
 
     expect([...draw].sort()).toEqual([...pool].sort());
   });
@@ -273,18 +275,30 @@ describe('draw: daily new items', () => {
   it('introduces as many never-seen items as the cap it is given', () => {
     const memory = seenBeforeToday(pool.slice(5));
 
-    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON, dailyNewItems: 5 });
+    const draw = scheduler().draw({
+      pool,
+      memory,
+      scope: ALL_LAYOUTS,
+      now: NOON,
+      dailyNewItems: 5,
+    });
 
     expect(draw.filter((key) => !(key in memory)).sort()).toEqual(pool.slice(0, 5).sort());
   });
 
   it('introduces none under a cap of 0, so a first visit draws nothing at all', () => {
     expect(
-      scheduler().draw({ pool, memory: {}, scope: 'all', now: NOON, dailyNewItems: 0 }),
+      scheduler().draw({ pool, memory: {}, scope: ALL_LAYOUTS, now: NOON, dailyNewItems: 0 }),
     ).toEqual([]);
 
     const memory = seenBeforeToday(pool.slice(4));
-    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON, dailyNewItems: 0 });
+    const draw = scheduler().draw({
+      pool,
+      memory,
+      scope: ALL_LAYOUTS,
+      now: NOON,
+      dailyNewItems: 0,
+    });
 
     expect(draw.every((key) => key in memory)).toBe(true);
   });
@@ -293,7 +307,7 @@ describe('draw: daily new items', () => {
     const draw = scheduler().draw({
       pool,
       memory: {},
-      scope: 'all',
+      scope: ALL_LAYOUTS,
       now: NOON,
       sessionSize: 5,
       dailyNewItems: 10,
@@ -355,7 +369,7 @@ describe('draw: weighting', () => {
       ...Object.fromEntries(red.map((key) => [key, record([0, 0, 0, 0, 0], NOON - DAY)])),
     };
 
-    const counts = drawCounts({ pool: [...clean, ...red], memory, scope: 'all' });
+    const counts = drawCounts({ pool: [...clean, ...red], memory, scope: ALL_LAYOUTS });
 
     expect(total(counts, red)).toBeGreaterThan(2 * total(counts, clean));
     expect(total(counts, clean)).toBeGreaterThan(0);
@@ -369,7 +383,7 @@ describe('draw: weighting', () => {
       ...Object.fromEntries(justNow.map((key) => [key, record([2], NOON - 60_000)])),
     };
 
-    const counts = drawCounts({ pool: [...yesterday, ...justNow], memory, scope: 'all' });
+    const counts = drawCounts({ pool: [...yesterday, ...justNow], memory, scope: ALL_LAYOUTS });
 
     expect(total(counts, justNow)).toBeLessThan(10);
     expect(total(counts, yesterday)).toBeGreaterThan(990);
@@ -385,7 +399,7 @@ describe('draw: weighting', () => {
       ...Object.fromEntries(active.map((key) => [key, record([2, 2], NOON - DAY)])),
     };
 
-    const counts = drawCounts({ pool: [...retired, ...active], memory, scope: 'all' });
+    const counts = drawCounts({ pool: [...retired, ...active], memory, scope: ALL_LAYOUTS });
 
     expect(total(counts, active)).toBeGreaterThan(3 * total(counts, retired));
     expect(total(counts, retired)).toBeGreaterThan(0);
@@ -399,7 +413,7 @@ describe('draw: weighting', () => {
       ...Object.fromEntries(suspended.map((key) => [key, record([2, 2, 2, 1], NOON - DAY)])),
     };
 
-    const counts = drawCounts({ pool: [...retired, ...suspended], memory, scope: 'all' });
+    const counts = drawCounts({ pool: [...retired, ...suspended], memory, scope: ALL_LAYOUTS });
 
     expect(total(counts, suspended)).toBeGreaterThan(3 * total(counts, retired));
   });
@@ -416,7 +430,7 @@ describe('draw: weighting', () => {
       ),
     };
 
-    const counts = drawCounts({ pool: [...retired, ...revived], memory, scope: 'all' });
+    const counts = drawCounts({ pool: [...retired, ...revived], memory, scope: ALL_LAYOUTS });
 
     expect(total(counts, revived)).toBeGreaterThan(3 * total(counts, retired));
   });
@@ -427,7 +441,7 @@ describe('draw: weighting', () => {
       pool.map((key) => [key, { firstSeen: NOON - DAY, answers: [answer(2, NOON)] }]),
     );
 
-    const draw = scheduler().draw({ pool, memory, scope: 'all', now: NOON });
+    const draw = scheduler().draw({ pool, memory, scope: ALL_LAYOUTS, now: NOON });
 
     expect(draw).toHaveLength(20);
     expect(new Set(draw).size).toBe(20);
@@ -440,7 +454,7 @@ describe('draw: order and determinism', () => {
 
   it('shuffles the draw: new items are not pinned to the front', () => {
     const firsts = [...Array(20).keys()].map(
-      (seed) => scheduler(seed + 1).draw({ pool, memory, scope: 'all', now: NOON })[0],
+      (seed) => scheduler(seed + 1).draw({ pool, memory, scope: ALL_LAYOUTS, now: NOON })[0],
     );
 
     expect(firsts.some((key) => key in memory)).toBe(true);
@@ -448,7 +462,7 @@ describe('draw: order and determinism', () => {
 
   it('is repeatable for one random source and differs between sources', () => {
     const small = pool.slice(0, 12);
-    const input = { pool: small, memory: seenBeforeToday(small), scope: 'all' as const, now: NOON };
+    const input = { pool: small, memory: seenBeforeToday(small), scope: ALL_LAYOUTS, now: NOON };
 
     const first = scheduler(7).draw(input);
     const again = scheduler(7).draw(input);
@@ -465,7 +479,7 @@ describe('preview', () => {
   const pool = [...layoutKeys('right', 'open', 30), ...layoutKeys('left', 'close', 30)];
 
   it('counts the whole pool as unseen on a first visit', () => {
-    expect(scheduler().preview({ pool, memory: {}, scope: 'all', now: NOON })).toEqual({
+    expect(scheduler().preview({ pool, memory: {}, scope: ALL_LAYOUTS, now: NOON })).toEqual({
       prompts: 3,
       fresh: 3,
       newToday: 0,
@@ -480,7 +494,7 @@ describe('preview', () => {
       pool.slice(0, 25).map((key) => [key, record([2], NOON - DAY)]),
     );
 
-    expect(scheduler().preview({ pool, memory, scope: 'all', now: NOON })).toEqual({
+    expect(scheduler().preview({ pool, memory, scope: ALL_LAYOUTS, now: NOON })).toEqual({
       prompts: 20,
       fresh: 3,
       newToday: 0,
@@ -496,7 +510,7 @@ describe('preview', () => {
       [pool[1]]: record([2], NOON - 3_600_000),
     };
 
-    expect(scheduler().preview({ pool, memory, scope: 'all', now: NOON }).fresh).toBe(1);
+    expect(scheduler().preview({ pool, memory, scope: ALL_LAYOUTS, now: NOON }).fresh).toBe(1);
     expect(
       scheduler().preview({ pool, memory, scope: { side: 'left', direction: 'close' }, now: NOON })
         .fresh,
@@ -508,18 +522,28 @@ describe('preview', () => {
       Object.fromEntries(keys.map((key) => [key, record([2], NOON - 3_600_000)]));
 
     expect(
-      scheduler().preview({ pool, memory: introduced(pool.slice(0, 2)), scope: 'all', now: NOON }),
+      scheduler().preview({
+        pool,
+        memory: introduced(pool.slice(0, 2)),
+        scope: ALL_LAYOUTS,
+        now: NOON,
+      }),
     ).toMatchObject({ newToday: 2, fresh: 1 });
     // A fixed run ignores the daily budget, so the count outruns the cap.
     expect(
-      scheduler().preview({ pool, memory: introduced(pool.slice(0, 30)), scope: 'all', now: NOON }),
+      scheduler().preview({
+        pool,
+        memory: introduced(pool.slice(0, 30)),
+        scope: ALL_LAYOUTS,
+        now: NOON,
+      }),
     ).toMatchObject({ newToday: 30, fresh: 0 });
     // Yesterday's introductions are not today's.
     expect(
       scheduler().preview({
         pool,
         memory: Object.fromEntries(pool.slice(0, 5).map((key) => [key, record([2], NOON - DAY)])),
-        scope: 'all',
+        scope: ALL_LAYOUTS,
         now: NOON,
       }),
     ).toMatchObject({ newToday: 0, fresh: 3 });
@@ -542,7 +566,7 @@ describe('preview', () => {
       scheduler().preview({
         pool,
         memory,
-        scope: 'all',
+        scope: ALL_LAYOUTS,
         now: NOON,
         sessionSize: 8,
         dailyNewItems: 5,
@@ -554,7 +578,7 @@ describe('preview', () => {
     const preview = scheduler().preview({
       pool,
       memory: {},
-      scope: 'all',
+      scope: ALL_LAYOUTS,
       now: NOON,
       sessionSize: 4,
       dailyNewItems: 10,
@@ -562,6 +586,38 @@ describe('preview', () => {
 
     expect(preview.prompts).toBeLessThanOrEqual(4);
     expect(preview).toMatchObject({ prompts: 4, fresh: 4, newCap: 10, seen: 0 });
+  });
+});
+
+// A scope narrows each axis on its own: a side or both, a direction or both.
+describe('scope axes', () => {
+  const rightOpen = layoutKeys('right', 'open', 3);
+  const rightClose = layoutKeys('right', 'close', 3);
+  const leftOpen = layoutKeys('left', 'open', 3);
+  const leftClose = layoutKeys('left', 'close', 3);
+  const pool = [...rightOpen, ...rightClose, ...leftOpen, ...leftClose];
+
+  it('both on both axes is the whole pool: all four layouts', () => {
+    expect(scopedPool({ pool, scope: ALL_LAYOUTS })).toEqual(pool);
+    expect(scopeLayoutCount(ALL_LAYOUTS)).toBe(4);
+  });
+
+  it('one side in both directions keeps that side’s two layouts, in pool order', () => {
+    const scope = { side: 'left', direction: 'both' } as const;
+    expect(scopedPool({ pool, scope })).toEqual([...leftOpen, ...leftClose]);
+    expect(scopeLayoutCount(scope)).toBe(2);
+  });
+
+  it('one direction on both sides keeps that direction’s two layouts', () => {
+    const scope = { side: 'both', direction: 'close' } as const;
+    expect(scopedPool({ pool, scope })).toEqual([...rightClose, ...leftClose]);
+    expect(scopeLayoutCount(scope)).toBe(2);
+  });
+
+  it('a side and a direction is one layout', () => {
+    const scope = { side: 'right', direction: 'close' } as const;
+    expect(scopedPool({ pool, scope })).toEqual(rightClose);
+    expect(scopeLayoutCount(scope)).toBe(1);
   });
 });
 
@@ -574,7 +630,7 @@ describe('fixed runs', () => {
 
   describe('scopedPool', () => {
     it('keeps the whole pool in order when the scope is the whole game', () => {
-      expect(scopedPool({ pool, scope: 'all' })).toEqual(pool);
+      expect(scopedPool({ pool, scope: ALL_LAYOUTS })).toEqual(pool);
     });
 
     it('keeps only the chosen layout, in introduction order', () => {
