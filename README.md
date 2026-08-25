@@ -6,6 +6,17 @@ A little JavaScript application that wants to help learning the bandoneon.
 
 ![Screenshot](./screenshot.png)
 
+## Using it
+
+- **Explore** shows one keyboard layout (side + bellows direction) with every
+  note labeled, plus chord and scale overlays.
+- **Practice** opens on a setup screen: pick the game (name the highlighted
+  button, or find the note shown on the staff), the layouts, the items —
+  scheduled by the app under a daily cap of new items, or simply the first N
+  of the learning order — and whether accidentals are spelled as sharps, flats,
+  or both. Every answer is remembered per button, so scheduled sessions come
+  back to what you miss. The setup is remembered between visits.
+
 ## About this fork
 
 This is a fork of [nicokaiser/bandoneon](https://github.com/nicokaiser/bandoneon)
