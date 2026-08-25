@@ -11,6 +11,9 @@
         :tonal="tonal"
         :selected="idx === selected"
         :color="STATUS_COLORS[statusOf(idx)]"
+        :outline="STATUS_OUTLINES[statusOf(idx)]"
+        interactive
+        :title="`${nameOf(idx)} — ${STATUS_LABELS[statusOf(idx)]}`"
         @click="selected = selected === idx ? null : idx"
       />
     </SvgKeyboard>
@@ -22,8 +25,11 @@
     <ul class="mb-4 flex flex-wrap justify-center gap-x-4 gap-y-1 text-sm">
       <li v-for="status in ITEM_STATUSES" :key="status" class="inline-flex items-center gap-1.5">
         <span
-          class="inline-block h-3 w-3 rounded-full border border-neutral-400"
-          :style="{ backgroundColor: STATUS_COLORS[status] }"
+          class="inline-block h-3 w-3 rounded-full border"
+          :style="{
+            backgroundColor: STATUS_COLORS[status],
+            borderColor: STATUS_OUTLINES[status] ?? '#a3a3a3',
+          }"
           aria-hidden="true"
         ></span>
         <span>{{ STATUS_LABELS[status] }}</span>
@@ -63,6 +69,7 @@ import {
   STATUS_LABELS,
   itemStatus,
   statusCounts,
+  STATUS_OUTLINES,
 } from '../utils/progress';
 import { errorTally } from '../utils/scheduler';
 import { layoutItemKeys } from '../utils/session';
@@ -118,6 +125,12 @@ const gameKeys = computed(() =>
 
 const statusOf = (idx: number) => itemStatus(practice.items[layoutKeys.value[idx]]);
 
+// The button's pitch as the keyboard currently spells it.
+const nameOf = (idx: number) =>
+  accidentalGlyphs(
+    spellPitch(keyPositions.value[idx]?.[2] ?? '', showEnharmonics.value ? 'flat' : 'sharp'),
+  );
+
 const layoutCounts = computed(() => statusCounts(layoutKeys.value, practice.items));
 
 const totals = computed(() => {
@@ -140,8 +153,7 @@ const detail = computed(() => {
     return `${side.value} ${direction.value}: ${seen} of ${layoutKeys.value.length} seen — tap a button for its record`;
   }
   const idx = selected.value;
-  const pitch = keyPositions.value[idx]?.[2] ?? '';
-  const name = accidentalGlyphs(spellPitch(pitch, showEnharmonics.value ? 'flat' : 'sharp'));
+  const name = nameOf(idx);
   const record = practice.items[layoutKeys.value[idx]];
   const status = STATUS_LABELS[itemStatus(record)];
   if (!record || record.answers.length === 0) return `${name} — ${status}`;

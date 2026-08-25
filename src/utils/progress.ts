@@ -26,6 +26,10 @@ export const STATUS_COLORS: Record<ItemStatus, string> = {
   unseen: 'transparent',
 };
 
+// A ring on retired buttons, so retired and learning differ by more than the
+// fill's strength.
+export const STATUS_OUTLINES: Partial<Record<ItemStatus, string>> = { retired: '#16a34a' };
+
 export function itemStatus(record: ItemRecord | undefined): ItemStatus {
   if (!record || record.answers.length === 0) return 'unseen';
   if (isRetired(record)) return 'retired';

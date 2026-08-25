@@ -68,7 +68,7 @@ export const inGroup = (container: HTMLElement, label: string, text: string) =>
 export const range = (container: HTMLElement) =>
   container.querySelector<HTMLInputElement>('input[type="range"][aria-label="Number of items"]');
 
-export const click = (button?: HTMLElement) =>
+export const click = (button?: Element) =>
   button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
 export const press = (key: string, target: EventTarget = document) =>

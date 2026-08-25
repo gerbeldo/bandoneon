@@ -5,13 +5,19 @@
     <div class="mx-auto flex w-full max-w-2xl flex-col gap-7 px-4 pt-3 sm:gap-9 sm:px-6 sm:pt-6">
       <section>
         <h2 :class="HEADING">Game</h2>
-        <div class="grid grid-cols-2 gap-3" role="radiogroup" aria-label="Game">
+        <div
+          class="grid grid-cols-2 gap-3"
+          role="radiogroup"
+          aria-label="Game"
+          @keydown.left.right.up.down.prevent="cycleGame"
+        >
           <button
             v-for="choice in GAME_CHOICES"
             :key="choice.value"
             type="button"
             role="radio"
             :aria-checked="setup.game === choice.value"
+            :tabindex="setup.game === choice.value ? 0 : -1"
             class="flex flex-col items-start gap-2 rounded-xl border p-4 text-left transition-colors select-none"
             :class="
               setup.game === choice.value
@@ -158,7 +164,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { computed, onMounted, onUnmounted } from 'vue';
+import { computed, nextTick, onMounted, onUnmounted } from 'vue';
 
 import type { PracticeGame, PracticePool } from '../../stores/settings';
 import { DAILY_NEW_CHOICES, SESSION_SIZES, useSettingsStore } from '../../stores/settings';
@@ -253,6 +259,16 @@ const detail = computed(() => {
   }
   return `${fresh} new · ${seen} of ${total} seen`;
 });
+
+// Arrow keys move the game choice and keep focus on the checked card.
+async function cycleGame(event: KeyboardEvent) {
+  const order = GAME_CHOICES.map((choice) => choice.value);
+  const step = event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : order.length - 1;
+  setup.value.game = order[(order.indexOf(setup.value.game) + step) % order.length];
+  const group = event.currentTarget as HTMLElement;
+  await nextTick();
+  group.querySelector<HTMLElement>('[aria-checked="true"]')?.focus();
+}
 
 // Enter means Start anywhere on the screen, whichever control the player last
 // touched. Space still works the buttons.
