@@ -11,7 +11,17 @@ import { useStore } from '../../stores/main';
 import { usePracticeStore } from '../../stores/practice';
 import { introductionOrder } from '../../utils/introduction';
 import StaffGame from '../staff-game.vue';
-import { buttonNamed, click, dialog, seed, startSession, startSweep } from './start-card';
+import {
+  badge,
+  buttonNamed,
+  DIRECTION_COLORS,
+  click,
+  dialog,
+  seed,
+  startSession,
+  startSweep,
+  strip,
+} from './start-card';
 
 let cleanup: (() => void) | null = null;
 
@@ -44,11 +54,6 @@ function mount(
 
 const buttons = (container: HTMLElement) => [...container.querySelectorAll('button')];
 const keys = (container: HTMLElement) => [...container.querySelectorAll('.keyboard > g')];
-const badge = (container: HTMLElement) => container.querySelector('[data-direction]');
-
-// The strip's three segments, joined the way the DOM renders them.
-const strip = (index: number, total: number, newToday: string, seen: number, pool: number) =>
-  `Prompt ${index} of ${total}·${newToday}·${seen} of ${pool} seen`;
 
 const layoutNotes = (side: 'left' | 'right', direction: 'open' | 'close') =>
   (instruments.rheinische142[side] as Record<string, string[][]>)[direction].flat().filter(Boolean);
@@ -483,9 +488,7 @@ describe('sessions', () => {
       const badged = badge(container);
       expect(badged?.getAttribute('data-direction')).toBe(store.direction);
       expect(badged?.textContent).toContain(en[store.direction]);
-      expect(badged?.className).toContain(
-        store.direction === 'open' ? 'bg-sky-600' : 'bg-orange-600',
-      );
+      expect(badged?.className).toContain(DIRECTION_COLORS[store.direction]);
       shown.add(`${store.side}/${store.direction}`);
     });
 

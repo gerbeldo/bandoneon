@@ -12,7 +12,16 @@ import { usePracticeStore } from '../../stores/practice';
 import { useSettingsStore } from '../../stores/settings';
 import { introductionOrder } from '../../utils/introduction';
 import Game from '../game.vue';
-import { buttonNamed, click, dialog, seed, startSession, startSweep } from './start-card';
+import {
+  badge,
+  DIRECTION_COLORS,
+  click,
+  dialog,
+  seed,
+  startSession,
+  startSweep,
+  strip,
+} from './start-card';
 
 const GREEN = '#22c55e88';
 const YELLOW = '#eab30888';
@@ -51,11 +60,6 @@ const octaveButtons = (container: HTMLElement) =>
 const noteButton = (container: HTMLElement, pc: string) =>
   buttons(container).find((b) => b.textContent?.trim() === pc.replace('#', '♯'));
 const circles = (container: HTMLElement) => [...container.querySelectorAll('.keyboard > g circle')];
-const badge = (container: HTMLElement) => container.querySelector('[data-direction]');
-
-// The strip's three segments, joined the way the DOM renders them.
-const strip = (index: number, total: number, newToday: string, seen: number, pool: number) =>
-  `Prompt ${index} of ${total}·${newToday}·${seen} of ${pool} seen`;
 // Math.random is constant, so the shuffle keeps the layout order and the
 // session's first prompt is keyPositions[0].
 function firstPrompt(store: ReturnType<typeof useStore>) {
@@ -285,29 +289,30 @@ describe('note game session strip and direction badge', () => {
     expect(container.textContent).toContain(strip(6, 38, '5 new today', 5, 38));
   });
 
-  it('badges the prompt’s direction in blue for open and orange for close', async () => {
+  it('badges an open prompt in blue, with the word inside', async () => {
     const { container } = mount();
-    await startSweep(container);
+    await startSweep(container, 'open');
 
     expect(badge(container)?.getAttribute('data-direction')).toBe('open');
     expect(badge(container)?.textContent).toContain(en.open);
-    expect(badge(container)?.className).toContain('bg-sky-600');
-    // Pinned to a box that tracks the drawing, not to the page's spare room —
-    // that is what keeps it off the buttons whatever slack the layout leaves.
-    expect(badge(container)?.parentElement?.className).toContain('keyboard-ghost');
+    expect(badge(container)?.className).toContain(DIRECTION_COLORS.open);
+  });
 
-    // Back to the card, then the same layout in the other direction.
-    cleanup?.();
-    const closed = mount();
-    click(buttonNamed(closed.container, en.one_layout));
-    await nextTick();
-    click(buttonNamed(closed.container, en.close));
-    await nextTick();
-    click(buttonNamed(closed.container, en.sweep_layout));
-    await nextTick();
+  it('badges a close prompt in orange, with the word inside', async () => {
+    const { container } = mount();
+    await startSweep(container, 'close');
 
-    expect(badge(closed.container)?.getAttribute('data-direction')).toBe('close');
-    expect(badge(closed.container)?.textContent).toContain(en.close);
-    expect(badge(closed.container)?.className).toContain('bg-orange-600');
+    expect(badge(container)?.getAttribute('data-direction')).toBe('close');
+    expect(badge(container)?.textContent).toContain(en.close);
+    expect(badge(container)?.className).toContain(DIRECTION_COLORS.close);
+  });
+
+  // Pinned to a box that tracks the drawing, not to the page's spare room —
+  // that is what keeps it off the buttons whatever slack the layout leaves.
+  it('hangs the badge off the keyboard’s own box, not the page’s spare room', async () => {
+    const { container } = mount();
+    await startSweep(container);
+
+    expect(badge(container)?.closest('.keyboard-ghost')).not.toBeNull();
   });
 });

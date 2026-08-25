@@ -13,7 +13,12 @@
     <!-- Phone: staff beside the progress/hint to keep the page one screen tall.
          md+: everything stacked in a wider column so the staff can fill it. -->
     <div class="mx-auto flex w-full max-w-md shrink-0 flex-wrap items-center gap-x-4 md:w-80">
-      <SessionStrip class="w-full" :index="promptNumber" :total="total" :preview="preview" />
+      <SessionStrip
+        class="w-full"
+        :prompt-number="promptNumber"
+        :total="total"
+        :preview="preview"
+      />
       <GrandStaff
         class="w-48 shrink-0 md:w-full"
         :notes="quizzedSpelled ? [quizzedSpelled] : []"

@@ -16,7 +16,12 @@
     class="keyboard keyboard-ghost"
     :style="{ aspectRatio: `${viewBox.width} / ${viewBox.height}` }"
   >
-    <slot name="overlay" />
+    <div
+      class="keyboard-ghost-inner"
+      :style="{ aspectRatio: `${viewBox.width} / ${viewBox.height}` }"
+    >
+      <slot name="overlay" />
+    </div>
   </div>
 </template>
 
@@ -88,13 +93,23 @@ defineExpose({ download });
   }
 }
 
-/* Tracks the drawing: same width and cap, centered on the same line, its height
-   from the viewBox ratio rather than the width/height attributes. */
+/* An empty stand-in for the drawing, in two boxes because CSS clamps only one
+   axis at a time. The outer shares `.keyboard`'s width and cap, so its height
+   lands on the drawing's height; the inner takes that height back through the
+   viewBox ratio, so its width narrows with the drawing when the cap binds and
+   the svg letterboxes. */
 .keyboard-ghost {
   position: absolute;
-  left: 0;
   top: 50%;
+  left: 0;
   translate: 0 -50%;
   pointer-events: none;
+}
+
+.keyboard-ghost-inner {
+  position: relative;
+  width: auto;
+  height: 100%;
+  margin-inline: auto;
 }
 </style>

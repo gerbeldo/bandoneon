@@ -98,6 +98,14 @@ _Avoid_: start screen, lobby
 The on-demand run through every button of one layout — the "prove myself" option. Records through the same seam as sessions.
 _Avoid_: full-keyboard round
 
+**Session strip**:
+The one line of numbers shown during play, where the side + direction pickers sit on the start card: prompt progress, today's new items against the daily cap, and pool coverage. Never a binary "due" count.
+_Avoid_: counter row, progress bar, queue display
+
+**Direction badge**:
+The pill above the keyboard's top-right corner naming the current prompt's bellows direction, blue for open and orange for close. The word is always inside it, so color never carries the meaning alone. Side needs no badge — the rendered keyboard shows it.
+_Avoid_: bellows badge, direction pill
+
 **Session engine**:
 The component that runs a session: draws each prompt, hands it to the game, grades the answer, and writes practice memory. Games only render prompts and capture answers.
 _Avoid_: game engine

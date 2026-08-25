@@ -8,7 +8,7 @@
   />
   <template v-else>
     <div
-      class="relative mx-auto flex min-h-0 w-full max-w-4xl flex-1 items-center px-2 pt-2 pb-2 sm:px-6 sm:pt-6 sm:pb-4"
+      class="relative mx-auto flex min-h-0 w-full max-w-4xl flex-1 items-center px-2 pt-2 pb-2 sm:mt-9 sm:px-6 sm:pt-2 sm:pb-4 portrait:mt-9"
     >
       <SvgKeyboard>
         <template v-if="prompt" #overlay>
@@ -27,7 +27,7 @@
       </SvgKeyboard>
     </div>
     <div class="mx-auto max-w-(--breakpoint-md) shrink-0 px-6 pb-4 sm:pb-6">
-      <SessionStrip :index="promptNumber" :total="total" :preview="preview" />
+      <SessionStrip :prompt-number="promptNumber" :total="total" :preview="preview" />
       <p class="mb-2 text-center text-sm text-neutral-500 dark:text-neutral-400">
         {{ t('hint_game') }}
       </p>

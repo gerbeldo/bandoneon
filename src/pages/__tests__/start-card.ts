@@ -20,12 +20,32 @@ export async function startSession(container: HTMLElement) {
   await nextTick();
 }
 
-export async function startSweep(container: HTMLElement) {
+// The layout defaults to whatever the store holds; pass a direction to sweep
+// the other one.
+export async function startSweep(container: HTMLElement, direction?: 'open' | 'close') {
   click(buttonNamed(container, en.one_layout));
   await nextTick();
+  if (direction) {
+    click(buttonNamed(container, en[direction]));
+    await nextTick();
+  }
   click(buttonNamed(container, en.sweep_layout));
   await nextTick();
 }
+
+// The direction badge, and the colors the spec names for it.
+export const badge = (container: HTMLElement) => container.querySelector('[data-direction]');
+
+export const DIRECTION_COLORS = { open: 'bg-sky-600', close: 'bg-orange-600' } as const;
+
+// The session strip's three segments, joined the way the DOM renders them.
+export const strip = (
+  promptNumber: number,
+  total: number,
+  newToday: string,
+  seen: number,
+  pool: number,
+) => `Prompt ${promptNumber} of ${total}·${newToday}·${seen} of ${pool} seen`;
 
 // Practice memory for items answered correctly yesterday, so they count as seen
 // and carry a day's worth of sampling weight.
