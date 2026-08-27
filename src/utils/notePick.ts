@@ -2,6 +2,8 @@
 // octave, composed into one spelled pitch for the engine. The name is the
 // player's own: E♯ stays E♯, never respelled into the prompt's table.
 
+import type { StaffGlyph } from '../assets/staffGlyphs';
+import { staffGlyphs } from '../assets/staffGlyphs';
 import { formatPitchClass } from './spelling';
 
 export type Letter = 'C' | 'D' | 'E' | 'F' | 'G' | 'A' | 'B';
@@ -21,6 +23,16 @@ export const ACCIDENTAL_NAMES: Record<Accidental, string> = {
   '': 'Natural',
   '#': 'Sharp',
   '##': 'Double sharp',
+};
+
+// Drawn outlines, not typed characters: many phone fonts lack 𝄪 and 𝄫, so
+// the inputs draw every sign from the extracted paths.
+export const ACCIDENTAL_GLYPHS: Record<Accidental, StaffGlyph> = {
+  '': staffGlyphs.accidentalNatural,
+  '#': staffGlyphs.accidentalSharp,
+  '##': staffGlyphs.accidentalDoubleSharp,
+  b: staffGlyphs.accidentalFlat,
+  bb: staffGlyphs.accidentalDoubleFlat,
 };
 
 export interface NotePick {

@@ -3,6 +3,8 @@ import { computed, reactive } from 'vue';
 import type { NotePick } from '../utils/notePick';
 import { emptyPick, pickFromKey, pitchOf } from '../utils/notePick';
 
+export type UseNotePick = ReturnType<typeof useNotePick>;
+
 // The one pick behind every note input: widget taps and keydowns funnel
 // through choose(), which hands back the finished pitch the moment letter and
 // octave are both set, resetting itself for the next prompt.
