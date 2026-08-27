@@ -122,12 +122,12 @@ _Avoid_: full-keyboard round
 A table of twelve names, one per pitch class, that a run names its notes by: under Chromatic, the sharps or the flats as chosen on the practice setup; under a key, the key's own seven names, with sharps or flats by its signature for the other five — so a key may rename a natural: F♯ major names F as E♯. Under Both, each accidental item is named from the sharps or the flats, drawn at random when the run starts and kept however often the run comes back to it. Every prompt carries its spelling, and a button answered in a run keeps the name it was asked under; Explore's ♯/♭ toggle is not touched.
 _Avoid_: enharmonics toggle (that is Explore's ♯/♭ button), notation (that is pitch notation)
 
-**Session strip**:
-The one line of numbers shown during play: prompt progress, today's new items against the run's daily cap when it has one, and pool coverage. Never a binary "due" count.
-_Avoid_: counter row, progress bar, queue display
+**Note input**:
+How the note game captures the answer — Letters, Piano, Wheel, or Staff — chosen from the settings menu, never on the practice setup (ADR 0007). Every input hands the engine one spelled pitch: the octave tap submits, except on the Staff, where lifting the finger does and the position names the octave. The pick shows on the prompted button as the player wrote it — E♯ stays E♯.
+_Avoid_: input mode, answer widget, palette (that was the old 12-name row)
 
 **Direction badge**:
-The pill above the keyboard's top-right corner naming the current prompt's bellows direction, blue for open and orange for close. The word is always inside it, so color never carries the meaning alone. Side needs no badge — the rendered keyboard shows it.
+The thin rule across the keyboard's top edge naming the current prompt's bellows direction, blue for open and orange for close. The word sits inside it, so color never carries the meaning alone. Side needs no badge — the rendered keyboard shows it.
 _Avoid_: bellows badge, direction pill
 
 **Session engine**:

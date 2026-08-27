@@ -5,21 +5,24 @@ import { nextTick } from 'vue';
 import type { PracticeSetup } from '../../stores/settings';
 import type { Layout } from '../../utils/session';
 import {
+  accidentalButton,
   badge,
   buttonIndexOf,
   buttonNamed,
   click,
   dialog,
+  letterButton,
+  octaveButtons,
   DIRECTION_COLORS,
   LABELS,
   mountPractice,
   pitchOf,
   pool,
+  press,
   runKeys,
   seed,
   setupRun,
   start,
-  strip,
   unmountPractice,
 } from './practice-helpers';
 
@@ -38,11 +41,6 @@ const fixedRun = (layout: Layout, fixedCount = 999): Partial<PracticeSetup> => (
   fixedCount,
 });
 
-const buttons = (container: HTMLElement) => [...container.querySelectorAll('button')];
-const octaveButtons = (container: HTMLElement) =>
-  buttons(container).filter((b) => /^\d$/.test(b.textContent?.trim() ?? ''));
-const noteButton = (container: HTMLElement, pc: string) =>
-  buttons(container).find((b) => b.textContent?.trim() === pc.replace('#', '♯'));
 const circles = (container: HTMLElement) => [...container.querySelectorAll('.keyboard > g circle')];
 
 // Math.random is constant, so the shuffle keeps the introduction order and a
@@ -60,15 +58,20 @@ function firstPrompt() {
   return { pc: pitch.slice(0, -1), octave: pitch.slice(-1) };
 }
 
+// Names a pitch class the letters way: the letter, then the sharp if it has one.
 async function answer(container: HTMLElement, pc: string) {
-  click(noteButton(container, pc));
+  click(letterButton(container, pc[0]));
   await nextTick();
+  if (pc.includes('#')) {
+    click(accidentalButton(container, 'Sharp'));
+    await nextTick();
+  }
 }
 
 // Names C in whatever octave the layout offers first, so the run advances
 // whatever the prompt was.
 async function answerAnything(container: HTMLElement) {
-  click(noteButton(container, 'C'));
+  click(letterButton(container, 'C'));
   await nextTick();
   click(octaveButtons(container)[0]);
   await nextTick();
@@ -235,34 +238,18 @@ describe('note game runs', () => {
   });
 });
 
-describe('note game session strip and direction badge', () => {
-  it('replaces the setup screen and moves its numbers with play', async () => {
+describe('note game direction badge', () => {
+  it('replaces the setup screen with the game alone — no strip, no hint text', async () => {
     const { container, practice } = mountPractice();
     seed(practice, pool('forward').slice(0, 60), 'note-game');
     await nextTick();
     await start(container);
 
-    // The setup's controls are gone; only note and octave buttons remain.
+    // The setup's controls are gone; only the input rows remain.
     expect(buttonNamed(container, LABELS.sideLeft)).toBeUndefined();
     expect(buttonNamed(container, LABELS.start)).toBeUndefined();
-    expect(container.textContent).toContain(strip(1, 20, '0 of 3 new today', 60, 142));
-
-    // The draw leads with the day's three never-seen items, so the first answer
-    // introduces one: both the new-today and seen counts move.
-    await answerAnything(container);
-    expect(container.textContent).toContain(strip(2, 20, '1 of 3 new today', 61, 142));
-  });
-
-  // A fixed run has no daily cap, so the strip reports the count alone.
-  it('drops the cap from the count on a fixed run', async () => {
-    const { container, settings } = mountPractice();
-    await setupRun(settings, fixedRun(RIGHT_OPEN));
-    await start(container);
-
-    expect(container.textContent).toContain(strip(1, 38, '0 new today', 0, 38));
-
-    for (let i = 0; i < 5; i++) await answerAnything(container);
-    expect(container.textContent).toContain(strip(6, 38, '5 new today', 5, 38));
+    expect(container.textContent).not.toContain('Prompt 1 of');
+    expect(container.textContent).not.toContain('Name the highlighted button');
   });
 
   it('badges an open prompt in blue, with the word inside', async () => {
@@ -293,5 +280,75 @@ describe('note game session strip and direction badge', () => {
     await start(container);
 
     expect(badge(container)?.closest('.keyboard-ghost')).not.toBeNull();
+  });
+});
+
+describe('note game inputs', () => {
+  it('grades by sound: B♯3 answers a C4 prompt green', async () => {
+    const { container, settings, practice } = mountPractice();
+    await setupRun(settings, fixedRun(RIGHT_OPEN));
+    await start(container);
+
+    // First prompt is C4; B♯3 sounds the very same pitch.
+    await answer(container, 'B#');
+    click(octaveButtons(container).find((b) => b.textContent?.trim() === '3'));
+    await nextTick();
+
+    expect(promptedCircle(container).getAttribute('fill')).toBe(GREEN);
+    expect(practice.items[FIRST_KEY].answers[0].grade).toBe(2);
+  });
+
+  it('shows the pick on the prompted button as the player wrote it', async () => {
+    const { container, settings } = mountPractice();
+    await setupRun(settings, fixedRun(RIGHT_OPEN));
+    await start(container);
+
+    await answer(container, 'E');
+    click(accidentalButton(container, 'Sharp'));
+    await nextTick();
+
+    const prompted = [...container.querySelectorAll('.keyboard > g')].find((key) =>
+      key.classList.contains('selected'),
+    );
+    expect(prompted?.textContent?.replace(/\s+/g, '')).toBe('E♯');
+  });
+
+  it('answers from the desktop keys: letter, then digit', async () => {
+    const { container, settings, practice } = mountPractice();
+    await setupRun(settings, fixedRun(RIGHT_OPEN));
+    await start(container);
+
+    const { pc, octave } = firstPrompt();
+    press(pc[0].toLowerCase());
+    await nextTick();
+    press(octave);
+    await nextTick();
+
+    expect(practice.items[FIRST_KEY].answers[0].grade).toBe(2);
+  });
+
+  it('the staff input places by position and needs no octave row', async () => {
+    const { container, settings, practice } = mountPractice();
+    settings.noteInput = 'staff';
+    await setupRun(settings, fixedRun(RIGHT_OPEN));
+    await start(container);
+
+    expect(octaveButtons(container)).toHaveLength(0);
+    const staff = container.querySelector('svg.staff') as SVGSVGElement;
+    vi.spyOn(staff, 'getBoundingClientRect').mockReturnValue({
+      top: 0,
+      left: 0,
+      width: 320,
+      height: 336,
+    } as DOMRect);
+
+    // The staff is 320×336, middle line (B4) at y 204, 12 px per step; C4 sits
+    // six steps below it. Press and lift there: the first prompt answered green.
+    const y = 204 + 6 * 12;
+    staff.dispatchEvent(new PointerEvent('pointerdown', { clientY: y, bubbles: true }));
+    staff.dispatchEvent(new PointerEvent('pointerup', { clientY: y, bubbles: true }));
+    await nextTick();
+
+    expect(practice.items[FIRST_KEY].answers[0].grade).toBe(2);
   });
 });

@@ -103,7 +103,7 @@ export function useSession() {
 
   // Stamped when the setup appears and again when a run begins, so "today"
   // holds still for as long as one screen is up: the summary line does not
-  // drift while the setup sits open, and the strip's day does not turn mid-run.
+  // drift while the setup sits open, and the day does not turn mid-run.
   const asOf = ref(Date.now());
 
   const poolInput = computed<PoolInput>(() => ({
@@ -123,9 +123,7 @@ export function useSession() {
       ? { ...poolInput.value, now, layouts: layouts.value, quizDirection: game.value.quizDirection }
       : null;
 
-  // The setup screen's summary line and, during play, the session strip.
-  // Practice memory is reactive, so an answer that introduces an item moves
-  // the strip at once.
+  // The setup screen's summary line: what starting right now would run.
   const preview = computed<SessionPreview>(() => {
     if (setup.value.pool === 'walk') {
       const input = walkInput(asOf.value);
@@ -139,13 +137,6 @@ export function useSession() {
           dailyNewItems: setup.value.dailyNewItems,
         });
   });
-
-  // The prompt stays on the answered one while a page runs its feedback pause,
-  // so the count advances only when the next prompt appears.
-  const answeredCount = computed(() => (prompt.value ? prompt.value.index : total.value));
-
-  // What the strip shows: 1-based, and clamped once the draw is spent.
-  const promptNumber = computed(() => Math.min(answeredCount.value + 1, total.value));
 
   const graded = (buttonIndex: number) =>
     results.value[`${store.side}/${store.direction}/${buttonIndex}`];
@@ -260,7 +251,6 @@ export function useSession() {
     total,
     counts,
     answers,
-    promptNumber,
     graded,
     kind,
     start,

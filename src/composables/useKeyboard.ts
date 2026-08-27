@@ -2,12 +2,9 @@ import { onMounted, onUnmounted } from 'vue';
 
 import { useStore } from '../stores/main';
 
-interface KeyboardOptions {
-  /** 'all' binds every shortcut; 'tonic' binds only tonic letters and Escape (safe mid-game). */
-  keys?: 'all' | 'tonic';
-}
-
-export function useKeyboard({ keys = 'all' }: KeyboardOptions = {}) {
+// Explore's shortcuts. The note game binds its own keys onto the pick
+// (NoteGame.vue), so there is no reduced mode here.
+export function useKeyboard() {
   const store = useStore();
 
   function setSideAndDirection(side: 'left' | 'right', direction: 'open' | 'close') {
@@ -15,13 +12,11 @@ export function useKeyboard({ keys = 'all' }: KeyboardOptions = {}) {
   }
 
   function listener({ key }: { key: string }) {
-    if (keys === 'all') {
-      // Side and direction
-      if (key === 'l') return setSideAndDirection('left', 'open');
-      if (key === 'L') return setSideAndDirection('left', 'close');
-      if (key === 'r') return setSideAndDirection('right', 'open');
-      if (key === 'R') return setSideAndDirection('right', 'close');
-    }
+    // Side and direction
+    if (key === 'l') return setSideAndDirection('left', 'open');
+    if (key === 'L') return setSideAndDirection('left', 'close');
+    if (key === 'r') return setSideAndDirection('right', 'open');
+    if (key === 'R') return setSideAndDirection('right', 'close');
 
     // Tonic
     if (['c', 'd', 'e', 'f', 'g', 'a', 'b'].includes(key)) {
@@ -31,12 +26,10 @@ export function useKeyboard({ keys = 'all' }: KeyboardOptions = {}) {
       return store.setTonic(key + '#');
     }
 
-    if (keys === 'all') {
-      // Chord
-      if (key === 'M') return store.setChordType('M');
-      if (key === 'm') return store.setChordType('m');
-      if (key === '7') return store.setChordType('7');
-    }
+    // Chord
+    if (key === 'M') return store.setChordType('M');
+    if (key === 'm') return store.setChordType('m');
+    if (key === '7') return store.setChordType('7');
 
     // Escape
     if (key === 'Escape') return store.setTonic(null);

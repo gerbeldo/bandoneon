@@ -19,6 +19,23 @@
         </div>
       </div>
 
+      <div class="mb-4">
+        <label class="block text-xs font-medium text-neutral-500 dark:text-neutral-400">
+          Note input
+        </label>
+        <div class="mt-1 flex w-full flex-row gap-2">
+          <Button
+            v-for="value in NOTE_INPUTS"
+            :key="value"
+            class="w-full bg-white dark:bg-neutral-900"
+            :aria-pressed="value === noteInput"
+            @click="noteInput = value"
+          >
+            {{ inputLabels[value] }}
+          </Button>
+        </div>
+      </div>
+
       <div class="flex justify-end text-sm">
         <a target="_blank" href="https://github.com/gerbeldo/bandoneon">
           <IconGitHub class="h-4 w-4" />
@@ -32,7 +49,8 @@
 import { storeToRefs } from 'pinia';
 
 import { pitchNotations } from '../data/index';
-import { useSettingsStore } from '../stores/settings';
+import type { NoteInput } from '../stores/settings';
+import { NOTE_INPUTS, useSettingsStore } from '../stores/settings';
 import Button from './Button.vue';
 import IconGitHub from './icons/IconGitHub.vue';
 
@@ -44,7 +62,15 @@ const notationLabels: Record<(typeof pitchNotations)[number], string> = {
   staff: 'Staff',
 };
 
+// How the note game asks for the answer: named plainly, one word each.
+const inputLabels: Record<NoteInput, string> = {
+  letters: 'Letters',
+  piano: 'Piano',
+  wheel: 'Wheel',
+  staff: 'Staff',
+};
+
 const settings = useSettingsStore();
 
-const { pitchNotation } = storeToRefs(settings);
+const { pitchNotation, noteInput } = storeToRefs(settings);
 </script>
