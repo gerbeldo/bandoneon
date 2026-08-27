@@ -25,7 +25,6 @@ import {
   seed,
   setupRun,
   start,
-  strip,
   unmountPractice,
   walkOrder,
 } from './practice-helpers';
@@ -287,13 +286,10 @@ describe('staff game duplicate-pitch follow-up', () => {
     expect(text(container)).toContain(LABELS.hintStaffGame);
 
     for (let i = 0; i < FIRST_E5; i++) await answerCorrectly(container, buttonAt(i));
-    expect(text(container)).toContain(`Prompt ${FIRST_E5 + 1} of 38`);
     expect(text(container)).toContain(LABELS.twinExpected);
 
     await answerCorrectly(container, buttonAt(FIRST_E5));
     expect(circles(container)[buttonAt(FIRST_E5)].getAttribute('fill')).toBe(GREEN);
-    // The follow-up grew the denominator: 38 prompts became 39.
-    expect(text(container)).toContain(`Prompt ${FIRST_E5 + 2} of 39`);
     expect(text(container)).toContain(LABELS.twinFollowUp);
 
     tap(container, buttonAt(SECOND_E5));
@@ -304,7 +300,6 @@ describe('staff game duplicate-pitch follow-up', () => {
 
     vi.advanceTimersByTime(1_000);
     await nextTick();
-    expect(text(container)).toContain(`Prompt ${FIRST_E5 + 3} of 39`);
     expect(text(container)).toContain(LABELS.hintStaffGame);
     expect(text(container)).not.toContain(LABELS.twinFollowUp);
   });
@@ -323,7 +318,7 @@ describe('staff game duplicate-pitch follow-up', () => {
       }
     }
 
-    expect(text(container)).toContain('Prompt 40 of 40');
+    // The two follow-ups grew the run: 38 prompts became 40, all correct.
     expect(document.body.textContent).toContain('40 correct');
   });
 });
@@ -357,16 +352,12 @@ describe('staff game walk', () => {
 
     await start(container);
     for (let i = 0; i < E5; i++) await answerCorrectly(container, buttonAt(i));
-    expect(text(container)).toContain(`Prompt ${E5 + 1} of 73`);
     expect(text(container)).toContain(LABELS.twinExpected);
 
     await answerCorrectly(container, buttonAt(E5));
-    // The follow-up grew the walk by one.
-    expect(text(container)).toContain(`Prompt ${E5 + 2} of 74`);
     expect(text(container)).toContain(LABELS.twinFollowUp);
 
     await answerCorrectly(container, OTHER_E5);
-    expect(text(container)).toContain(`Prompt ${E5 + 3} of 74`);
     expect(text(container)).not.toContain(LABELS.twinFollowUp);
 
     // The climb resumes where it left off.
@@ -537,8 +528,6 @@ describe('staff game sessions', () => {
     seed(practice, pool('reverse').slice(0, 60), 'staff-game');
     await nextTick();
     await start(container);
-
-    expect(text(container)).toContain(strip(1, 20, '0 of 3 new today', 60, 142));
 
     const layouts = new Set<string>();
     await playOut(container, () => layouts.add(`${store.side}/${store.direction}`));

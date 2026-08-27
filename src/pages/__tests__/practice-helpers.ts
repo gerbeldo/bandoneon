@@ -99,16 +99,7 @@ export const dialog = () => document.querySelector('[role="dialog"]');
 // The direction badge, and the colors the spec names for it.
 export const badge = (container: HTMLElement) => container.querySelector('[data-direction]');
 
-export const DIRECTION_COLORS = { open: 'bg-sky-600', close: 'bg-orange-600' } as const;
-
-// The session strip's three segments, joined the way the DOM renders them.
-export const strip = (
-  promptNumber: number,
-  total: number,
-  newToday: string,
-  seen: number,
-  pool: number,
-) => `Prompt ${promptNumber} of ${total}·${newToday}·${seen} of ${pool} seen`;
+export const DIRECTION_COLORS = { open: 'text-sky-600', close: 'text-orange-600' } as const;
 
 // Practice memory for items answered correctly yesterday, so they count as seen
 // and carry a day's worth of sampling weight.

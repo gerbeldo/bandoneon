@@ -2,18 +2,32 @@
   <div
     class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-2 px-2 pt-2 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:landscape:flex-row md:landscape:items-center md:landscape:gap-8"
   >
-    <!-- Portrait (phones, tablets held upright): staff beside the progress/hint
-         above a full-width keyboard. Landscape from md up: the staff column
-         stands beside the keyboard. -->
+    <!-- Portrait (phones, tablets held upright): the keyboard on top — as in
+         the note game — with the staff beside the progress/hint below it.
+         Landscape from md up: the staff column stands beside the keyboard. -->
     <div
-      class="mx-auto flex w-full max-w-md shrink-0 flex-wrap items-center gap-x-4 md:landscape:w-80"
+      class="relative flex min-h-0 min-w-0 shrink items-center justify-center pt-7 md:landscape:order-2 md:landscape:flex-1 md:landscape:pt-0"
     >
-      <SessionStrip
-        class="w-full"
-        :prompt-number="promptNumber"
-        :total="total"
-        :preview="preview"
-      />
+      <SvgKeyboard>
+        <template v-if="prompt" #overlay>
+          <DirectionBadge :direction="prompt.layout.direction" />
+        </template>
+        <SvgButton
+          v-for="([x, y, tonal], idx) in keyPositions"
+          :key="idx"
+          :x="x"
+          :y="y"
+          :tonal="tonal"
+          :label="label(idx)"
+          :spelling="graded(idx)?.spelling"
+          :color="fillColor(idx)"
+          @click="tap(idx)"
+        />
+      </SvgKeyboard>
+    </div>
+    <div
+      class="mx-auto flex w-full max-w-md flex-1 flex-wrap content-start items-center gap-x-4 md:landscape:w-80 md:landscape:flex-none md:landscape:content-center"
+    >
       <GrandStaff
         class="w-48 shrink-0 md:landscape:w-full"
         :notes="quizzedSpelled ? [quizzedSpelled] : []"
@@ -42,24 +56,6 @@
         </p>
       </div>
     </div>
-    <div class="relative flex min-h-0 min-w-0 flex-1 items-center">
-      <SvgKeyboard>
-        <template v-if="prompt" #overlay>
-          <DirectionBadge :direction="prompt.layout.direction" />
-        </template>
-        <SvgButton
-          v-for="([x, y, tonal], idx) in keyPositions"
-          :key="idx"
-          :x="x"
-          :y="y"
-          :tonal="tonal"
-          :label="label(idx)"
-          :spelling="graded(idx)?.spelling"
-          :color="fillColor(idx)"
-          @click="tap(idx)"
-        />
-      </SvgKeyboard>
-    </div>
   </div>
 </template>
 
@@ -75,7 +71,6 @@ import { spellPitch } from '../../utils/spelling';
 import DirectionBadge from '../DirectionBadge.vue';
 import GrandStaff from '../GrandStaff.vue';
 import Progress from '../Progress.vue';
-import SessionStrip from '../SessionStrip.vue';
 import SvgButton from '../SvgButton.vue';
 import SvgKeyboard from '../SvgKeyboard.vue';
 
@@ -89,7 +84,7 @@ const STAFF_HINT =
 // view only renders prompts and captures taps.
 const props = defineProps<{ session: PracticeSession }>();
 
-const { phase, preview, prompt, promptNumber, total, counts, graded, next, answer } = props.session;
+const { phase, prompt, total, counts, graded, next, answer } = props.session;
 
 // The last tap's result, kept while the feedback pause runs; taps are ignored meanwhile.
 const tapResult = ref<{ note: string; score: Grade } | null>(null);

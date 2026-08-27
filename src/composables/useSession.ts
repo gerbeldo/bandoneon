@@ -134,13 +134,6 @@ export function useSession() {
         });
   });
 
-  // The prompt stays on the answered one while a page runs its feedback pause,
-  // so the count advances only when the next prompt appears.
-  const answeredCount = computed(() => (prompt.value ? prompt.value.index : total.value));
-
-  // What the strip shows: 1-based, and clamped once the draw is spent.
-  const promptNumber = computed(() => Math.min(answeredCount.value + 1, total.value));
-
   const graded = (buttonIndex: number) =>
     results.value[`${store.side}/${store.direction}/${buttonIndex}`];
 
@@ -240,7 +233,6 @@ export function useSession() {
     total,
     counts,
     answers,
-    promptNumber,
     graded,
     kind,
     start,
