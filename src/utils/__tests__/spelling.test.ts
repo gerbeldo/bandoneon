@@ -134,6 +134,12 @@ describe('accidentalGlyphs', () => {
     expect(accidentalGlyphs('Bb')).toBe('B♭');
   });
 
+  it('prints doubles as one sign', () => {
+    expect(accidentalGlyphs('G##5')).toBe('G𝄪5');
+    expect(accidentalGlyphs('Dbb4')).toBe('D𝄫4');
+    expect(accidentalGlyphs('Bbb')).toBe('B𝄫');
+  });
+
   it('leaves a natural, and the note letter B, alone', () => {
     expect(accidentalGlyphs('C4')).toBe('C4');
     expect(accidentalGlyphs('B3')).toBe('B3');

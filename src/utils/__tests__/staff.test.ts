@@ -1,6 +1,13 @@
 import { describe, expect, it } from 'vitest';
 
-import { accidentalOf, chordLayout, ledgerSteps, staffPosition, stepIndex } from '../staff';
+import {
+  accidentalOf,
+  chordLayout,
+  ledgerSteps,
+  noteAtStep,
+  staffPosition,
+  stepIndex,
+} from '../staff';
 
 describe('stepIndex', () => {
   it('numbers diatonic steps from C0', () => {
@@ -21,6 +28,19 @@ describe('stepIndex', () => {
     expect(stepIndex('nope')).toBeNull();
     expect(stepIndex('C')).toBeNull();
     expect(stepIndex('')).toBeNull();
+  });
+});
+
+describe('noteAtStep', () => {
+  it('inverts stepIndex for any natural', () => {
+    for (const name of ['C0', 'C4', 'B4', 'D3', 'A1', 'B6', 'F5']) {
+      const { letter, octave } = noteAtStep(stepIndex(name)!);
+      expect(letter + octave).toBe(name);
+    }
+  });
+
+  it('handles steps below C0', () => {
+    expect(noteAtStep(-1)).toEqual({ letter: 'B', octave: -1 });
   });
 });
 
