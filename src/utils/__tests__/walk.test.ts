@@ -10,7 +10,7 @@ import { ALL_LAYOUTS } from '../scheduler';
 import type { QuizDirection } from '../session';
 import { flattenGrid, itemKey, layoutGrid, layoutKey, parseItemKey, pitchOfKey } from '../session';
 import type { WalkInput } from '../walk';
-import { previewWalk, walkKeys, WALK_LAYOUT_ORDER } from '../walk';
+import { previewWalk, walkKeys, WALK_LAYOUT_ORDER, walkPasses } from '../walk';
 
 const DAY = 86_400_000;
 // A fixed local calendar day, well away from midnight.
@@ -123,6 +123,41 @@ describe('walkKeys', () => {
       'C4',
     ]);
     expect(walkPitches(layouts, { scale: CHROMATIC })).toEqual(['C4', 'C#4', 'D4', 'C#4', 'C4']);
+  });
+});
+
+// A pass is one way over one layout — where a game blanks the buttons it has
+// already revealed.
+describe('walkPasses', () => {
+  const passPitches = (layouts: Instrument, overrides: Partial<WalkInput> = {}) =>
+    walkPasses(walkInput(layouts, overrides)).map((pass) =>
+      pass.map((key) => pitchOfKey(layouts, key)),
+    );
+
+  const FOUR_LAYOUTS = toy({
+    right: { open: [['C4', 'D4']], close: [['E4']] },
+    left: { open: [['G3']], close: [['A3']] },
+  });
+
+  it('splits a layout into the way up and the way back down', () => {
+    const layouts = toy({ right: { open: [['C4', 'E4', 'D4', 'G4']], close: [] } });
+
+    expect(passPitches(layouts)).toEqual([
+      ['C4', 'D4', 'E4', 'G4'],
+      ['E4', 'D4', 'C4'],
+    ]);
+  });
+
+  it('gives a one-stop layout a single pass and an empty layout none', () => {
+    expect(passPitches(FOUR_LAYOUTS)).toEqual([['C4', 'D4'], ['C4'], ['E4'], ['G3'], ['A3']]);
+    expect(passPitches(toy({ right: { open: [['C4']], close: [] } }))).toEqual([['C4']]);
+    expect(passPitches(toy({}))).toEqual([]);
+  });
+
+  it('is the walk itself, the passes run together', () => {
+    const input = walkInput(FOUR_LAYOUTS);
+
+    expect(walkPasses(input).flat()).toEqual(walkKeys(input));
   });
 });
 

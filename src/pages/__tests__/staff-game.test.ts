@@ -376,6 +376,40 @@ describe('staff game walk', () => {
     expect(circles(container)[buttonAt(E5 + 1)].getAttribute('fill')).toBe(GREEN);
     expect(practice.items[ORDER[E5 + 1]].answers.map((a) => a.grade)).toEqual([2]);
   });
+
+  // The way up would otherwise be the answer key for the way down.
+  it('blanks the answered buttons when the way down begins', async () => {
+    vi.useFakeTimers();
+    // The stops on the way up; the way down leaves out the top.
+    const UP = (ORDER.length + 1) / 2;
+    const named = (container: HTMLElement) => keys(container).filter((g) => g.textContent?.trim());
+    const colored = (container: HTMLElement) =>
+      circles(container).filter((circle) => circle.getAttribute('fill') !== 'transparent');
+
+    const { container, settings } = mountPractice();
+    await setupRun(settings, { game: 'staff', scope: CLOSE, pool: 'walk' });
+    await start(container);
+
+    // Up to the last stop below the top, the twin's follow-up answered in place.
+    for (let i = 0; i <= E5; i++) await answerCorrectly(container, buttonAt(i));
+    await answerCorrectly(container, OTHER_E5);
+    for (let i = E5 + 1; i < UP - 1; i++) await answerCorrectly(container, buttonAt(i));
+
+    // One prompt short of the turn: every button answered so far reads its name.
+    expect(text(container)).toContain(`Prompt ${UP + 1} of 74`);
+    expect(named(container)).toHaveLength(UP);
+
+    await answerCorrectly(container, buttonAt(UP - 1));
+
+    // The way down opens on a blank keyboard, and fills in again as it goes.
+    expect(text(container)).toContain(`Prompt ${UP + 2} of 74`);
+    expect(named(container)).toHaveLength(0);
+    expect(colored(container)).toHaveLength(0);
+
+    await answerCorrectly(container, buttonAt(UP));
+    expect(named(container)).toHaveLength(1);
+    expect(colored(container)).toHaveLength(1);
+  });
 });
 
 // A key names the staff: F4 under F♯ major is E♯4, an E on the bottom treble

@@ -111,7 +111,7 @@ A run over the first N items of the introduction order inside the session scope 
 _Avoid_: drill, ordered run, custom session
 
 **Walk**:
-A run over every item of the session scope and scale in pitch order — up from the lowest note to the highest, then back down without repeating the top — one layout at a time, right hand before left, open before close. What "Up and down" on the practice setup starts; no daily cap; records through the same seam as sessions. A pitch-prompted walk lists a twin pitch once per pass and lets the follow-up ask for the other button. The chromatic walk is the walk under Chromatic.
+A run over every item of the session scope and scale in pitch order — up from the lowest note to the highest, then back down without repeating the top — one layout at a time, right hand before left, open before close. What "Up and down" on the practice setup starts; no daily cap; records through the same seam as sessions. Each way is a pass, and a pass starts on a clean keyboard: the buttons answered on the way up are blank again for the way down, which would otherwise be reading rather than recall. A pitch-prompted walk lists a twin pitch once per pass and lets the follow-up ask for the other button. The chromatic walk is the walk under Chromatic.
 _Avoid_: scale run, ladder, sweep (that is the fixed run over a whole layout)
 
 **Sweep**:
