@@ -1,10 +1,12 @@
 <template>
-  <div class="flex flex-wrap justify-center print:hidden">
+  <div class="flex flex-wrap justify-center gap-x-6 gap-y-3 print:hidden">
     <div class="flex flex-col items-center">
-      <div class="mb-1 text-xs font-medium text-neutral-500 select-none dark:text-neutral-400">
+      <div
+        class="mb-1 text-xs font-semibold tracking-wide text-neutral-500 uppercase select-none dark:text-neutral-400"
+      >
         Scale
       </div>
-      <ButtonGroup class="mx-2 mb-3">
+      <ButtonGroup>
         <Button
           v-for="item in scaleTypes"
           :key="item"
@@ -16,10 +18,12 @@
       </ButtonGroup>
     </div>
     <div class="flex flex-col items-center">
-      <div class="mb-1 text-xs font-medium text-neutral-500 select-none dark:text-neutral-400">
+      <div
+        class="mb-1 text-xs font-semibold tracking-wide text-neutral-500 uppercase select-none dark:text-neutral-400"
+      >
         Chord
       </div>
-      <ButtonGroup class="mx-2 mb-3">
+      <ButtonGroup>
         <Button
           v-for="item in chordTypes"
           :key="item"
@@ -31,10 +35,12 @@
       </ButtonGroup>
     </div>
     <div class="flex flex-col items-center">
-      <div class="mb-1 text-xs font-medium text-neutral-500 select-none dark:text-neutral-400">
+      <div
+        class="mb-1 text-xs font-semibold tracking-wide text-neutral-500 uppercase select-none dark:text-neutral-400"
+      >
         Display
       </div>
-      <ButtonGroup class="mx-2 mb-3">
+      <ButtonGroup>
         <Button class="w-9" @click.prevent="showEnharmonics = !showEnharmonics">
           {{ showEnharmonics ? '♯' : '♭' }}
         </Button>

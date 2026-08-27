@@ -22,7 +22,9 @@
       />
     </SvgKeyboard>
   </div>
-  <div class="mx-auto max-w-(--breakpoint-md) shrink-0 px-6 pb-4 sm:pb-6">
+  <div
+    class="mx-auto flex w-full max-w-(--breakpoint-md) shrink-0 flex-col gap-3 px-4 pb-4 sm:gap-4 sm:px-6 sm:pb-6"
+  >
     <NavVariant />
     <NavTonic />
     <NavDisplay :modified="isModified" @reset="onReset" @download="onDownload" @save="onSave" />
