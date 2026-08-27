@@ -1,12 +1,12 @@
 <template>
   <div
-    class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-2 px-2 pt-2 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:landscape:flex-row md:landscape:items-center md:landscape:gap-8"
+    class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col justify-center gap-4 px-2 pb-4 sm:gap-6 sm:px-6 sm:pb-6 md:landscape:flex-row md:landscape:items-center md:landscape:gap-8"
   >
     <!-- Portrait (phones, tablets held upright): the keyboard on top — as in
          the note game — with the staff beside the progress/hint below it.
          Landscape from md up: the staff column stands beside the keyboard. -->
     <div
-      class="game-keyboard relative mt-7 flex min-w-0 shrink-0 items-center justify-center md:landscape:order-2 md:landscape:mt-0 md:landscape:min-h-0 md:landscape:flex-1"
+      class="game-keyboard relative mt-10 flex min-w-0 shrink-0 items-center justify-center sm:mt-12 md:landscape:order-2 md:landscape:mt-0 md:landscape:min-h-0 md:landscape:flex-1"
     >
       <SvgKeyboard>
         <template v-if="prompt" #overlay>
@@ -26,7 +26,7 @@
       </SvgKeyboard>
     </div>
     <div
-      class="mx-auto flex w-full max-w-md flex-1 flex-wrap content-start items-center gap-x-4 md:landscape:w-80 md:landscape:flex-none md:landscape:content-center"
+      class="mx-auto flex w-full max-w-md flex-wrap content-center items-center gap-x-4 md:landscape:w-80 md:landscape:content-center"
     >
       <GrandStaff
         class="w-48 shrink-0 md:landscape:w-full"

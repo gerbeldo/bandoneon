@@ -1,5 +1,5 @@
 <template>
-  <div class="flex min-h-0 flex-col">
+  <div class="flex min-h-0 flex-col justify-center">
     <NoteInputLetters
       v-if="noteInput === 'letters'"
       class="shrink-0"
@@ -36,7 +36,7 @@
     />
     <!-- The octave tap completes the pick and submits; the staff needs none,
          its vertical position already names the octave. -->
-    <div v-if="noteInput !== 'staff'" class="mt-1 flex shrink-0 flex-wrap justify-center">
+    <div v-if="noteInput !== 'staff'" class="mt-2 flex shrink-0 flex-wrap justify-center">
       <Button
         v-for="octave in octaves"
         :key="octave"
