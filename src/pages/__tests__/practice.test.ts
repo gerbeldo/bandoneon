@@ -62,6 +62,9 @@ const FIRST_PITCH = pitchOf(runKeys('forward', RIGHT_OPEN)[0]);
 
 beforeEach(() => {
   vi.spyOn(Math, 'random').mockReturnValue(0.1);
+  // The note game holds each result on screen before the next prompt; the
+  // answer helpers advance past that pause.
+  vi.useFakeTimers();
 });
 
 afterEach(() => {
@@ -389,6 +392,8 @@ describe('practice setup, walks', () => {
     }
     click(octaveButtons(container).find((b) => b.textContent?.trim() === pitch.slice(-1)));
     await nextTick();
+    vi.advanceTimersByTime(1_000);
+    await nextTick();
     return pitch;
   }
 
@@ -519,10 +524,13 @@ describe('practice setup, accidentals', () => {
     expect(container.querySelector('[aria-label="C#"]')).not.toBeNull();
     expect(store.showEnharmonics).toBe(true);
 
-    // Answer on the piano: the C key, then the first octave.
+    // Answer on the piano: the C key, then the first octave; the run of one
+    // ends past the pause, and Escape dismisses the summary.
     click(container.querySelector('[aria-label="C"]'));
     await nextTick();
     click(octaveButtons(container)[0]);
+    await nextTick();
+    vi.advanceTimersByTime(1_000);
     await nextTick();
     press('Escape');
     await nextTick();
@@ -558,7 +566,8 @@ describe('practice setup, starting', () => {
   });
 });
 
-// Names a note and an octave the letters way: letter, sharp if any, octave.
+// Names a note and an octave the letters way: letter, sharp if any, octave,
+// then past the feedback pause to the next prompt.
 async function answerNote(container: HTMLElement, pc: string, octaveIndex: number) {
   click(letterButton(container, pc[0]));
   await nextTick();
@@ -567,6 +576,8 @@ async function answerNote(container: HTMLElement, pc: string, octaveIndex: numbe
     await nextTick();
   }
   click(octaveButtons(container)[octaveIndex]);
+  await nextTick();
+  vi.advanceTimersByTime(1_000);
   await nextTick();
 }
 

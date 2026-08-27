@@ -68,22 +68,27 @@ async function answer(container: HTMLElement, pc: string) {
   }
 }
 
-// Names C in whatever octave the layout offers first, so the run advances
-// whatever the prompt was.
+// Names C in whatever octave the layout offers first, then past the feedback
+// pause, so the run advances whatever the prompt was.
 async function answerAnything(container: HTMLElement) {
   click(letterButton(container, 'C'));
   await nextTick();
   click(octaveButtons(container)[0]);
   await nextTick();
+  vi.advanceTimersByTime(1_000);
+  await nextTick();
 }
 
 beforeEach(() => {
   vi.spyOn(Math, 'random').mockReturnValue(0.1);
+  // The note game holds each result on screen before the next prompt.
+  vi.useFakeTimers();
 });
 
 afterEach(() => {
   unmountPractice();
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 describe('note game', () => {
@@ -174,6 +179,8 @@ describe('note game recording', () => {
     await nextTick();
 
     expect(practice.items[FIRST_KEY].answers[0].grade).toBe(1);
+    vi.advanceTimersByTime(1_000);
+    await nextTick();
 
     // Second prompt is B3; C is a different pitch class.
     await answer(container, 'C');
@@ -343,10 +350,12 @@ describe('note game inputs', () => {
     } as DOMRect);
 
     // The staff is 320×336, middle line (B4) at y 204, 12 px per step; C4 sits
-    // six steps below it. Press and lift there: the first prompt answered green.
+    // six steps below it. Press and lift there; the note rests half a second,
+    // then submits: the first prompt answered green.
     const y = 204 + 6 * 12;
     staff.dispatchEvent(new PointerEvent('pointerdown', { clientY: y, bubbles: true }));
     staff.dispatchEvent(new PointerEvent('pointerup', { clientY: y, bubbles: true }));
+    vi.advanceTimersByTime(600);
     await nextTick();
 
     expect(practice.items[FIRST_KEY].answers[0].grade).toBe(2);
