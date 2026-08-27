@@ -46,8 +46,7 @@ function mount(component: unknown, props: Record<string, unknown>) {
 const click = (target?: Element | null) =>
   target?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
-const byLabel = (el: HTMLElement, label: string) =>
-  el.querySelector(`[aria-label="${label}"]`);
+const byLabel = (el: HTMLElement, label: string) => el.querySelector(`[aria-label="${label}"]`);
 
 const EMPTY_PICK = { letter: null, accidental: '', octave: null };
 

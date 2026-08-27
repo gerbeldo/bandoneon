@@ -67,7 +67,11 @@
         </text>
       </g>
     </svg>
-    <NoteInputAccidentals class="mt-2" :accidental="accidental" @accidental="emit('accidental', $event)" />
+    <NoteInputAccidentals
+      class="mt-2"
+      :accidental="accidental"
+      @accidental="emit('accidental', $event)"
+    />
   </div>
 </template>
 
@@ -77,9 +81,9 @@ import { computed, ref } from 'vue';
 import { staffGlyphs } from '../../assets/staffGlyphs';
 import type { Accidental, Letter } from '../../utils/notePick';
 import { ACCIDENTAL_GLYPHS } from '../../utils/notePick';
+import { formatPitchClass } from '../../utils/spelling';
 import type { Side } from '../../utils/staff';
 import { ledgerSteps, MIDDLE_LINE_STEP, noteAtStep, staffPosition } from '../../utils/staff';
-import { formatPitchClass } from '../../utils/spelling';
 import NoteInputAccidentals from './NoteInputAccidentals.vue';
 
 // One large staff in the side's clef. The accidental is picked first (♮ by

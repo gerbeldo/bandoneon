@@ -89,8 +89,7 @@ function submitIfAny(pitch: string | null) {
 }
 
 const onLetter = (letter: Letter) => submitIfAny(props.notePick.choose({ letter }));
-const onAccidental = (accidental: Accidental) =>
-  submitIfAny(props.notePick.choose({ accidental }));
+const onAccidental = (accidental: Accidental) => submitIfAny(props.notePick.choose({ accidental }));
 const onKey = (key: { letter: Letter; accidental: Accidental }) =>
   submitIfAny(props.notePick.choose(key));
 const onOctave = (octave: number) => submitIfAny(props.notePick.choose({ octave }));

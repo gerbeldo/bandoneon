@@ -13,7 +13,11 @@
         {{ formatPitchClass(value, notation) }}
       </Button>
     </ButtonGroup>
-    <NoteInputAccidentals class="mt-2" :accidental="pick.accidental" @accidental="emit('accidental', $event)" />
+    <NoteInputAccidentals
+      class="mt-2"
+      :accidental="pick.accidental"
+      @accidental="emit('accidental', $event)"
+    />
   </div>
 </template>
 

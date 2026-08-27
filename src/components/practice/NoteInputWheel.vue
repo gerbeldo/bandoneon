@@ -45,7 +45,11 @@
         class="hit"
         :d="sectorPath(accidentalAngle(j) - 45, accidentalAngle(j) + 45, R_IN, R_MID)"
       />
-      <path class="glyph" :d="ACCIDENTAL_GLYPHS[value].d" :transform="glyphAt(value, R_ACCIDENTAL, accidentalAngle(j))" />
+      <path
+        class="glyph"
+        :d="ACCIDENTAL_GLYPHS[value].d"
+        :transform="glyphAt(value, R_ACCIDENTAL, accidentalAngle(j))"
+      />
     </g>
     <g
       class="sector"
@@ -110,7 +114,9 @@ const arc = (r: number, from: number, to: number) =>
 // The two rings drawn as thin arcs with gaps around each label.
 const ringArcs = [
   ...LETTERS.map((_, k) => arc(R_LETTER, letterAngle(k) + 15, letterAngle(k + 1) - 15)),
-  ...RING_ACCIDENTALS.map((_, j) => arc(R_ACCIDENTAL, accidentalAngle(j) + 26, accidentalAngle(j + 1) - 26)),
+  ...RING_ACCIDENTALS.map((_, j) =>
+    arc(R_ACCIDENTAL, accidentalAngle(j) + 26, accidentalAngle(j + 1) - 26),
+  ),
 ];
 
 // Centers a glyph's outline on the ring point (or the wheel center for r 0).

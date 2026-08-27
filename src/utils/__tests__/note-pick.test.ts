@@ -1,14 +1,7 @@
 import { Note } from 'tonal';
 import { describe, expect, it } from 'vitest';
 
-import {
-  emptyPick,
-  formatOctave,
-  octavesOf,
-  pickFromKey,
-  pickLabel,
-  pitchOf,
-} from '../notePick';
+import { emptyPick, formatOctave, octavesOf, pickFromKey, pickLabel, pitchOf } from '../notePick';
 
 describe('pitchOf', () => {
   it('composes the spelled pitch once letter and octave are set', () => {

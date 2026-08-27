@@ -18,11 +18,12 @@ export function useNotePick(options: { octaves: () => number[] }) {
 
   // Applies a partial pick; returns the spelled pitch on completion, else null.
   function choose(partial: Partial<NotePick>): string | null {
-    if (partial.octave !== undefined) {
+    const octave = partial.octave;
+    if (typeof octave === 'number') {
       // An octave before any letter is a stray tap or keypress, not an answer;
       // an octave the layout does not offer never grades.
       if (!partial.letter && !pick.letter) return null;
-      if (!octaves.value.includes(partial.octave)) return null;
+      if (!octaves.value.includes(octave)) return null;
     }
     Object.assign(pick, partial);
     const pitch = pitchOf(pick);
