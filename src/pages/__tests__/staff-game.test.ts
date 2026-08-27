@@ -367,6 +367,43 @@ describe('staff game walk', () => {
     expect(circles(container)[buttonAt(E5 + 1)].getAttribute('fill')).toBe(GREEN);
     expect(practice.items[ORDER[E5 + 1]].answers.map((a) => a.grade)).toEqual([2]);
   });
+
+  // The way up would otherwise be the answer key for the way down.
+  it('blanks the answered buttons when the way down begins', async () => {
+    vi.useFakeTimers();
+    // The stops on the way up; the way down leaves out the top.
+    const UP = (ORDER.length + 1) / 2;
+    const named = (container: HTMLElement) => keys(container).filter((g) => g.textContent?.trim());
+    const colored = (container: HTMLElement) =>
+      circles(container).filter((circle) => circle.getAttribute('fill') !== 'transparent');
+
+    const { container, settings } = mountPractice();
+    await setupRun(settings, { game: 'staff', scope: CLOSE, pool: 'walk' });
+    await start(container);
+
+    // Up to the last stop below the top, the twin's follow-up answered in place.
+    for (let i = 0; i <= E5; i++) await answerCorrectly(container, buttonAt(i));
+    await answerCorrectly(container, OTHER_E5);
+    for (let i = E5 + 1; i < UP - 1; i++) await answerCorrectly(container, buttonAt(i));
+
+    // The top is up next, and every button answered on the way reads its name.
+    expect(named(container)).toHaveLength(UP);
+    expect(colored(container).map((circle) => circle.getAttribute('fill'))).toEqual(
+      Array(UP).fill(GREEN),
+    );
+
+    await answerCorrectly(container, buttonAt(UP - 1));
+
+    // The way down opens on a blank keyboard, and fills in again as it goes.
+    expect(named(container)).toHaveLength(0);
+    expect(colored(container)).toHaveLength(0);
+
+    // The first stop down is the one below the top, answered again.
+    expect(PITCHES[UP]).toBe(PITCHES[UP - 2]);
+    await answerCorrectly(container, buttonAt(UP));
+    expect(named(container)).toHaveLength(1);
+    expect(colored(container)[0].getAttribute('fill')).toBe(GREEN);
+  });
 });
 
 // A key names the staff: F4 under F♯ major is E♯4, an E on the bottom treble

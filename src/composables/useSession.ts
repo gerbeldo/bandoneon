@@ -24,7 +24,7 @@ import { createSession, layoutKey, shuffled } from '../utils/session';
 import type { Spelling } from '../utils/spelling';
 import { runSpelling } from '../utils/spelling';
 import type { WalkInput } from '../utils/walk';
-import { previewWalk, walkKeys } from '../utils/walk';
+import { previewWalk, walkPasses } from '../utils/walk';
 
 // The setup screen gates play: nothing runs without a tap or Enter, and
 // dismissing the summary comes back to it.
@@ -82,6 +82,12 @@ export function useSession() {
   // Which kind of run is on: what the summary's primary action repeats.
   const kind = ref<PracticePool>('scheduled');
   let armedAt = 0;
+  // Positions in the draw that open a pass — where the answered buttons go
+  // back to blank. A walk turns and changes layout; every other run is one pass.
+  let passStarts = new Set<number>();
+  // How far into the draw the run has come. A twin follow-up is inserted by the
+  // engine rather than drawn (ADR 0004), so it does not move this on.
+  let drawn = 0;
 
   const layouts = computed(() => instruments[settings.instrument]);
 
@@ -145,30 +151,40 @@ export function useSession() {
   document.addEventListener('visibilitychange', refreshDay);
   onScopeDispose(() => document.removeEventListener('visibilitychange', refreshDay));
 
-  function draw(now: number): string[] {
+  // The draw in passes: a walk climbs a layout and comes back down, and the
+  // keyboard starts over between the two. Every other run is a single pass.
+  function draw(now: number): string[][] {
     const input = { ...poolInput.value, now };
     switch (setup.value.pool) {
       case 'walk':
-        return walkKeys(walkInput(now)!);
+        return walkPasses(walkInput(now)!);
       case 'fixed':
-        return shuffled(fixedRunKeys({ ...input, count: setup.value.fixedCount }));
+        return [shuffled(fixedRunKeys({ ...input, count: setup.value.fixedCount }))];
       default:
-        return scheduler.draw({
-          ...input,
-          sessionSize: setup.value.sessionSize,
-          dailyNewItems: setup.value.dailyNewItems,
-        });
+        return [
+          scheduler.draw({
+            ...input,
+            sessionSize: setup.value.sessionSize,
+            dailyNewItems: setup.value.dailyNewItems,
+          }),
+        ];
     }
   }
 
   function start() {
     if (!layouts.value) return;
+    const passes = draw(Date.now());
+    passStarts = new Set();
+    drawn = 0;
+    for (let at = 0, i = 0; i < passes.length; at += passes[i].length, i++) {
+      if (at) passStarts.add(at);
+    }
     engine.value = createSession({
       layouts: layouts.value,
       instrument: settings.instrument,
       quizDirection: game.value.quizDirection,
       mode: game.value.mode,
-      draw: draw(Date.now()),
+      draw: passes.flat(),
       // A keyed scale spells its own notes; the setup's choice applies otherwise.
       spelling: keySpelling(setup.value.scale) ?? runSpelling(setup.value.spelling),
       record: practice.recordAnswer,
@@ -191,6 +207,10 @@ export function useSession() {
     if (!prompt.value) {
       phase.value = 'summary';
       return;
+    }
+    if (prompt.value.twin !== 'follow-up') {
+      if (passStarts.has(drawn)) results.value = {};
+      drawn += 1;
     }
     // The keyboard follows the prompt across layouts. Spelling travels with the
     // prompt and with each graded button, not with Explore's ♯/♭ toggle.
