@@ -6,7 +6,7 @@
          the note game — with the staff beside the progress/hint below it.
          Landscape from md up: the staff column stands beside the keyboard. -->
     <div
-      class="relative flex min-h-0 min-w-0 shrink items-center justify-center pt-7 md:landscape:order-2 md:landscape:flex-1 md:landscape:pt-0"
+      class="game-keyboard relative mt-7 flex min-w-0 shrink-0 items-center justify-center md:landscape:order-2 md:landscape:mt-0 md:landscape:min-h-0 md:landscape:flex-1"
     >
       <SvgKeyboard>
         <template v-if="prompt" #overlay>
@@ -168,3 +168,12 @@ const progress = computed<[number, number, number]>((): [number, number, number]
   return counts.value.map((value) => value / total.value) as [number, number, number];
 });
 </script>
+
+<style scoped>
+/* The keyboard box is content-sized here (the staff column takes the spare
+   height), so the drawing needs a viewport cap of its own: SvgKeyboard's
+   `max-height: 100%` has nothing definite to resolve against and collapses. */
+.game-keyboard :deep(.keyboard) {
+  max-height: 45dvh;
+}
+</style>

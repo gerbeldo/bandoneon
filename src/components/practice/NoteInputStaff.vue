@@ -2,7 +2,7 @@
   <div class="flex min-h-0 flex-col">
     <svg
       ref="svgEl"
-      class="staff mx-auto block min-h-0 w-full flex-1 select-none"
+      class="staff mx-auto block max-h-[45dvh] min-h-0 w-full flex-1 select-none"
       :viewBox="`0 0 ${VIEW_W} ${VIEW_H}`"
       aria-label="Staff"
       @pointerdown="down"
@@ -68,7 +68,7 @@
       </g>
     </svg>
     <NoteInputAccidentals
-      class="mt-2"
+      class="mt-2 shrink-0"
       :accidental="accidental"
       @accidental="emit('accidental', $event)"
     />
@@ -89,7 +89,7 @@ import NoteInputAccidentals from './NoteInputAccidentals.vue';
 // One large staff in the side's clef. The accidental is picked first (♮ by
 // default); pressing places a notehead on the nearest line or space, dragging
 // slides it, and lifting submits letter, accidental, and octave at once.
-const SP = 16; // staff space, viewBox px
+const SP = 24; // staff space, viewBox px
 const STEP = SP / 2; // one diatonic step
 const S = SP / 250; // glyph scale, font units -> px
 const VIEW_W = 320;

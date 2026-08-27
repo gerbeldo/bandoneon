@@ -345,12 +345,12 @@ describe('note game inputs', () => {
       top: 0,
       left: 0,
       width: 320,
-      height: 224,
+      height: 336,
     } as DOMRect);
 
-    // The staff is 320×224, middle line (B4) at y 136, 8 px per step; C4 sits
+    // The staff is 320×336, middle line (B4) at y 204, 12 px per step; C4 sits
     // six steps below it. Press and lift there: the first prompt answered green.
-    const y = 136 + 6 * 8;
+    const y = 204 + 6 * 12;
     staff.dispatchEvent(new PointerEvent('pointerdown', { clientY: y, bubbles: true }));
     staff.dispatchEvent(new PointerEvent('pointerup', { clientY: y, bubbles: true }));
     await nextTick();

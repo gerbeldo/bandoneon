@@ -1,6 +1,6 @@
 <template>
   <div
-    class="relative mx-auto flex min-h-0 w-full max-w-4xl shrink items-center justify-center px-2 pt-7 sm:px-6"
+    class="game-keyboard relative mx-auto mt-7 flex w-full max-w-4xl shrink-0 items-center justify-center px-2 sm:px-6"
   >
     <SvgKeyboard>
       <template v-if="prompt" #overlay>
@@ -20,11 +20,11 @@
     </SvgKeyboard>
   </div>
   <div
-    class="mx-auto flex w-full max-w-(--breakpoint-md) flex-1 flex-col px-4 pt-3 pb-4 sm:px-6 sm:pb-6"
+    class="mx-auto flex min-h-0 w-full max-w-(--breakpoint-md) flex-1 flex-col px-4 pt-3 pb-4 sm:px-6 sm:pb-6"
   >
     <NoteInput class="min-h-0 flex-1" :note-pick="notePick" :prompt="prompt" @answer="submit" />
     <Progress
-      class="mt-3"
+      class="mt-3 shrink-0"
       :values="[
         { value: progress[2], color: SCORE_COLORS[2] },
         { value: progress[1], color: SCORE_COLORS[1] },
@@ -102,3 +102,12 @@ const progress = computed<[number, number, number]>((): [number, number, number]
   return counts.value.map((value) => value / total.value) as [number, number, number];
 });
 </script>
+
+<style scoped>
+/* The keyboard box is content-sized here (the input below takes the spare
+   height), so the drawing needs a viewport cap of its own: SvgKeyboard's
+   `max-height: 100%` has nothing definite to resolve against and collapses. */
+.game-keyboard :deep(.keyboard) {
+  max-height: 45dvh;
+}
+</style>

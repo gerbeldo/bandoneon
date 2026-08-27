@@ -80,6 +80,16 @@ text {
   font-family: -apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif;
 }
 
+/* A tap must not draw the browser's focus box; keyboard focus keeps a mark. */
+g:focus {
+  outline: none;
+}
+
+g:focus-visible rect {
+  stroke: #0284c7; /* sky-600 */
+  stroke-width: 2.5;
+}
+
 /* A piano keeps its colors in both themes; only the pressed tint changes. */
 .white-key rect {
   fill: #fff;

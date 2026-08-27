@@ -2,6 +2,7 @@
   <div class="flex min-h-0 flex-col">
     <NoteInputLetters
       v-if="noteInput === 'letters'"
+      class="shrink-0"
       :pick="notePick.pick"
       :notation="pitchNotation"
       @letter="onLetter"
@@ -9,6 +10,7 @@
     />
     <NoteInputPiano
       v-else-if="noteInput === 'piano'"
+      class="shrink-0"
       :pick="notePick.pick"
       :spelling="spelling"
       :notation="pitchNotation"
@@ -33,7 +35,7 @@
     />
     <!-- The octave tap completes the pick and submits; the staff needs none,
          its vertical position already names the octave. -->
-    <div v-if="noteInput !== 'staff'" class="mt-1 flex flex-wrap justify-center">
+    <div v-if="noteInput !== 'staff'" class="mt-1 flex shrink-0 flex-wrap justify-center">
       <Button
         v-for="octave in octaves"
         :key="octave"

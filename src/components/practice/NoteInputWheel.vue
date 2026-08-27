@@ -1,6 +1,6 @@
 <template>
   <svg
-    class="mx-auto block min-h-0 w-full select-none"
+    class="mx-auto block max-h-[50dvh] min-h-0 w-full select-none"
     viewBox="0 0 320 320"
     role="group"
     aria-label="Wheel"
@@ -143,6 +143,16 @@ function glyphAt(value: Accidental, r: number, deg: number): string {
 
 .sector {
   cursor: pointer;
+}
+
+/* A tap must not draw the browser's focus box; keyboard focus keeps a mark. */
+.sector:focus {
+  outline: none;
+}
+
+.sector:focus-visible .hit {
+  fill: currentColor;
+  fill-opacity: 0.18;
 }
 
 .sector.selected .hit {

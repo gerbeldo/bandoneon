@@ -178,10 +178,10 @@ describe('NoteInputWheel', () => {
 });
 
 describe('NoteInputStaff', () => {
-  // The staff is 320×224 with the middle line at y 136 and 8 px per step; an
+  // The staff is 320×336 with the middle line at y 204 and 12 px per step; an
   // exact-ratio rect keeps the test math the drawing's own.
-  const rect = { top: 0, left: 0, width: 320, height: 224 } as DOMRect;
-  const yOf = (p: number) => 136 - p * 8;
+  const rect = { top: 0, left: 0, width: 320, height: 336 } as DOMRect;
+  const yOf = (p: number) => 204 - p * 12;
 
   function stage(side: 'right' | 'left', accidental = '') {
     const mounted = mount(NoteInputStaff, { accidental, side, notation: 'scientific' });
