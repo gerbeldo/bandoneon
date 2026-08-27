@@ -5,20 +5,20 @@
        color and chevrons only underline it. -->
   <p
     :data-direction="direction"
-    class="pointer-events-none absolute inset-x-0 bottom-full mb-1.5 flex items-center gap-3 text-xs font-bold tracking-wide uppercase select-none print:hidden"
+    class="pointer-events-none absolute inset-x-0 bottom-full mb-2 flex items-center gap-3 text-xs font-bold tracking-wide uppercase select-none print:hidden"
     :class="
       direction === 'open'
         ? 'text-sky-600 dark:text-sky-500'
         : 'text-orange-600 dark:text-orange-500'
     "
   >
-    <span class="h-0.5 min-w-4 flex-1 rounded-full bg-current" aria-hidden="true" />
+    <span class="h-1 min-w-4 flex-1 rounded-full bg-current" aria-hidden="true" />
     <span>
       <span aria-hidden="true">{{ direction === 'open' ? '«' : '»' }}</span>
       {{ direction }}
       <span aria-hidden="true">{{ direction === 'open' ? '»' : '«' }}</span>
     </span>
-    <span class="h-0.5 min-w-4 flex-1 rounded-full bg-current" aria-hidden="true" />
+    <span class="h-1 min-w-4 flex-1 rounded-full bg-current" aria-hidden="true" />
   </p>
 </template>
 
