@@ -5,11 +5,14 @@ import { nextTick } from 'vue';
 import type { PracticeSetup } from '../../stores/settings';
 import type { Layout } from '../../utils/session';
 import {
+  accidentalButton,
   badge,
   buttonIndexOf,
   buttonNamed,
   click,
   dialog,
+  letterButton,
+  octaveButtons,
   DIRECTION_COLORS,
   LABELS,
   mountPractice,
@@ -38,15 +41,6 @@ const fixedRun = (layout: Layout, fixedCount = 999): Partial<PracticeSetup> => (
   fixedCount,
 });
 
-const buttons = (container: HTMLElement) => [...container.querySelectorAll('button')];
-const octaveButtons = (container: HTMLElement) =>
-  buttons(container).filter((b) => /^\d$/.test(b.textContent?.trim() ?? ''));
-const letterButton = (container: HTMLElement, letter: string) =>
-  container.querySelector<HTMLButtonElement>(
-    `[role="group"][aria-label="Letter"] button[aria-label="${letter}"]`,
-  );
-const accidentalButton = (container: HTMLElement, name: string) =>
-  container.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
 const circles = (container: HTMLElement) => [...container.querySelectorAll('.keyboard > g circle')];
 
 // Math.random is constant, so the shuffle keeps the introduction order and a

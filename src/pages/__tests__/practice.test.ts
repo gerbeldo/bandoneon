@@ -7,9 +7,12 @@ import type { ScaleChoice } from '../../utils/scale';
 import { ALL_LAYOUTS } from '../../utils/scheduler';
 import type { Layout } from '../../utils/session';
 import {
+  accidentalButton,
   ascendingPitches,
   buttonNamed,
   cardNamed,
+  letterButton,
+  octaveButtons,
   click,
   dialog,
   GROUPS,
@@ -45,15 +48,6 @@ const noteRun = (extra: Partial<PracticeSetup> = {}): Partial<PracticeSetup> => 
 // The main store the page reads the keyboard off, as mountPractice hands it back.
 type Store = ReturnType<typeof mountPractice>['store'];
 
-const buttons = (container: HTMLElement) => [...container.querySelectorAll('button')];
-const octaveButtons = (container: HTMLElement) =>
-  buttons(container).filter((b) => /^\d$/.test(b.textContent?.trim() ?? ''));
-const letterButton = (container: HTMLElement, letter: string) =>
-  container.querySelector<HTMLButtonElement>(
-    `[role="group"][aria-label="Letter"] button[aria-label="${letter}"]`,
-  );
-const accidentalButton = (container: HTMLElement, name: string) =>
-  container.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
 const keys = (container: HTMLElement) => [...container.querySelectorAll('.keyboard > g')];
 // jsdom lowercases attribute names in selectors, so `svg[viewBox=…]` never
 // matches; the grand staff is found by reading the attribute instead.

@@ -183,8 +183,16 @@ describe('NoteInputStaff', () => {
   const rect = { top: 0, left: 0, width: 320, height: 336 } as DOMRect;
   const yOf = (p: number) => 204 - p * 12;
 
+  // The real layouts' compasses as staff positions, as NoteInput derives them.
+  const RANGES = { right: [-8, 14], left: [-8, 12] } as const;
+
   function stage(side: 'right' | 'left', accidental = '') {
-    const mounted = mount(NoteInputStaff, { accidental, side, notation: 'scientific' });
+    const mounted = mount(NoteInputStaff, {
+      accidental,
+      side,
+      notation: 'scientific',
+      range: RANGES[side],
+    });
     const svg = mounted.el.querySelector('svg.staff') as SVGSVGElement;
     vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue(rect);
     const pointer = (type: string, clientY: number) =>
@@ -228,6 +236,14 @@ describe('NoteInputStaff', () => {
     pointer('pointerdown', yOf(0)); // bass middle line: D3
     pointer('pointerup', yOf(0));
     expect(emitted).toEqual([['place', { letter: 'D', octave: 3 }]]);
+  });
+
+  it('reaches the left hand’s top: B4 places, nothing above it', () => {
+    const { emitted, pointer } = stage('left');
+
+    pointer('pointerdown', yOf(40));
+    pointer('pointerup', yOf(40));
+    expect(emitted).toEqual([['place', { letter: 'B', octave: 4 }]]);
   });
 
   it('shows the chosen sign on the preview and emits row taps', async () => {

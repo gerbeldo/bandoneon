@@ -57,6 +57,20 @@ export const LABELS = {
     'Tap the button that sounds this note. Right note in the wrong octave counts as partial credit.',
 } as const;
 
+export const buttons = (container: HTMLElement) => [...container.querySelectorAll('button')];
+
+// The note game's input rows: octave digits, the Letter group, the sign row.
+export const octaveButtons = (container: HTMLElement) =>
+  buttons(container).filter((b) => /^\d$/.test(b.textContent?.trim() ?? ''));
+
+export const letterButton = (container: HTMLElement, letter: string) =>
+  container.querySelector<HTMLButtonElement>(
+    `[role="group"][aria-label="Letter"] button[aria-label="${letter}"]`,
+  );
+
+export const accidentalButton = (container: HTMLElement, name: string) =>
+  container.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
+
 export const buttonNamed = (container: HTMLElement, text: string) =>
   [...container.querySelectorAll('button')].find((b) => b.textContent?.trim() === text);
 

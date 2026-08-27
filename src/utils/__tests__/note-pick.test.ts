@@ -26,8 +26,9 @@ describe('pitchOf', () => {
 describe('pickLabel', () => {
   it('shows the pick as written, never respelled', () => {
     expect(pickLabel({ letter: 'E', accidental: '#', octave: null }, 'scientific')).toBe('E♯');
-    expect(pickLabel({ letter: 'G', accidental: '##', octave: null }, 'scientific')).toBe('G𝄪');
-    expect(pickLabel({ letter: 'D', accidental: 'bb', octave: null }, 'scientific')).toBe('D𝄫');
+    // Doubles print as two plain signs: 𝄪/𝄫 text is missing from many phone fonts.
+    expect(pickLabel({ letter: 'G', accidental: '##', octave: null }, 'scientific')).toBe('G♯♯');
+    expect(pickLabel({ letter: 'D', accidental: 'bb', octave: null }, 'scientific')).toBe('D♭♭');
   });
 
   it('speaks solfège when the notation asks for it', () => {

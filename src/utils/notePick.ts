@@ -50,10 +50,14 @@ export function pitchOf(pick: NotePick): string | null {
   return pick.letter && pick.octave !== null ? pick.letter + pick.accidental + pick.octave : null;
 }
 
-// The pick as the player wrote it, in letters or solfège: E♯, Do𝄪; '?' before
+// Plain signs every phone font carries; a double prints as two (♯♯), never as
+// 𝄪/𝄫 text, which many system fonts lack — drawn faces use the outlines instead.
+const SIGN: Record<Accidental, string> = { '': '', '#': '♯', '##': '♯♯', b: '♭', bb: '♭♭' };
+
+// The pick as the player wrote it, in letters or solfège: E♯, Do♯♯; '?' before
 // a letter is chosen.
 export function pickLabel(pick: NotePick, notation: string): string {
-  return pick.letter ? formatPitchClass(pick.letter + pick.accidental, notation) : '?';
+  return pick.letter ? formatPitchClass(pick.letter, notation) + SIGN[pick.accidental] : '?';
 }
 
 const KEY_ACCIDENTALS: Record<string, Accidental> = { '#': '#', '-': 'b', x: '##' };

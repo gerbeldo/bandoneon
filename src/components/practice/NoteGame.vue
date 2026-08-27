@@ -23,14 +23,7 @@
     class="mx-auto flex min-h-0 w-full max-w-(--breakpoint-md) flex-1 flex-col px-4 pt-3 pb-4 sm:px-6 sm:pb-6"
   >
     <NoteInput class="min-h-0 flex-1" :note-pick="notePick" :prompt="prompt" @answer="submit" />
-    <Progress
-      class="mt-3 shrink-0"
-      :values="[
-        { value: progress[2], color: SCORE_COLORS[2] },
-        { value: progress[1], color: SCORE_COLORS[1] },
-        { value: progress[0], color: SCORE_COLORS[0] },
-      ]"
-    />
+    <SessionProgress class="mt-3 shrink-0" :counts="counts" :total="total" />
   </div>
 </template>
 
@@ -45,10 +38,10 @@ import { useSettingsStore } from '../../stores/settings';
 import { SCORE_COLORS } from '../../utils/game';
 import { octavesOf, pickLabel } from '../../utils/notePick';
 import DirectionBadge from '../DirectionBadge.vue';
-import Progress from '../Progress.vue';
 import SvgButton from '../SvgButton.vue';
 import SvgKeyboard from '../SvgKeyboard.vue';
 import NoteInput from './NoteInput.vue';
+import SessionProgress from './SessionProgress.vue';
 
 // The session engine draws prompts, grades, and records (ADR 0004); this view
 // only renders the prompt and captures the named pitch. The pick is its own,
@@ -96,11 +89,6 @@ function keydownListener({ key }: KeyboardEvent) {
 }
 onMounted(() => document.addEventListener('keydown', keydownListener));
 onUnmounted(() => document.removeEventListener('keydown', keydownListener));
-
-const progress = computed<[number, number, number]>((): [number, number, number] => {
-  if (total.value === 0) return [0, 0, 0];
-  return counts.value.map((value) => value / total.value) as [number, number, number];
-});
 </script>
 
 <style scoped>

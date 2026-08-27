@@ -80,10 +80,9 @@ import { computed, ref } from 'vue';
 
 import { staffGlyphs } from '../../assets/staffGlyphs';
 import type { Accidental, Letter } from '../../utils/notePick';
-import { ACCIDENTAL_GLYPHS } from '../../utils/notePick';
-import { formatPitchClass } from '../../utils/spelling';
+import { ACCIDENTAL_GLYPHS, pickLabel } from '../../utils/notePick';
 import type { Side } from '../../utils/staff';
-import { ledgerSteps, MIDDLE_LINE_STEP, noteAtStep, staffPosition } from '../../utils/staff';
+import { ledgerSteps, MIDDLE_LINE_STEP, noteAtStep } from '../../utils/staff';
 import NoteInputAccidentals from './NoteInputAccidentals.vue';
 
 // One large staff in the side's clef. The accidental is picked first (♮ by
@@ -93,7 +92,7 @@ const SP = 24; // staff space, viewBox px
 const STEP = SP / 2; // one diatonic step
 const S = SP / 250; // glyph scale, font units -> px
 const VIEW_W = 320;
-// One window for both sides, p -9…15: room for A3–B6 treble and C2–G♯4 bass.
+// One window for both sides, p -9…15: room for the treble's B6 and the bass's C2.
 const P_TOP = 15;
 const P_BOTTOM = -9;
 const VIEW_H = (P_TOP - P_BOTTOM) * STEP + 2 * SP;
@@ -106,12 +105,16 @@ const NX = 208; // notehead center column
 const LEDGER = 2.2 * SP;
 const ACCIDENTAL_GAP = 0.35 * SP;
 
-// What each side's keyboard can sound; taps clamp to it.
-const RANGE: Record<Side, [string, string]> = { right: ['A3', 'B6'], left: ['C2', 'G4'] };
-
 const headHalf = (staffGlyphs.noteheadBlack.w * SP) / 2;
 
-const props = defineProps<{ accidental: Accidental; side: Side; notation: string }>();
+const props = defineProps<{
+  accidental: Accidental;
+  side: Side;
+  notation: string;
+  // What the layout can sound, as staff positions [lowest, highest]; taps
+  // clamp to it, so the staff never names a note the keyboard lacks.
+  range: readonly [number, number];
+}>();
 
 const emit = defineEmits<{
   accidental: [Accidental];
@@ -121,11 +124,6 @@ const emit = defineEmits<{
 const svgEl = ref<SVGSVGElement>();
 const dragging = ref(false);
 const previewP = ref<number | null>(null);
-
-const bounds = computed<[number, number]>(() => {
-  const [low, high] = RANGE[props.side];
-  return [staffPosition(low, props.side)!, staffPosition(high, props.side)!];
-});
 
 const lineY = (p: number) => MID_Y - p * STEP;
 
@@ -144,7 +142,11 @@ const preview = computed(() => {
     ledgerYs: ledgerSteps(p).map(lineY),
     letter: letter as Letter,
     octave,
-    name: formatPitchClass(letter + props.accidental, props.notation) + octave,
+    name:
+      pickLabel(
+        { letter: letter as Letter, accidental: props.accidental, octave: null },
+        props.notation,
+      ) + octave,
   };
 });
 
@@ -157,7 +159,7 @@ function positionAt(clientY: number): number {
   const offsetY = (rect.height - VIEW_H * scale) / 2;
   const y = (clientY - rect.top - offsetY) / scale;
   const p = Math.round((MID_Y - y) / STEP);
-  return Math.max(bounds.value[0], Math.min(bounds.value[1], p));
+  return Math.max(props.range[0], Math.min(props.range[1], p));
 }
 
 function down(event: PointerEvent) {

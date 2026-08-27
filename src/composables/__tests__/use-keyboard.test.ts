@@ -6,16 +6,14 @@ import { createApp, defineComponent, h } from 'vue';
 import { useStore } from '../../stores/main';
 import { useKeyboard } from '../useKeyboard';
 
-type Options = Parameters<typeof useKeyboard>[0];
-
 let cleanup: (() => void) | null = null;
 
-function mount(options?: Options) {
+function mount() {
   const pinia = createPinia();
   const app = createApp(
     defineComponent({
       setup() {
-        useKeyboard(options);
+        useKeyboard();
         return () => h('div');
       },
     }),
@@ -54,30 +52,6 @@ describe('useKeyboard', () => {
 
     press('m');
     expect(store.chordType).toBe('m');
-
-    press('Escape');
-    expect(store.tonic).toBe(null);
-  });
-
-  it('binds only tonic letters and Escape with keys: "tonic"', () => {
-    const store = mount({ keys: 'tonic' });
-
-    press('L');
-    press('r');
-    expect(store.side).toBe('right');
-    expect(store.direction).toBe('open');
-
-    press('m');
-    press('M');
-    press('7');
-    expect(store.chordType).toBe(null);
-    expect(store.tonic).toBe(null);
-
-    press('c');
-    expect(store.tonic).toBe('C');
-
-    press('G');
-    expect(store.tonic).toBe('G#');
 
     press('Escape');
     expect(store.tonic).toBe(null);

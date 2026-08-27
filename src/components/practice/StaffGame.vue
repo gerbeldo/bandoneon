@@ -36,14 +36,7 @@
         :feedback="staffFeedback"
       />
       <div class="min-w-0 flex-1 md:landscape:w-full">
-        <Progress
-          class="mt-2"
-          :values="[
-            { value: progress[2], color: SCORE_COLORS[2] },
-            { value: progress[1], color: SCORE_COLORS[1] },
-            { value: progress[0], color: SCORE_COLORS[0] },
-          ]"
-        />
+        <SessionProgress class="mt-2" :counts="counts" :total="total" />
         <p
           class="mt-2 text-center text-sm"
           :class="
@@ -70,9 +63,9 @@ import { SCORE_COLORS } from '../../utils/game';
 import { spellPitch } from '../../utils/spelling';
 import DirectionBadge from '../DirectionBadge.vue';
 import GrandStaff from '../GrandStaff.vue';
-import Progress from '../Progress.vue';
 import SvgButton from '../SvgButton.vue';
 import SvgKeyboard from '../SvgKeyboard.vue';
+import SessionProgress from './SessionProgress.vue';
 
 const FLASH_MS = 700;
 const PAUSE_MS = 900;
@@ -162,11 +155,6 @@ function tap(idx: number) {
     next();
   }, PAUSE_MS);
 }
-
-const progress = computed<[number, number, number]>((): [number, number, number] => {
-  if (total.value === 0) return [0, 0, 0];
-  return counts.value.map((value) => value / total.value) as [number, number, number];
-});
 </script>
 
 <style scoped>

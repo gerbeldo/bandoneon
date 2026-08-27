@@ -30,6 +30,7 @@
       :accidental="notePick.pick.accidental"
       :side="side"
       :notation="pitchNotation"
+      :range="staffRange"
       @accidental="onAccidental"
       @place="onPlace"
     />
@@ -61,6 +62,7 @@ import type { Accidental, Letter } from '../../utils/notePick';
 import { formatOctave } from '../../utils/notePick';
 import type { Prompt } from '../../utils/session';
 import { SHARPS } from '../../utils/spelling';
+import { staffPosition } from '../../utils/staff';
 import Button from '../Button.vue';
 import NoteInputLetters from './NoteInputLetters.vue';
 import NoteInputPiano from './NoteInputPiano.vue';
@@ -79,6 +81,15 @@ const { noteInput, pitchNotation } = storeToRefs(settings);
 
 const side = computed(() => store.side);
 const octaves = computed(() => props.notePick.octaves.value);
+
+// The layout's own compass, read off the keyboard, so the staff clamps to
+// what the buttons can actually sound (the left hand tops out at B4).
+const staffRange = computed<[number, number]>(() => {
+  const positions = store.keyPositions
+    .map(([, , pitch]) => staffPosition(pitch, store.side))
+    .filter((p): p is number => p !== null);
+  return positions.length ? [Math.min(...positions), Math.max(...positions)] : [0, 0];
+});
 // The piano names its keys by the prompt's spelling, so a flat run shows D♭.
 const spelling = computed(() => props.prompt?.spelling ?? SHARPS);
 const pickClass = computed(() => {
