@@ -128,6 +128,24 @@ describe('app boot persistence', () => {
     });
   });
 
+  it('defaults the note input to letters and persists it', async () => {
+    await mountApp();
+
+    expect(useSettingsStore().noteInput).toBe('letters');
+    expect(JSON.parse(localStorage.getItem('settings')!).noteInput).toBe('letters');
+  });
+
+  it('falls back to letters when the stored note input is not offered', async () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({ version: 3, instrument: 'rheinische142', noteInput: 'theremin' }),
+    );
+
+    await mountApp();
+
+    expect(useSettingsStore().noteInput).toBe('letters');
+  });
+
   it('falls back to the default instrument when the stored one no longer exists', async () => {
     // A stored blob naming an instrument the app no longer has.
     localStorage.setItem('settings', JSON.stringify({ version: 1, instrument: 'rheinische152' }));

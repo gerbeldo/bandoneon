@@ -6,7 +6,6 @@
   >
     <AppHeader />
     <RouterView />
-    <AppFooter />
     <UpdateBar :open="needRefresh" @reload="updateServiceWorker()" @dismiss="needRefresh = false" />
   </div>
 </template>
@@ -15,12 +14,17 @@
 import { useHead } from '@unhead/vue';
 import { useRegisterSW } from 'virtual:pwa-register/vue';
 
-import AppFooter from './components/AppFooter.vue';
 import AppHeader from './components/AppHeader.vue';
 import UpdateBar from './components/UpdateBar.vue';
 import { instruments } from './data/index';
 import { practiceStorage, usePracticeStore } from './stores/practice';
-import { sanitizePracticeSetup, settingsStorage, useSettingsStore } from './stores/settings';
+import type { NoteInput } from './stores/settings';
+import {
+  NOTE_INPUTS,
+  sanitizePracticeSetup,
+  settingsStorage,
+  useSettingsStore,
+} from './stores/settings';
 import { persistStore } from './utils/storage';
 
 useHead({ title: 'Bandoneon.app' });
@@ -32,6 +36,7 @@ persistStore(settings, settingsStorage, (blob) => {
   if (!(typeof blob.instrument === 'string' && blob.instrument in instruments)) {
     blob.instrument = 'rheinische142';
   }
+  if (!NOTE_INPUTS.includes(blob.noteInput as NoteInput)) blob.noteInput = 'letters';
   blob.practiceSetup = sanitizePracticeSetup(blob.practiceSetup);
 });
 
