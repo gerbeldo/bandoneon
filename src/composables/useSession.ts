@@ -97,7 +97,7 @@ export function useSession() {
 
   // Stamped when the setup appears and again when a run begins, so "today"
   // holds still for as long as one screen is up: the summary line does not
-  // drift while the setup sits open, and the strip's day does not turn mid-run.
+  // drift while the setup sits open, and the day does not turn mid-run.
   const asOf = ref(Date.now());
 
   const poolInput = computed<PoolInput>(() => ({
@@ -117,9 +117,7 @@ export function useSession() {
       ? { ...poolInput.value, now, layouts: layouts.value, quizDirection: game.value.quizDirection }
       : null;
 
-  // The setup screen's summary line and, during play, the session strip.
-  // Practice memory is reactive, so an answer that introduces an item moves
-  // the strip at once.
+  // The setup screen's summary line: what starting right now would run.
   const preview = computed<SessionPreview>(() => {
     if (setup.value.pool === 'walk') {
       const input = walkInput(asOf.value);

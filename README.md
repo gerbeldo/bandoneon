@@ -18,7 +18,9 @@ A little JavaScript application that wants to help learning the bandoneon.
   layout at a time — and whether accidentals are spelled as sharps, flats, or a
   random mix of the two (a key spells its own). Every answer is remembered per
   button, so scheduled sessions come back to what you miss. The setup is
-  remembered between visits.
+  remembered between visits. The note game answers through the input chosen in
+  the settings menu: letter and accidental buttons, a piano octave, a wheel,
+  or a tappable staff.
 
 ## About this fork
 
