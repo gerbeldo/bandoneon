@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import { afterEach, describe, expect, it, vi } from 'vitest';
-import { createApp, h, nextTick } from 'vue';
+import { createApp, h, nextTick, reactive } from 'vue';
 
 import { keySpelling } from '../../utils/scale';
 import { FLATS, SHARPS } from '../../utils/spelling';
@@ -17,6 +17,7 @@ afterEach(() => {
   cleanup?.();
   cleanup = null;
   vi.restoreAllMocks();
+  vi.useRealTimers();
 });
 
 // Widgets are dumb: props in, events out — no store, so no pinia.
@@ -182,25 +183,46 @@ describe('NoteInputStaff', () => {
   // exact-ratio rect keeps the test math the drawing's own.
   const rect = { top: 0, left: 0, width: 320, height: 336 } as DOMRect;
   const yOf = (p: number) => 204 - p * 12;
+  // Past the 500 ms rest a lifted note takes before it submits itself.
+  const REST = 600;
 
   // The real layouts' compasses as staff positions, as NoteInput derives them.
   const RANGES = { right: [-8, 14], left: [-8, 12] } as const;
 
   function stage(side: 'right' | 'left', accidental = '') {
-    const mounted = mount(NoteInputStaff, {
+    vi.useFakeTimers();
+    const props = reactive({
       accidental,
       side,
       notation: 'scientific',
       range: RANGES[side],
+      feedback: null as string | null,
     });
+    const mounted = mount(NoteInputStaff, props);
     const svg = mounted.el.querySelector('svg.staff') as SVGSVGElement;
     vi.spyOn(svg, 'getBoundingClientRect').mockReturnValue(rect);
-    const pointer = (type: string, clientY: number) =>
-      svg.dispatchEvent(new PointerEvent(type, { clientY, bubbles: true }));
-    return { ...mounted, svg, pointer };
+    const pointer = (
+      type: string,
+      clientY: number,
+      init: { pointerType?: string; timeStamp?: number } = {},
+    ) => {
+      const event = new PointerEvent(type, { clientY, bubbles: true });
+      if (init.pointerType)
+        Object.defineProperty(event, 'pointerType', { value: init.pointerType });
+      if (init.timeStamp !== undefined)
+        Object.defineProperty(event, 'timeStamp', { value: init.timeStamp });
+      svg.dispatchEvent(event);
+    };
+    // A press-and-lift at one spot, rested out so it submits.
+    const tap = (clientY: number) => {
+      pointer('pointerdown', clientY);
+      pointer('pointerup', clientY);
+      vi.advanceTimersByTime(REST);
+    };
+    return { ...mounted, svg, pointer, tap, props };
   }
 
-  it('places on press, follows the drag, and submits on lift', async () => {
+  it('places on press, follows the drag, and rests on lift before submitting', async () => {
     const { emitted, svg, pointer } = stage('right');
 
     pointer('pointerdown', yOf(0)); // the middle line: B4
@@ -212,17 +234,92 @@ describe('NoteInputStaff', () => {
     await nextTick();
     expect(svg.textContent).toContain('E5');
 
+    // Lifting leaves the note resting on the staff; the rest running out submits.
     pointer('pointerup', yOf(3));
+    await nextTick();
+    expect(svg.textContent).toContain('E5');
+    expect(emitted).toEqual([]);
+
+    vi.advanceTimersByTime(REST);
     expect(emitted).toEqual([['place', { letter: 'E', octave: 5 }]]);
   });
 
-  it('clamps to the side’s range: nothing above B6, below A3', () => {
+  it('lets a resting note be picked back up before it submits', async () => {
+    const { emitted, svg, pointer } = stage('right');
+
+    pointer('pointerdown', yOf(0));
+    pointer('pointerup', yOf(0));
+    vi.advanceTimersByTime(300); // inside the rest: not yet submitted
+    expect(emitted).toEqual([]);
+
+    pointer('pointerdown', yOf(5)); // pick it back up somewhere else
+    await nextTick();
+    expect(svg.textContent).toContain('G5');
+    pointer('pointerup', yOf(5));
+    vi.advanceTimersByTime(REST);
+
+    expect(emitted).toEqual([['place', { letter: 'G', octave: 5 }]]);
+  });
+
+  it('shrugs off the fingertip’s roll in the moment of lifting', () => {
     const { emitted, pointer } = stage('right');
 
-    pointer('pointerdown', yOf(40));
-    pointer('pointerup', yOf(40));
-    pointer('pointerdown', yOf(-40));
-    pointer('pointerup', yOf(-40));
+    pointer('pointerdown', yOf(3), { timeStamp: 0 });
+    pointer('pointermove', yOf(3), { timeStamp: 500 }); // held on E5
+    pointer('pointermove', yOf(2), { timeStamp: 960 }); // the roll, one step down
+    pointer('pointerup', yOf(2), { timeStamp: 1000 });
+    vi.advanceTimersByTime(REST);
+
+    expect(emitted).toEqual([['place', { letter: 'E', octave: 5 }]]);
+  });
+
+  it('keeps a deliberate last-moment slide', () => {
+    const { emitted, pointer } = stage('right');
+
+    pointer('pointerdown', yOf(0), { timeStamp: 0 });
+    pointer('pointermove', yOf(5), { timeStamp: 970 }); // a real move, five steps
+    pointer('pointerup', yOf(5), { timeStamp: 1000 });
+    vi.advanceTimersByTime(REST);
+
+    expect(emitted).toEqual([['place', { letter: 'G', octave: 5 }]]);
+  });
+
+  it('rides the preview above a touching finger', async () => {
+    const { svg, pointer } = stage('right');
+
+    // The finger sits two staff spaces (48 px) below the note it steers.
+    pointer('pointerdown', yOf(0) + 48, { pointerType: 'touch' });
+    await nextTick();
+    expect(svg.textContent).toContain('B4');
+  });
+
+  it('colors the placed note while feedback shows, and clears it after', async () => {
+    const { emitted, svg, pointer, tap, props } = stage('right');
+
+    tap(yOf(0));
+    expect(emitted).toEqual([['place', { letter: 'B', octave: 4 }]]);
+
+    props.feedback = '#22c55e';
+    await nextTick();
+    expect(svg.querySelector('path[fill="#22c55e"]')).not.toBeNull();
+
+    // The pointer is dead while the result shows.
+    pointer('pointerdown', yOf(5));
+    await nextTick();
+    expect(svg.textContent).toContain('B4');
+    expect(svg.textContent).not.toContain('G5');
+
+    props.feedback = null;
+    await nextTick();
+    expect(svg.textContent).not.toContain('B4');
+    expect(svg.querySelector('path[fill="#22c55e"]')).toBeNull();
+  });
+
+  it('clamps to the side’s range: nothing above B6, below A3', () => {
+    const { emitted, tap } = stage('right');
+
+    tap(yOf(40));
+    tap(yOf(-40));
 
     expect(emitted).toEqual([
       ['place', { letter: 'B', octave: 6 }],
@@ -231,18 +328,16 @@ describe('NoteInputStaff', () => {
   });
 
   it('reads the bass staff on the left side', () => {
-    const { emitted, pointer } = stage('left');
+    const { emitted, tap } = stage('left');
 
-    pointer('pointerdown', yOf(0)); // bass middle line: D3
-    pointer('pointerup', yOf(0));
+    tap(yOf(0)); // bass middle line: D3
     expect(emitted).toEqual([['place', { letter: 'D', octave: 3 }]]);
   });
 
   it('reaches the left hand’s top: B4 places, nothing above it', () => {
-    const { emitted, pointer } = stage('left');
+    const { emitted, tap } = stage('left');
 
-    pointer('pointerdown', yOf(40));
-    pointer('pointerup', yOf(40));
+    tap(yOf(40));
     expect(emitted).toEqual([['place', { letter: 'B', octave: 4 }]]);
   });
 
@@ -262,6 +357,7 @@ describe('NoteInputStaff', () => {
 
     pointer('pointermove', yOf(2));
     pointer('pointerup', yOf(2));
+    vi.advanceTimersByTime(REST);
     await nextTick();
     expect(svg.querySelector('path[d*="M97"]')).toBeNull(); // no notehead
     expect(emitted).toEqual([]);
