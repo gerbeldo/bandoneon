@@ -57,6 +57,20 @@ export const LABELS = {
     'Tap the button that sounds this note. Right note in the wrong octave counts as partial credit.',
 } as const;
 
+export const buttons = (container: HTMLElement) => [...container.querySelectorAll('button')];
+
+// The note game's input rows: octave digits, the Letter group, the sign row.
+export const octaveButtons = (container: HTMLElement) =>
+  buttons(container).filter((b) => /^\d$/.test(b.textContent?.trim() ?? ''));
+
+export const letterButton = (container: HTMLElement, letter: string) =>
+  container.querySelector<HTMLButtonElement>(
+    `[role="group"][aria-label="Letter"] button[aria-label="${letter}"]`,
+  );
+
+export const accidentalButton = (container: HTMLElement, name: string) =>
+  container.querySelector<HTMLButtonElement>(`button[aria-label="${name}"]`);
+
 export const buttonNamed = (container: HTMLElement, text: string) =>
   [...container.querySelectorAll('button')].find((b) => b.textContent?.trim() === text);
 
@@ -87,7 +101,7 @@ export const GROUPS = {
 export const range = (container: HTMLElement) =>
   container.querySelector<HTMLInputElement>('input[type="range"][aria-label="Number of items"]');
 
-export const click = (button?: Element) =>
+export const click = (button?: Element | null) =>
   button?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
 
 export const press = (key: string, target: EventTarget = document) =>
@@ -99,16 +113,7 @@ export const dialog = () => document.querySelector('[role="dialog"]');
 // The direction badge, and the colors the spec names for it.
 export const badge = (container: HTMLElement) => container.querySelector('[data-direction]');
 
-export const DIRECTION_COLORS = { open: 'bg-sky-600', close: 'bg-orange-600' } as const;
-
-// The session strip's three segments, joined the way the DOM renders them.
-export const strip = (
-  promptNumber: number,
-  total: number,
-  newToday: string,
-  seen: number,
-  pool: number,
-) => `Prompt ${promptNumber} of ${total}·${newToday}·${seen} of ${pool} seen`;
+export const DIRECTION_COLORS = { open: 'text-sky-600', close: 'text-orange-600' } as const;
 
 // Practice memory for items answered correctly yesterday, so they count as seen
 // and carry a day's worth of sampling weight.

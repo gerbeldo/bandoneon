@@ -2,47 +2,12 @@
   <div
     class="mx-auto flex min-h-0 w-full max-w-5xl flex-1 flex-col gap-2 px-2 pt-2 pb-4 sm:px-6 sm:pt-6 sm:pb-6 md:landscape:flex-row md:landscape:items-center md:landscape:gap-8"
   >
-    <!-- Portrait (phones, tablets held upright): staff beside the progress/hint
-         above a full-width keyboard. Landscape from md up: the staff column
-         stands beside the keyboard. -->
+    <!-- Portrait (phones, tablets held upright): the keyboard on top — as in
+         the note game — with the staff beside the progress/hint below it.
+         Landscape from md up: the staff column stands beside the keyboard. -->
     <div
-      class="mx-auto flex w-full max-w-md shrink-0 flex-wrap items-center gap-x-4 md:landscape:w-80"
+      class="game-keyboard relative mt-7 flex min-w-0 shrink-0 items-center justify-center md:landscape:order-2 md:landscape:mt-0 md:landscape:min-h-0 md:landscape:flex-1"
     >
-      <SessionStrip
-        class="w-full"
-        :prompt-number="promptNumber"
-        :total="total"
-        :preview="preview"
-      />
-      <GrandStaff
-        class="w-48 shrink-0 md:landscape:w-full"
-        :notes="quizzedSpelled ? [quizzedSpelled] : []"
-        :side="side"
-        :color="staffColor"
-        :feedback="staffFeedback"
-      />
-      <div class="min-w-0 flex-1 md:landscape:w-full">
-        <Progress
-          class="mt-2"
-          :values="[
-            { value: progress[2], color: SCORE_COLORS[2] },
-            { value: progress[1], color: SCORE_COLORS[1] },
-            { value: progress[0], color: SCORE_COLORS[0] },
-          ]"
-        />
-        <p
-          class="mt-2 text-center text-sm"
-          :class="
-            prompt?.twin
-              ? 'font-medium text-neutral-700 dark:text-neutral-200'
-              : 'text-neutral-500 dark:text-neutral-400'
-          "
-        >
-          {{ hint }}
-        </p>
-      </div>
-    </div>
-    <div class="relative flex min-h-0 min-w-0 flex-1 items-center">
       <SvgKeyboard>
         <template v-if="prompt" #overlay>
           <DirectionBadge :direction="prompt.layout.direction" />
@@ -60,6 +25,30 @@
         />
       </SvgKeyboard>
     </div>
+    <div
+      class="mx-auto flex w-full max-w-md flex-1 flex-wrap content-start items-center gap-x-4 md:landscape:w-80 md:landscape:flex-none md:landscape:content-center"
+    >
+      <GrandStaff
+        class="w-48 shrink-0 md:landscape:w-full"
+        :notes="quizzedSpelled ? [quizzedSpelled] : []"
+        :side="side"
+        :color="staffColor"
+        :feedback="staffFeedback"
+      />
+      <div class="min-w-0 flex-1 md:landscape:w-full">
+        <SessionProgress class="mt-2" :counts="counts" :total="total" />
+        <p
+          class="mt-2 text-center text-sm"
+          :class="
+            prompt?.twin
+              ? 'font-medium text-neutral-700 dark:text-neutral-200'
+              : 'text-neutral-500 dark:text-neutral-400'
+          "
+        >
+          {{ hint }}
+        </p>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -74,10 +63,9 @@ import { SCORE_COLORS } from '../../utils/game';
 import { spellPitch } from '../../utils/spelling';
 import DirectionBadge from '../DirectionBadge.vue';
 import GrandStaff from '../GrandStaff.vue';
-import Progress from '../Progress.vue';
-import SessionStrip from '../SessionStrip.vue';
 import SvgButton from '../SvgButton.vue';
 import SvgKeyboard from '../SvgKeyboard.vue';
+import SessionProgress from './SessionProgress.vue';
 
 const FLASH_MS = 700;
 const PAUSE_MS = 900;
@@ -89,7 +77,7 @@ const STAFF_HINT =
 // view only renders prompts and captures taps.
 const props = defineProps<{ session: PracticeSession }>();
 
-const { phase, preview, prompt, promptNumber, total, counts, graded, next, answer } = props.session;
+const { phase, prompt, total, counts, graded, next, answer } = props.session;
 
 // The last tap's result, kept while the feedback pause runs; taps are ignored meanwhile.
 const tapResult = ref<{ note: string; score: Grade } | null>(null);
@@ -167,9 +155,13 @@ function tap(idx: number) {
     next();
   }, PAUSE_MS);
 }
-
-const progress = computed<[number, number, number]>((): [number, number, number] => {
-  if (total.value === 0) return [0, 0, 0];
-  return counts.value.map((value) => value / total.value) as [number, number, number];
-});
 </script>
+
+<style scoped>
+/* The keyboard box is content-sized here (the staff column takes the spare
+   height), so the drawing needs a viewport cap of its own: SvgKeyboard's
+   `max-height: 100%` has nothing definite to resolve against and collapses. */
+.game-keyboard :deep(.keyboard) {
+  max-height: 45dvh;
+}
+</style>

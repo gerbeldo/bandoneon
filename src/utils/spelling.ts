@@ -42,8 +42,9 @@ export function spellPitch(pitch: string, spelling: Spelling): string {
 }
 
 // Display form: unicode accidentals, as the keyboard and the palette print them.
+// Doubles first, so C## reads 𝄪 rather than ♯♯.
 export function accidentalGlyphs(name: string): string {
-  return name.replace('#', '♯').replace('b', '♭');
+  return name.replace('##', '𝄪').replace('bb', '𝄫').replace('#', '♯').replace('b', '♭');
 }
 
 // A pitch class as written — no respelling — in letters or solfège.

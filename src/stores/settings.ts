@@ -32,6 +32,11 @@ export const settingsStorage: StorageSpec = {
   },
 };
 
+// How the note game captures the answer. A device preference, chosen from the
+// settings panel — never a run parameter on the practice setup (ADR 0007).
+export type NoteInput = 'letters' | 'piano' | 'wheel' | 'staff';
+export const NOTE_INPUTS: NoteInput[] = ['letters', 'piano', 'wheel', 'staff'];
+
 export type PracticeGame = 'note' | 'staff';
 // Scheduled: the scheduler draws under the daily cap. Fixed: the first N items
 // of the introduction order, shuffled. Walk: every item in pitch order, up and
@@ -111,6 +116,7 @@ export function sanitizePracticeSetup(value: unknown): PracticeSetup {
 export const useSettingsStore = defineStore('settings', () => {
   const instrument = ref('rheinische142');
   const pitchNotation = ref<'scientific' | 'helmholtz' | 'solfege' | 'staff'>('scientific');
+  const noteInput = ref<NoteInput>('letters');
   const userChords = ref<Record<string, Record<string, string[]>>>({});
   const practiceSetup = ref<PracticeSetup>(defaultPracticeSetup());
 
@@ -126,6 +132,7 @@ export const useSettingsStore = defineStore('settings', () => {
   return {
     instrument,
     pitchNotation,
+    noteInput,
     userChords,
     practiceSetup,
     saveUserChord,

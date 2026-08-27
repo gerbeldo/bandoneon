@@ -7,9 +7,12 @@ import type { ScaleChoice } from '../../utils/scale';
 import { ALL_LAYOUTS } from '../../utils/scheduler';
 import type { Layout } from '../../utils/session';
 import {
+  accidentalButton,
   ascendingPitches,
   buttonNamed,
   cardNamed,
+  letterButton,
+  octaveButtons,
   click,
   dialog,
   GROUPS,
@@ -24,7 +27,6 @@ import {
   scaleItems,
   setupRun,
   start,
-  strip,
   unmountPractice,
   walkOrder,
 } from './practice-helpers';
@@ -46,9 +48,6 @@ const noteRun = (extra: Partial<PracticeSetup> = {}): Partial<PracticeSetup> => 
 // The main store the page reads the keyboard off, as mountPractice hands it back.
 type Store = ReturnType<typeof mountPractice>['store'];
 
-const buttons = (container: HTMLElement) => [...container.querySelectorAll('button')];
-const octaveButtons = (container: HTMLElement) =>
-  buttons(container).filter((b) => /^\d$/.test(b.textContent?.trim() ?? ''));
 const keys = (container: HTMLElement) => [...container.querySelectorAll('.keyboard > g')];
 // jsdom lowercases attribute names in selectors, so `svg[viewBox=…]` never
 // matches; the grand staff is found by reading the attribute instead.
@@ -146,7 +145,8 @@ describe('practice setup, fixed runs', () => {
     expect(text(container)).toContain('20 prompts');
 
     await start(container);
-    expect(text(container)).toContain(strip(1, 20, '0 new today', 0, 20));
+    expect(keys(container).length).toBeGreaterThan(0);
+    expect(buttonNamed(container, LABELS.start)).toBeUndefined();
   });
 
   it('ranges the slider over the chosen layouts', async () => {
@@ -316,25 +316,27 @@ describe('practice setup, scales', () => {
     expect(range(container)?.max).toBe(String(scaleItems('forward', ALL_LAYOUTS, F_MAJOR)));
   });
 
-  it('names a flat key’s run in flats', async () => {
+  it('names a flat key’s run in flats on the piano keys', async () => {
     const { container, settings } = mountPractice();
+    settings.noteInput = 'piano';
     await setupRun(settings, noteRun({ scale: { ...F_MAJOR } }));
     await start(container);
 
-    expect(buttonNamed(container, 'B♭')).toBeDefined();
-    expect(buttonNamed(container, 'C♯')).toBeUndefined();
+    expect(container.querySelector('[aria-label="Bb"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="C#"]')).toBeNull();
   });
 
   it('names a sharp key’s run in sharps, whatever the stored accidentals say', async () => {
     const { container, settings } = mountPractice();
+    settings.noteInput = 'piano';
     await setupRun(settings, noteRun({ scale: { ...D_MAJOR }, spelling: 'flat' }));
     await start(container);
 
-    expect(buttonNamed(container, 'C♯')).toBeDefined();
-    expect(buttonNamed(container, 'D♭')).toBeUndefined();
+    expect(container.querySelector('[aria-label="C#"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="Db"]')).toBeNull();
   });
 
-  it('offers E♯ and no F on the palette under F♯ major, and takes E♯4 for F4', async () => {
+  it('takes E♯4 for F4 under F♯ major, shown as the player wrote it', async () => {
     // The walk climbs right/open's F♯ major pitches: A♯3 B3 C♯4 D♯4, then F4.
     const order = walkOrder('forward', RIGHT_OPEN, F_SHARP_MAJOR);
     expect(pitchOf(order[4])).toBe('F4');
@@ -347,15 +349,13 @@ describe('practice setup, scales', () => {
     });
     await start(container);
 
-    expect(buttonNamed(container, 'E♯')).toBeDefined();
-    expect(buttonNamed(container, 'F')).toBeUndefined();
-    expect(buttonNamed(container, 'F♯')).toBeDefined();
-
     for (let i = 0; i < 4; i++) await answerNote(container, 'C', 0);
     expect(promptedPitch(container, store)).toBe('F4');
 
-    // The picked note shows on the prompted button in the key's spelling.
-    click(buttonNamed(container, 'E♯'));
+    // The picked note shows on the prompted button as the player wrote it.
+    click(letterButton(container, 'E'));
+    await nextTick();
+    click(accidentalButton(container, 'Sharp'));
     await nextTick();
     const prompted = keys(container).find((key) => key.classList.contains('selected'));
     expect(prompted?.textContent?.replace(/\s+/g, '')).toBe('E♯');
@@ -378,11 +378,15 @@ describe('practice setup, walks', () => {
     ...extra,
   });
 
-  // Answers the highlighted button correctly: its pitch class, then its octave.
+  // Answers the highlighted button correctly: letter, sharp if any, octave.
   async function answerPrompted(container: HTMLElement, store: Store) {
     const pitch = promptedPitch(container, store)!;
-    click(buttonNamed(container, pitch.slice(0, -1).replace('#', '♯')));
+    click(letterButton(container, pitch[0]));
     await nextTick();
+    if (pitch.includes('#')) {
+      click(accidentalButton(container, 'Sharp'));
+      await nextTick();
+    }
     click(octaveButtons(container).find((b) => b.textContent?.trim() === pitch.slice(-1)));
     await nextTick();
     return pitch;
@@ -418,9 +422,10 @@ describe('practice setup, walks', () => {
   it('counts distinct items for coverage, so a walk’s two passes are one pool', async () => {
     const { container, settings } = mountPractice();
     await setupRun(settings, walk());
-    await start(container);
 
-    expect(text(container)).toContain(strip(1, 75, '0 new today', 0, RIGHT_OPEN_SIZE));
+    // 75 prompts (38 up, 37 down) over a pool of 38 distinct items.
+    expect(text(container)).toContain('75 prompts');
+    expect(text(container)).toContain(`0 of ${RIGHT_OPEN_SIZE} seen`);
   });
 
   it('walks a key’s notes only', async () => {
@@ -481,15 +486,16 @@ describe('practice setup, scheduled runs', () => {
 });
 
 describe('practice setup, accidentals', () => {
-  it('names accidentals as flats through the run', async () => {
+  it('names accidentals as flats through the run on the piano keys', async () => {
     const { container, settings } = mountPractice();
+    settings.noteInput = 'piano';
     await setupRun(settings, noteRun({ spelling: 'flat' }));
     click(buttonNamed(container, LABELS.flats));
     await nextTick();
     await start(container);
 
-    expect(buttonNamed(container, 'D♭')).toBeDefined();
-    expect(buttonNamed(container, 'C♯')).toBeUndefined();
+    expect(container.querySelector('[aria-label="Db"]')).not.toBeNull();
+    expect(container.querySelector('[aria-label="C#"]')).toBeNull();
   });
 
   it('asks each item once under Both, whichever way it is named', async () => {
@@ -499,22 +505,25 @@ describe('practice setup, accidentals', () => {
     await nextTick();
 
     expect(settings.practiceSetup.spelling).toBe('both');
+    // One prompt per item, not one per spelling.
     expect(text(container)).toContain(`${RIGHT_OPEN_SIZE} prompts`);
-
-    await start(container);
-    expect(text(container)).toContain(`of ${RIGHT_OPEN_SIZE}`);
   });
 
   it('leaves the explore screen’s ♯/♭ toggle alone: a sharp run names sharps regardless', async () => {
     const { container, store, settings } = mountPractice();
     store.showEnharmonics = true;
+    settings.noteInput = 'piano';
     await setupRun(settings, noteRun({ fixedCount: 1 }));
     await start(container);
 
-    expect(buttonNamed(container, 'C♯')).toBeDefined();
+    expect(container.querySelector('[aria-label="C#"]')).not.toBeNull();
     expect(store.showEnharmonics).toBe(true);
 
-    await answerNote(container, 'C', 0);
+    // Answer on the piano: the C key, then the first octave.
+    click(container.querySelector('[aria-label="C"]'));
+    await nextTick();
+    click(octaveButtons(container)[0]);
+    await nextTick();
     press('Escape');
     await nextTick();
 
@@ -549,10 +558,14 @@ describe('practice setup, starting', () => {
   });
 });
 
-// Names a note and an octave, the note game's two taps.
+// Names a note and an octave the letters way: letter, sharp if any, octave.
 async function answerNote(container: HTMLElement, pc: string, octaveIndex: number) {
-  click(buttonNamed(container, pc.replace('#', '♯')));
+  click(letterButton(container, pc[0]));
   await nextTick();
+  if (pc.includes('#')) {
+    click(accidentalButton(container, 'Sharp'));
+    await nextTick();
+  }
   click(octaveButtons(container)[octaveIndex]);
   await nextTick();
 }

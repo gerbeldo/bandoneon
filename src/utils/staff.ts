@@ -26,6 +26,12 @@ export function staffPosition(name: string, side: Side): number | null {
   return step === null ? null : step - MIDDLE_LINE_STEP[side];
 }
 
+/** Inverse of stepIndex: the natural letter and octave at diatonic step (C0 = 0). */
+export function noteAtStep(step: number): { letter: string; octave: number } {
+  const octave = Math.floor(step / 7);
+  return { letter: 'CDEFGAB'[step - 7 * octave], octave };
+}
+
 /** Ledger-line positions for a note at staff position p: even steps between staff edge and note. */
 export function ledgerSteps(p: number): number[] {
   const steps: number[] = [];
