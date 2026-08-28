@@ -30,6 +30,22 @@ describe('scaleFingering', () => {
     expect(scaleFingering('left', 'close', 'F#', 'major')).toBe(fingerings['left-close']['F#']);
   });
 
+  it('carries Madrigal’s digits: C major p. 18 and the E major stack rule', () => {
+    // p. 18, natural scale opening, right hand: C4 D4 E4 F4 = 2 4 3 2
+    expect(scaleFingering('right', 'open', 'C', 'major')).toMatchObject({
+      C4: 2,
+      D4: 4,
+      E4: 3,
+      F4: 2,
+    });
+    // p. 18, closing, left hand: the compass ends G4 B4 — no A4 closing
+    expect(scaleFingering('left', 'close', 'C', 'major')).not.toHaveProperty('A4');
+    // p. 44, right hand opening, B5 is stacked 4/5: the upper (ascending) digit stays
+    expect(scaleFingering('right', 'open', 'E', 'major')?.B5).toBe(4);
+    // p. 50 fingers E♭ major's right hand opening only
+    expect(scaleFingering('right', 'close', 'D#', 'major')).toBeUndefined();
+  });
+
   it('reads the relative major for a natural minor', () => {
     expect(scaleFingering('right', 'open', 'A', 'minor')).toBe(fingerings['right-open'].C);
     expect(scaleFingering('left', 'open', 'C', 'minor')).toBe(fingerings['left-open']['D#']);
