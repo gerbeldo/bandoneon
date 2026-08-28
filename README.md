@@ -9,7 +9,8 @@ A little JavaScript application that wants to help learning the bandoneon.
 ## Using it
 
 - **Explore** shows one keyboard layout (side + bellows direction) with every
-  note labeled, plus chord and scale overlays.
+  note labeled, plus chord and scale overlays and, on request, the finger
+  Madrigal's method recommends for each scale button.
 - **Practice** opens on a setup screen: pick the game (name the highlighted
   button, or find the note shown on the staff), the layouts (a side or both, a
   bellows direction or both), the scale (every note, or a major or minor key),

@@ -51,6 +51,7 @@
           title="Fingering"
           aria-label="Fingering"
           :aria-pressed="showFingering"
+          :disabled="!hasKeyedScale"
           @click.prevent="showFingering = !showFingering"
         >
           <IconFingering class="inline-block h-4 w-4 align-[-0.25em]" />
@@ -62,6 +63,7 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
+import { computed } from 'vue';
 
 import { chordTypes, scaleTypes } from '../data/index';
 import { useStore } from '../stores/main';
@@ -75,4 +77,7 @@ const scaleLabels: Record<string, string> = { major: 'maj', minor: 'min', chroma
 
 const store = useStore();
 const { scaleType, showColors, showEnharmonics, showFingering, chordType } = storeToRefs(store);
+
+// Only major and minor scales carry fingerings.
+const hasKeyedScale = computed(() => scaleType.value === 'major' || scaleType.value === 'minor');
 </script>

@@ -84,10 +84,19 @@ describe('NavDisplay', () => {
     expect(store.scaleType).toBeNull();
   });
 
-  it('toggles the fingering badges', async () => {
+  it('toggles the fingering badges, once a keyed scale is shown', async () => {
     const { store, el } = mount(NavDisplay);
     const button = el.querySelector<HTMLButtonElement>('button[aria-label="Fingering"]');
     if (!button) throw new Error('no Fingering button');
+    expect(button.disabled).toBe(true);
+
+    store.setScaleType('chromatic');
+    await nextTick();
+    expect(button.disabled).toBe(true);
+
+    store.setScaleType('minor');
+    await nextTick();
+    expect(button.disabled).toBe(false);
     expect(store.showFingering).toBe(false);
     expect(button.getAttribute('aria-pressed')).toBe('false');
 

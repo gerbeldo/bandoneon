@@ -25,3 +25,4 @@ The owner wants recommended fingerings on the scale buttons in Explore, from the
 
 - Chords show no fingering; the only fingered chord source is a paid book.
 - Changing the source school means re-transcribing one table, not touching code.
+- The PNG export left with the pin and undo buttons, so ADR 0001's rasterization argument no longer binds; its decision stands on the fragments-in-one-`<svg>` reason alone.

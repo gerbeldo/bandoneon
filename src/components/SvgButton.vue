@@ -65,6 +65,7 @@
 import { Note } from 'tonal';
 import { computed } from 'vue';
 
+import type { Finger } from '../data/fingerings/rheinische142';
 import { useStore } from '../stores/main';
 import { useSettingsStore } from '../stores/settings';
 import { scientificToHelmholtzNotation } from '../utils/helmholtz';
@@ -90,8 +91,8 @@ const props = withDefaults(
     // Names the note this way whatever Explore's ♯/♭ toggle says: a button
     // answered in a run keeps the name it was asked under.
     spelling?: Spelling;
-    // Recommended finger (2–5) for this button in the shown scale.
-    finger?: number;
+    // Recommended finger for this button in the shown scale.
+    finger?: Finger;
   }>(),
   {
     selected: false,
@@ -175,7 +176,8 @@ text {
 }
 
 /* The finger badge is a filled disc in the text color with the digit cut out
-   of it, so it reads on a tinted or selected button alike. */
+   of it, so it reads on a tinted or selected button alike. Must stay below the
+   `.selected` rules: same specificity, later wins. */
 .finger circle {
   fill: currentColor;
   stroke: none;

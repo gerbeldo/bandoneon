@@ -24,6 +24,18 @@ describe('fingering data', () => {
   }
 });
 
+describe('fingering coverage', () => {
+  it('fingers every major key in every layout, except E♭ right/close', () => {
+    for (const [layout, keys] of Object.entries(fingerings)) {
+      const expected = notes.filter((key) => !(layout === 'right-close' && key === 'D#'));
+      expect(Object.keys(keys).sort(), layout).toEqual([...expected].sort());
+      for (const [key, table] of Object.entries(keys)) {
+        expect(Object.keys(table).length, `${layout} ${key}`).toBeGreaterThanOrEqual(13);
+      }
+    }
+  });
+});
+
 describe('scaleFingering', () => {
   it('reads the layout table for a major key', () => {
     expect(scaleFingering('right', 'open', 'C', 'major')).toBe(fingerings['right-open'].C);
