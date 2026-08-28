@@ -8,6 +8,7 @@ export const useStore = defineStore('main', {
   state: () => ({
     showColors: false,
     showEnharmonics: false,
+    showFingering: false,
     side: 'right' as 'right' | 'left',
     direction: 'open' as 'open' | 'close',
     tonic: null as null | string,

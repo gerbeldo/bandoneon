@@ -18,6 +18,7 @@
         :y="y"
         :tonal="tonal"
         :color="color(tonal)"
+        :finger="fingering?.[tonal]"
         @click="toggle(tonal)"
       />
     </SvgKeyboard>
@@ -46,14 +47,24 @@ import SvgPath from '../components/SvgPath.vue';
 import { useKeyboard } from '../composables/useKeyboard';
 import { colors } from '../data/index';
 import { useStore } from '../stores/main';
+import { scaleFingering } from '../utils/fingering';
 
 useHead({ title: 'Bandoneon keyboard, chords and scales – Bandoneon.app' });
 
 useKeyboard();
 
 const store = useStore();
-const { chordNotes, chordType, keyPositions, scaleType, showColors, side, tonic } =
-  storeToRefs(store);
+const {
+  chordNotes,
+  chordType,
+  direction,
+  keyPositions,
+  scaleType,
+  showColors,
+  showFingering,
+  side,
+  tonic,
+} = storeToRefs(store);
 
 const isModified = ref(false);
 const userSelection = ref<Record<string, boolean>>({});
@@ -82,6 +93,12 @@ const scalePaths = computed(() => {
   }
   return paths;
 });
+
+const fingering = computed(() =>
+  showFingering.value && tonic.value
+    ? scaleFingering(side.value, direction.value, tonic.value, scaleType.value)
+    : undefined,
+);
 
 const resetUserSelection = () => {
   userSelection.value = {};

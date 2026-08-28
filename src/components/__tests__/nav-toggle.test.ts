@@ -48,7 +48,7 @@ describe('NavTonic', () => {
 
 describe('NavDisplay', () => {
   it('toggles the active chord type off, keeping the tonic', async () => {
-    const { store, el } = mount(NavDisplay, { modified: false });
+    const { store, el } = mount(NavDisplay);
     store.setTonic('C'); // auto-selects the M chord
     await nextTick();
 
@@ -58,7 +58,7 @@ describe('NavDisplay', () => {
   });
 
   it('toggles the active scale type off, keeping the tonic', async () => {
-    const { store, el } = mount(NavDisplay, { modified: false });
+    const { store, el } = mount(NavDisplay);
     store.setTonic('C');
     await nextTick();
 
@@ -71,7 +71,7 @@ describe('NavDisplay', () => {
   });
 
   it('switches directly to a different scale or chord type', async () => {
-    const { store, el } = mount(NavDisplay, { modified: false });
+    const { store, el } = mount(NavDisplay);
     store.setTonic('C');
     await nextTick();
 
@@ -82,5 +82,18 @@ describe('NavDisplay', () => {
     await click(el, 'm7');
     expect(store.chordType).toBe('m7');
     expect(store.scaleType).toBeNull();
+  });
+
+  it('toggles the fingering badges', async () => {
+    const { store, el } = mount(NavDisplay);
+    const button = el.querySelector<HTMLButtonElement>('button[aria-label="Fingering"]');
+    if (!button) throw new Error('no Fingering button');
+    expect(store.showFingering).toBe(false);
+    expect(button.getAttribute('aria-pressed')).toBe('false');
+
+    button.click();
+    await nextTick();
+    expect(store.showFingering).toBe(true);
+    expect(button.getAttribute('aria-pressed')).toBe('true');
   });
 });

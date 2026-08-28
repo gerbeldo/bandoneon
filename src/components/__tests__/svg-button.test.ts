@@ -26,6 +26,16 @@ const render = (props: Record<string, unknown>, state: State = {}) => {
 };
 
 describe('SvgButton', () => {
+  it('draws a finger badge only when given a finger', async () => {
+    const plain = await render({ x: 0, y: 0, tonal: 'C4' });
+    expect(plain).not.toContain('class="finger"');
+
+    const fingered = await render({ x: 10, y: 20, tonal: 'C4', finger: 3 });
+    expect(fingered).toContain('class="finger"');
+    expect(fingered).toContain('cx="53"');
+    expect(fingered).toMatch(/<text[^>]*font-size="10px"[^>]*>\s*3\s*<\/text>/);
+  });
+
   it('renders the note name as text by default', async () => {
     const html = await render({ x: 0, y: 0, tonal: 'C#5' });
     expect(html).toContain('<text');

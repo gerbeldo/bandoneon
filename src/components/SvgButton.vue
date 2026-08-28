@@ -43,6 +43,21 @@
         </tspan>
       </template>
     </text>
+    <!-- Finger badge, top right inside the ring; the label's octave digit ends
+         just below it. -->
+    <g v-if="finger !== undefined" class="finger" pointer-events="none">
+      <circle :cx="x + 43" :cy="y + 15" r="7" />
+      <text
+        :x="x + 43"
+        :y="y + 18.5"
+        font-family="-apple-system, BlinkMacSystemFont, 'Helvetica Neue', Arial, sans-serif"
+        font-size="10px"
+        font-weight="600"
+        text-anchor="middle"
+      >
+        {{ finger }}
+      </text>
+    </g>
   </g>
 </template>
 
@@ -75,6 +90,8 @@ const props = withDefaults(
     // Names the note this way whatever Explore's ♯/♭ toggle says: a button
     // answered in a run keeps the name it was asked under.
     spelling?: Spelling;
+    // Recommended finger (2–5) for this button in the shown scale.
+    finger?: number;
   }>(),
   {
     selected: false,
@@ -84,6 +101,7 @@ const props = withDefaults(
     title: undefined,
     outline: undefined,
     spelling: undefined,
+    finger: undefined,
   },
 );
 
@@ -154,5 +172,36 @@ text {
 
 .dark .selected .staff-label {
   color: #262626;
+}
+
+/* The finger badge is a filled disc in the text color with the digit cut out
+   of it, so it reads on a tinted or selected button alike. */
+.finger circle {
+  fill: currentColor;
+  stroke: none;
+}
+
+.finger text {
+  fill: #fff;
+}
+
+.dark .finger text {
+  fill: #262626;
+}
+
+.selected .finger circle {
+  fill: #fff;
+}
+
+.dark .selected .finger circle {
+  fill: #262626;
+}
+
+.selected .finger text {
+  fill: #262626;
+}
+
+.dark .selected .finger text {
+  fill: #f5f5f5;
 }
 </style>
