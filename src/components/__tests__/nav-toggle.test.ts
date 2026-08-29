@@ -57,6 +57,19 @@ describe('NavDisplay', () => {
     expect(store.tonic).toBe('C');
   });
 
+  it('offers the five scale types, short-labeled', async () => {
+    const { store, el } = mount(NavDisplay);
+    const labels = [...el.querySelectorAll('button')].map((b) => b.textContent?.trim());
+    // The scale group renders first.
+    expect(labels.slice(0, 5)).toEqual(['maj', 'min', 'harm', 'mel', 'chrom']);
+
+    await click(el, 'harm');
+    expect(store.scaleType).toBe('harmonic minor');
+
+    await click(el, 'mel');
+    expect(store.scaleType).toBe('melodic minor');
+  });
+
   it('toggles the active scale type off, keeping the tonic', async () => {
     const { store, el } = mount(NavDisplay);
     store.setTonic('C');
@@ -84,15 +97,16 @@ describe('NavDisplay', () => {
     expect(store.scaleType).toBeNull();
   });
 
-  it('toggles the fingering badges, once a keyed scale is shown', async () => {
+  it('toggles the fingering badges, once any scale is shown', async () => {
     const { store, el } = mount(NavDisplay);
     const button = el.querySelector<HTMLButtonElement>('button[aria-label="Fingering"]');
     if (!button) throw new Error('no Fingering button');
     expect(button.disabled).toBe(true);
 
+    // Every scale type is fingered, the chromatic run included (ADR 0009).
     store.setScaleType('chromatic');
     await nextTick();
-    expect(button.disabled).toBe(true);
+    expect(button.disabled).toBe(false);
 
     store.setScaleType('minor');
     await nextTick();

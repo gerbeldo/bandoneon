@@ -44,7 +44,7 @@ The free-browsing mode — the keyboard with all labels visible. Tapping here ne
 _Avoid_: browse mode
 
 **Fingering**:
-The finger that plays a button in the scale Explore shows — 2 index, 3 middle, 4 ring, 5 little; the thumb never plays a button. One number per button, drawn as a small badge at the button's top right when the fingering toggle is on; the same finger up and down. Taken from Madrigal's method for the major keys; a natural minor shows its relative major's, which uses the same buttons. Buttons the method leaves unfingered stay blank.
+The finger that plays a button in the scale Explore shows — 2 index, 3 middle, 4 ring, 5 little; the thumb never plays a button. One number per button, drawn as a small badge at the button's top right when the fingering toggle is on; the same finger up and down. Taken from Madrigal's method: the major keys, the harmonic and melodic minors (ascending form) and the chromatic scale over the whole compass each have their own table; a natural minor shows its relative major's, which uses the same buttons. Buttons the method leaves unfingered stay blank.
 _Avoid_: finger number, digitación, digit badge
 
 **Note game**:

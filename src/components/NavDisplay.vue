@@ -51,7 +51,7 @@
           title="Fingering"
           aria-label="Fingering"
           :aria-pressed="showFingering"
-          :disabled="!hasKeyedScale"
+          :disabled="!hasFingering"
           @click.prevent="showFingering = !showFingering"
         >
           <IconFingering class="inline-block h-4 w-4 align-[-0.25em]" />
@@ -72,12 +72,18 @@ import ButtonGroup from './ButtonGroup.vue';
 import IconFingering from './icons/IconFingering.vue';
 import IconPalette from './icons/IconPalette.vue';
 
-// Short forms so the three scale buttons fit side by side.
-const scaleLabels: Record<string, string> = { major: 'maj', minor: 'min', chromatic: 'chrom' };
+// Short forms so the five scale buttons fit side by side.
+const scaleLabels: Record<string, string> = {
+  major: 'maj',
+  minor: 'min',
+  'harmonic minor': 'harm',
+  'melodic minor': 'mel',
+  chromatic: 'chrom',
+};
 
 const store = useStore();
 const { scaleType, showColors, showEnharmonics, showFingering, chordType } = storeToRefs(store);
 
-// Only major and minor scales carry fingerings.
-const hasKeyedScale = computed(() => scaleType.value === 'major' || scaleType.value === 'minor');
+// Every scale type Explore draws carries fingerings (ADR 0009).
+const hasFingering = computed(() => scaleType.value !== null);
 </script>

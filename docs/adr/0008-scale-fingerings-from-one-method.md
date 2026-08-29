@@ -19,7 +19,7 @@ The owner wants recommended fingerings on the scale buttons in Explore, from the
 
 - Deriving fingerings from a hand-position rule: the 142's four layouts have no repeating shape ("four different maps"); every published fingering is a per-key table.
 - Composing a consensus fingering across methods: right/open differs between schools note by note; a consensus is a third fingering with no source.
-- Harmonic and melodic minor tables now: Explore has no such scale types; adding them means new scale types first.
+- Harmonic and melodic minor tables now: Explore has no such scale types; adding them means new scale types first. Superseded by ADR 0009.
 
 ## Consequences
 
