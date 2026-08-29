@@ -48,7 +48,7 @@ describe('app boot persistence', () => {
   it('persists both versioned blobs on a first visit', async () => {
     await mountApp();
 
-    expect(JSON.parse(localStorage.getItem('settings')!).version).toBe(3);
+    expect(JSON.parse(localStorage.getItem('settings')!).version).toBe(4);
     expect(JSON.parse(localStorage.getItem('practice')!)).toEqual({ version: 1, items: {} });
   });
 
@@ -65,7 +65,7 @@ describe('app boot persistence', () => {
     expect('difficulty' in settings.$state).toBe(false);
     expect('locale' in settings.$state).toBe(false);
     const persisted = JSON.parse(localStorage.getItem('settings')!);
-    expect(persisted.version).toBe(3);
+    expect(persisted.version).toBe(4);
     expect('difficulty' in persisted).toBe(false);
     expect('locale' in persisted).toBe(false);
   });

@@ -14,7 +14,7 @@ const asRecord = (value: unknown): Record<string, unknown> =>
 
 export const settingsStorage: StorageSpec = {
   key: 'settings',
-  version: 3,
+  version: 4,
   migrations: {
     // v1: easy mode was removed; drop the orphaned difficulty key.
     1: ({ difficulty: _difficulty, ...rest }) => rest,
@@ -29,6 +29,8 @@ export const settingsStorage: StorageSpec = {
         practiceSetup: { ...setup, scope: scope === 'one' ? layout : { ...ALL_LAYOUTS } },
       };
     },
+    // v4: saved voicings were removed; drop the orphaned userChords key.
+    4: ({ userChords: _userChords, ...rest }) => rest,
   },
 };
 
@@ -117,25 +119,7 @@ export const useSettingsStore = defineStore('settings', () => {
   const instrument = ref('rheinische142');
   const pitchNotation = ref<'scientific' | 'helmholtz' | 'solfege' | 'staff'>('scientific');
   const noteInput = ref<NoteInput>('letters');
-  const userChords = ref<Record<string, Record<string, string[]>>>({});
   const practiceSetup = ref<PracticeSetup>(defaultPracticeSetup());
 
-  function saveUserChord(side: string, chordName: string, notes: string[]) {
-    if (!userChords.value[side]) userChords.value[side] = {};
-    userChords.value[side][chordName] = [...notes];
-  }
-
-  function resetUserChord(side: string, chordName: string) {
-    if (userChords.value[side]) delete userChords.value[side][chordName];
-  }
-
-  return {
-    instrument,
-    pitchNotation,
-    noteInput,
-    userChords,
-    practiceSetup,
-    saveUserChord,
-    resetUserChord,
-  };
+  return { instrument, pitchNotation, noteInput, practiceSetup };
 });

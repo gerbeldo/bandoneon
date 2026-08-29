@@ -2,7 +2,7 @@
   <div
     class="mx-auto flex min-h-0 w-full max-w-4xl flex-1 items-center px-2 pt-2 pb-2 sm:px-6 sm:pt-6 sm:pb-4"
   >
-    <SvgKeyboard ref="keyboardEl">
+    <SvgKeyboard>
       <!-- Scale paths before the buttons so labels always paint on top. -->
       <SvgPath
         v-for="(path, index) in scalePaths"
@@ -18,6 +18,7 @@
         :y="y"
         :tonal="tonal"
         :color="color(tonal)"
+        :finger="fingering?.[tonal]"
         @click="toggle(tonal)"
       />
     </SvgKeyboard>
@@ -27,7 +28,7 @@
   >
     <NavVariant />
     <NavTonic />
-    <NavDisplay :modified="isModified" @reset="onReset" @download="onDownload" @save="onSave" />
+    <NavDisplay />
   </div>
 </template>
 
@@ -46,29 +47,24 @@ import SvgPath from '../components/SvgPath.vue';
 import { useKeyboard } from '../composables/useKeyboard';
 import { colors } from '../data/index';
 import { useStore } from '../stores/main';
-import { useSettingsStore } from '../stores/settings';
+import { scaleFingering } from '../utils/fingering';
 
 useHead({ title: 'Bandoneon keyboard, chords and scales – Bandoneon.app' });
 
 useKeyboard();
 
-const keyboardEl = ref<typeof SvgKeyboard>();
-
 const store = useStore();
 const {
-  chordName,
   chordNotes,
   chordType,
   direction,
   keyPositions,
   scaleType,
   showColors,
+  showFingering,
   side,
   tonic,
 } = storeToRefs(store);
-
-const settings = useSettingsStore();
-const { instrument } = storeToRefs(settings);
 
 const isModified = ref(false);
 const userSelection = ref<Record<string, boolean>>({});
@@ -98,17 +94,11 @@ const scalePaths = computed(() => {
   return paths;
 });
 
-const onDownload = () => {
-  const filename =
-    `bandoneon-${instrument.value}-${side.value}-${direction.value}` +
-    (tonic.value ? '-' + tonic.value.replace('#', 's') : '') +
-    (chordType.value ? chordType.value : '') +
-    (scaleType.value ? '-' + scaleType.value : '') +
-    (isModified.value ? '-custom' : '') +
-    '.png';
-
-  keyboardEl.value?.download(filename);
-};
+const fingering = computed(() =>
+  showFingering.value && tonic.value
+    ? scaleFingering(side.value, direction.value, tonic.value, scaleType.value)
+    : undefined,
+);
 
 const resetUserSelection = () => {
   userSelection.value = {};
@@ -150,22 +140,6 @@ const toggle = (tonal: string) => {
   } else {
     userSelection.value[tonal] = true;
   }
-};
-
-const onSave = () => {
-  if (isModified.value && chordName.value) {
-    settings.saveUserChord(
-      side.value,
-      chordName.value,
-      Object.keys(userSelection.value).filter((item) => !!userSelection.value[item]),
-    );
-  }
-  resetUserSelection();
-};
-
-const onReset = () => {
-  resetUserSelection();
-  if (chordName.value) settings.resetUserChord(side.value, chordName.value);
 };
 
 onMounted(() => store.$reset());

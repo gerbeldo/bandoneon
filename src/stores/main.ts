@@ -8,6 +8,7 @@ export const useStore = defineStore('main', {
   state: () => ({
     showColors: false,
     showEnharmonics: false,
+    showFingering: false,
     side: 'right' as 'right' | 'left',
     direction: 'open' as 'open' | 'close',
     tonic: null as null | string,
@@ -24,26 +25,10 @@ export const useStore = defineStore('main', {
     },
 
     chordNotes(): string[] {
-      const settings = useSettingsStore();
-
       if (this.side && this.direction && this.chordName) {
-        if (settings.userChords[this.side] && settings.userChords[this.side][this.chordName]) {
-          return settings.userChords[this.side][this.chordName];
-        }
-
         return chords[`${this.side}-${this.direction}`][this.chordName];
       }
       return [];
-    },
-
-    isUserChord() {
-      const settings = useSettingsStore();
-
-      if (this.side && this.direction && this.chordName) {
-        if (settings.userChords[this.side] && settings.userChords[this.side][this.chordName])
-          return true;
-      }
-      return false;
     },
 
     keyPositions(state): [number, number, string][] {

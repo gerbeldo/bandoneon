@@ -1,6 +1,5 @@
 <template>
   <svg
-    ref="svgEl"
     class="keyboard"
     :viewBox="`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`"
     :width="viewBox.width"
@@ -27,53 +26,10 @@
 
 <script setup lang="ts">
 import { storeToRefs } from 'pinia';
-import { ref } from 'vue';
 
 import { useStore } from '../stores/main';
 
 const { keyboardViewBox: viewBox } = storeToRefs(useStore());
-
-const svgEl = ref();
-
-const download = (filename: string) => {
-  // https://mybyways.com/blog/convert-svg-to-png-using-your-browser
-
-  const margin = 30;
-  const canvas = document.createElement('canvas');
-  const { width } = svgEl.value.getBoundingClientRect();
-  // The rendered box can be letterboxed, so take the ratio from the viewBox.
-  const viewBox = svgEl.value.viewBox.baseVal;
-  canvas.width = (width + margin) * 2;
-  canvas.height = ((width * viewBox.height) / viewBox.width + margin) * 2;
-  const data = new XMLSerializer().serializeToString(svgEl.value);
-  const win = window.URL || window.webkitURL || window;
-  const img = new Image();
-  const blob = new Blob([data], { type: 'image/svg+xml' });
-  const url = win.createObjectURL(blob);
-
-  img.addEventListener('load', () => {
-    const context = canvas.getContext('2d');
-    if (!context) return;
-
-    context.fillStyle = 'white';
-    context.fillRect(0, 0, canvas.width, canvas.height);
-    context.drawImage(img, margin, margin, canvas.width - 2 * margin, canvas.height - 2 * margin);
-    win.revokeObjectURL(url);
-    const uri = canvas.toDataURL('image/png').replace('image/png', 'octet/stream');
-    const a = document.createElement('a');
-    document.body.append(a);
-    a.style.display = 'none';
-    a.href = uri;
-    a.download = filename;
-    a.click();
-    win.revokeObjectURL(uri);
-    a.remove();
-  });
-
-  img.src = url;
-};
-
-defineExpose({ download });
 </script>
 
 <style scoped>
