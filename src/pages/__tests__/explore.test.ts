@@ -80,5 +80,14 @@ describe('explore', () => {
       (run) => run.querySelectorAll('line').length,
     );
     expect(steps).toContain(12);
+
+    store.setScaleType('harmonic minor');
+    await nextTick();
+
+    // A harmonic minor octave is seven steps too — only the buttons differ.
+    const minorSteps = [...container.querySelectorAll('.scale-path')].map(
+      (run) => run.querySelectorAll('line').length,
+    );
+    expect(minorSteps).toContain(7);
   });
 });

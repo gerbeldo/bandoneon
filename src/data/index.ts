@@ -17,7 +17,7 @@ export const pitchNotations = <Array<'scientific' | 'helmholtz' | 'solfege' | 's
 
 export const notes = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
 
-export const scaleTypes = ['major', 'minor', 'chromatic'];
+export const scaleTypes = ['major', 'minor', 'harmonic minor', 'melodic minor', 'chromatic'];
 
 export const chordTypes = ['M', 'm', '7', 'dim', 'm7', 'M7'];
 
