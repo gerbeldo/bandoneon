@@ -5,10 +5,10 @@
     <SvgKeyboard>
       <!-- Scale paths before the buttons so labels always paint on top. -->
       <SvgPath
-        v-for="(path, index) in scalePaths"
+        v-for="(points, index) in scalePaths"
         :key="index"
         :stroke="getScaleColor(index)"
-        :d="path"
+        :points="points"
       />
       <SvgButton
         v-for="([x, y, tonal], idx) in keyPositions"
@@ -77,19 +77,19 @@ const scalePaths = computed(() => {
   if (!tonic.value || !scaleType.value) return [];
   const { intervals, empty } = Scale.get(scaleType.value);
   if (empty) return [];
-  const paths = [];
+  const paths: [number, number][][] = [];
   for (let o = -1; o < 7; o++) {
     const scaleNotes = intervals.map((i) => Note.transpose(`${tonic.value}${o}`, i));
     scaleNotes.push(`${tonic.value}${o + 1}`);
-    let pathString = '';
+    const points: [number, number][] = [];
     for (const note of scaleNotes) {
       const no = Note.get(note);
       const pos = keyPositions.value.find((v) => Note.get(v[2]).height === no.height);
       if (pos) {
-        pathString += `${pathString === '' ? 'M' : 'L'}${pos[0] + 30},${pos[1] + 30}`;
+        points.push([pos[0] + 30, pos[1] + 30]);
       }
     }
-    paths.push(pathString);
+    paths.push(points);
   }
   return paths;
 });
